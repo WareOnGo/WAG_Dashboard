@@ -164,6 +164,24 @@ WAG_Dashboard/
 - `npm run prisma:migrate` - Run database migrations
 - `npm run prisma:studio` - Open Prisma Studio (database GUI)
 
+## Testing the API
+
+### Using the Test Script
+
+A bash script is provided to test all CRUD operations:
+
+```bash
+# Make sure the server is running first
+npm run dev
+
+# In another terminal, run the test script
+./test-api.sh
+```
+
+### Using Postman
+
+Import the `postman-collection.json` file into Postman to test all endpoints interactively.
+
 ## Development
 
 ### Prisma Studio
