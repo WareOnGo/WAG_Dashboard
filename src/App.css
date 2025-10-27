@@ -1,0 +1,784 @@
+/* High contrast dark theme */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* Clean dark theme palette matching reference */
+:root {
+  --glass-primary: rgba(255, 255, 255, 0.06);
+  --glass-secondary: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-hover: rgba(255, 255, 255, 0.08);
+  --glass-active: rgba(255, 255, 255, 0.12);
+  --accent-primary: #ffffff;
+  --accent-hover: #e6e6e6;
+  --accent-light: rgba(255, 255, 255, 0.1);
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #202020;
+  --bg-card: #242424;
+  --bg-header: #1e1e1e;
+  --bg-surface: #282828;
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.05);
+  --text-primary: rgba(255, 255, 255, 0.9);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+}
+
+/* Dark theme table styling */
+.dark-table .ant-table {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+/* Table headers */
+.dark-table .ant-table-thead > tr > th {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  border-right: 1px solid var(--border-secondary);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 16px 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.dark-table .ant-table-tbody > tr > td {
+  background: transparent;
+  border-bottom: 1px solid var(--border-secondary);
+  color: var(--text-secondary);
+  padding: 16px 12px;
+  font-size: 14px;
+}
+
+.dark-table .ant-table-tbody > tr:hover > td {
+  background: var(--glass-hover);
+  color: var(--text-primary);
+}
+
+.dark-table .ant-table-tbody > tr:nth-child(even) > td {
+  background: var(--glass-secondary);
+}
+
+.dark-table .ant-table-tbody > tr:nth-child(even):hover > td {
+  background: var(--glass-hover);
+  color: var(--text-primary);
+}
+
+.dark-table .ant-table-tbody > tr.ant-table-row-selected > td {
+  background: var(--glass-active);
+}
+
+/* Right-click context menu styling */
+.ant-table-tbody > tr {
+  cursor: context-menu;
+}
+
+/* Clean scrollbar styling */
+.ant-table-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) var(--glass-secondary);
+}
+
+.ant-table-body::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.ant-table-body::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  border: none;
+}
+
+.ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.ant-table-body::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Force scrollbar to always be visible */
+.ant-table-body {
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+}
+
+.dark-table .ant-table {
+  overflow: visible !important;
+}
+
+/* Sticky pagination */
+.table-container {
+  position: relative;
+  height: calc(100vh - 300px);
+}
+
+.sticky-pagination {
+  position: sticky !important;
+  bottom: 0 !important;
+  background: var(--bg-header) !important;
+  padding: 16px 0 !important;
+  border-top: 1px solid var(--border-primary) !important;
+  z-index: 10 !important;
+  margin: 0 !important;
+}
+
+/* Dark theme pagination */
+.dark-table .ant-pagination {
+  color: var(--text-secondary);
+}
+
+.dark-table .ant-pagination .ant-pagination-item {
+  background: transparent;
+  border-color: var(--border-secondary);
+}
+
+.dark-table .ant-pagination .ant-pagination-item a {
+  color: var(--text-muted);
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover {
+  border-color: var(--border-primary);
+  background: var(--glass-hover);
+}
+
+.dark-table .ant-pagination .ant-pagination-item:hover a {
+  color: var(--text-secondary);
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active {
+  background: var(--glass-primary);
+  border-color: var(--border-primary);
+}
+
+.dark-table .ant-pagination .ant-pagination-item-active a {
+  color: var(--text-secondary);
+}
+
+.dark-table .ant-pagination .ant-pagination-prev,
+.dark-table .ant-pagination .ant-pagination-next {
+  color: var(--text-secondary);
+}
+
+.dark-table .ant-pagination .ant-pagination-prev:hover,
+.dark-table .ant-pagination .ant-pagination-next:hover {
+  color: var(--text-secondary);
+  background: var(--glass-hover);
+}
+
+.dark-table .ant-pagination .ant-pagination-options {
+  color: var(--text-secondary);
+}
+
+.dark-table .ant-pagination .ant-pagination-options .ant-select-selector {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-jump-prev,
+.dark-table .ant-pagination .ant-pagination-jump-next {
+  color: var(--text-muted);
+}
+
+.dark-table .ant-pagination .ant-pagination-jump-prev:hover,
+.dark-table .ant-pagination .ant-pagination-jump-next:hover {
+  color: var(--text-secondary);
+}
+
+/* Pagination size changer dropdown */
+.dark-table .ant-pagination .ant-pagination-options-size-changer {
+  margin-right: 8px;
+}
+
+.dark-table .ant-pagination .ant-pagination-options-size-changer .ant-select {
+  margin-right: 8px;
+}
+
+.dark-table .ant-pagination .ant-pagination-options-size-changer .ant-select-selector {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-secondary) !important;
+  min-width: 70px;
+}
+
+.dark-table .ant-pagination .ant-pagination-options-size-changer .ant-select-arrow {
+  color: var(--text-muted) !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-options-size-changer .ant-select:hover .ant-select-selector {
+  border-color: var(--border-primary) !important;
+}
+
+.dark-table .ant-pagination .ant-pagination-options-size-changer .ant-select-focused .ant-select-selector {
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+/* Dark theme for select dropdown */
+.dark-table .ant-select-selector {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.dark-table .ant-select-focused .ant-select-selector {
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+.dark-table .ant-select-arrow {
+  color: var(--text-muted) !important;
+}
+
+/* Pagination select dropdown */
+.ant-select-dropdown {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.ant-select-item {
+  color: var(--text-secondary) !important;
+  background: transparent !important;
+}
+
+.ant-select-item:hover {
+  background: var(--glass-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-select-item-option-selected {
+  background: var(--glass-active) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-select-item-option-active {
+  background: var(--glass-hover) !important;
+}
+
+/* Dark theme for empty state */
+.dark-table .ant-empty {
+  color: var(--text-muted);
+}
+
+/* Loading spinner */
+.ant-spin-dot-item {
+  background-color: var(--accent-primary);
+}
+
+/* Dark theme for modal */
+.ant-modal-content {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ant-modal-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  border-radius: 8px 8px 0 0;
+  padding: 12px 16px;
+}
+
+.ant-modal-title {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ant-modal-close-x {
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  font-size: 12px;
+}
+
+.ant-modal-close-x:hover {
+  color: var(--text-primary);
+  background: var(--glass-hover);
+  border-radius: 4px;
+}
+
+.ant-modal-footer {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  border-radius: 0 0 8px 8px;
+}
+
+.ant-modal-body {
+  padding: 8px 16px 12px 16px;
+}
+
+/* Action buttons */
+.ant-dropdown-menu {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.ant-dropdown-menu-item {
+  color: var(--text-primary);
+  padding: 8px 12px;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: var(--glass-hover);
+  color: var(--text-primary);
+}
+
+.ant-dropdown-menu-item-danger {
+  color: #ff4d4f;
+}
+
+.ant-dropdown-menu-item-danger:hover {
+  background: rgba(255, 77, 79, 0.1);
+  color: #ff4d4f;
+}
+
+.ant-dropdown-menu-item-divider {
+  background: var(--border-primary);
+}
+
+/* Actions panel specific styling */
+.ant-modal-confirm .ant-modal-content {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.ant-modal-confirm .ant-modal-header {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-secondary);
+  padding: 12px 16px;
+}
+
+.ant-modal-confirm .ant-modal-body {
+  padding: 4px 0;
+}
+
+.ant-modal-confirm .ant-modal-close-x {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.ant-modal-confirm .ant-modal-close-x:hover {
+  color: var(--text-secondary);
+  background: var(--glass-hover);
+}
+
+/* Clean button styling */
+.ant-btn {
+  border-radius: 4px;
+  font-weight: 400;
+  transition: all 0.15s ease;
+}
+
+.ant-btn-primary,
+.ant-btn-primary:focus,
+.ant-btn-primary:active {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-secondary) !important;
+  box-shadow: none !important;
+}
+
+.ant-btn-primary:hover,
+.ant-btn-primary:focus:hover,
+.ant-btn-primary:active:hover {
+  background: var(--glass-active) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+
+.ant-btn-primary:disabled,
+.ant-btn-primary:disabled:hover {
+  background: var(--glass-secondary) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-muted) !important;
+}
+
+/* Clean input styling */
+.ant-input,
+.ant-select-selector,
+.ant-input-number,
+.ant-input-number-input {
+  border-radius: 4px;
+  border-color: var(--border-secondary);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.ant-input:focus,
+.ant-select-focused .ant-select-selector,
+.ant-input-number-focused,
+.ant-input-number:hover {
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  outline: none !important;
+}
+
+.ant-input::placeholder,
+.ant-select-selection-placeholder,
+.ant-input-number-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Form labels */
+.ant-form-item-label > label {
+  color: var(--text-secondary);
+}
+
+/* TextArea styling */
+.ant-input {
+  background: var(--bg-surface);
+  border-color: var(--border-secondary);
+  color: var(--text-secondary);
+}
+
+.ant-input:focus {
+  border-color: var(--border-primary) !important;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Switch styling */
+.ant-switch {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-secondary);
+}
+
+.ant-switch-checked {
+  background: var(--accent-primary);
+}
+
+.ant-switch:hover:not(.ant-switch-disabled) {
+  background: var(--glass-hover);
+}
+
+/* InputNumber styling */
+.ant-input-number {
+  background: var(--bg-surface);
+  border-color: var(--border-secondary);
+}
+
+.ant-input-number:focus,
+.ant-input-number-focused {
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.ant-input-number-handler-wrap {
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-secondary);
+}
+
+.ant-input-number-handler {
+  color: var(--text-muted);
+  border-color: var(--border-secondary);
+}
+
+.ant-input-number-handler:hover {
+  color: var(--text-secondary);
+}
+
+/* Remove all blue focus outlines and shadows */
+.ant-input:focus,
+.ant-input-focused,
+.ant-input:hover,
+.ant-select:focus,
+.ant-select-focused,
+.ant-select:hover,
+.ant-select-selector:focus,
+.ant-select-selector:hover,
+.ant-input-number:focus,
+.ant-input-number-focused,
+.ant-input-number:hover,
+.ant-btn:focus,
+.ant-btn:hover,
+.ant-switch:focus,
+.ant-switch:hover {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Ensure consistent border colors without blue */
+.ant-select-focused .ant-select-selector,
+.ant-select:hover .ant-select-selector {
+  border-color: var(--border-primary) !important;
+  box-shadow: none !important;
+}
+
+.ant-switch:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.ant-switch-checked:focus {
+  box-shadow: none !important;
+}
+
+/* Progress bar */
+.ant-progress-bg {
+  background: var(--accent-primary);
+}
+
+/* Card styling */
+.ant-card {
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+}
+
+.ant-card-small .ant-card-body {
+  padding: 16px;
+}
+
+.ant-card-actions {
+  background: var(--glass-primary);
+  border-top: 1px solid var(--border-primary);
+}
+
+.ant-card-actions > li {
+  color: var(--text-secondary);
+}
+
+.ant-card-actions > li:hover {
+  color: var(--accent-hover);
+}
+
+/* Enhanced image preview */
+.ant-image {
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ant-image-img {
+  transition: transform 0.2s ease;
+}
+
+.ant-image:hover .ant-image-img {
+  transform: scale(1.05);
+}
+
+/* Tag improvements */
+.ant-tag {
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+}
+
+/* Remove excessive shadows and effects */
+.ant-card,
+.ant-btn,
+.ant-input,
+.ant-select-selector {
+  box-shadow: none;
+}
+
+/* Slider styling */
+.ant-slider-rail {
+  background: var(--border-primary);
+}
+
+.ant-slider-track {
+  background: var(--accent-primary);
+}
+
+.ant-slider-handle {
+  border-color: var(--accent-primary);
+  background: var(--bg-surface);
+}
+
+.ant-slider-handle:hover {
+  border-color: var(--accent-hover);
+  background: var(--glass-hover);
+}
+
+.ant-slider-handle:focus {
+  border-color: var(--accent-hover);
+  box-shadow: none;
+}
+
+/* Glass-like navbar menu styling */
+.ant-menu-horizontal {
+  background: transparent !important;
+  border-bottom: none !important;
+}
+
+.ant-menu-horizontal .ant-menu-item {
+  color: var(--text-secondary) !important;
+  border-bottom: 2px solid transparent !important;
+  margin: 0 8px !important;
+  padding: 0 16px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+}
+
+.ant-menu-horizontal .ant-menu-item:hover {
+  color: var(--text-primary) !important;
+  background: var(--glass-secondary) !important;
+  border-radius: 6px !important;
+}
+
+.ant-menu-horizontal .ant-menu-item-selected {
+  color: var(--text-primary) !important;
+  border-bottom: 2px solid var(--border-primary) !important;
+  background: var(--glass-primary) !important;
+  border-radius: 6px 6px 0 0 !important;
+}
+
+.ant-menu-horizontal .ant-menu-item-disabled {
+  color: var(--text-muted) !important;
+}
+
+.ant-menu-horizontal .ant-menu-item-disabled:hover {
+  color: var(--text-muted) !important;
+  background: transparent !important;
+}
+
+/* Header button styling */
+.ant-btn-text {
+  color: var(--text-secondary) !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.ant-btn-text:hover:not(:disabled) {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.ant-btn-text:disabled {
+  color: var(--text-muted) !important;
+  background: transparent !important;
+}
+
+/* Clean navbar button styling */
+.ant-btn-text {
+  color: var(--text-secondary) !important;
+  border: none !important;
+  background: transparent !important;
+  height: auto !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  transition: color 0.15s ease !important;
+}
+
+.ant-btn-text:hover {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.ant-btn-text:active {
+  background: transparent !important;
+}
+
+/* Company name link styling */
+a:hover .ant-typography {
+  color: var(--text-primary) !important;
+}
+
+/* Header layout styling */
+.ant-layout-header {
+  box-shadow: none !important;
+}
+
+.ant-layout-header .ant-btn-text {
+  color: var(--text-muted) !important;
+  border: none !important;
+  background: transparent !important;
+  height: 32px !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease !important;
+  font-weight: 400 !important;
+  font-size: 13px !important;
+}
+
+.ant-layout-header .ant-btn-text:hover {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.ant-layout-header .ant-btn-text:active {
+  background: transparent !important;
+}
+
+/* Company name styling */
+.ant-layout-header a {
+  transition: all 0.15s ease;
+}
+
+.ant-layout-header a:hover .ant-typography {
+  color: var(--text-primary) !important;
+}
+
+/* Clean navbar button styling */
+.navbar-btn {
+  color: var(--text-muted) !important;
+  border: none !important;
+  background: transparent !important;
+  height: 32px !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  transition: color 0.15s ease !important;
+  font-weight: 400 !important;
+  font-size: 13px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.navbar-btn:hover {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+}
+
+.navbar-btn:active {
+  background: transparent !important;
+}
+
+/* Clean user profile styling */
+.user-profile {
+  transition: color 0.15s ease !important;
+  border-radius: 4px !important;
+}
+
+.user-profile:hover {
+  background: transparent !important;
+}
+
+.user-profile:hover span {
+  color: var(--text-primary) !important;
+}
+
+.user-profile:hover .anticon {
+  color: var(--text-secondary) !important;
+}
