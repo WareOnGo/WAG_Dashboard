@@ -15,6 +15,9 @@ import {
   Slider,
   Tag
 } from 'antd';
+
+const { Option } = Select;
+
 import { 
   PlusOutlined, 
   EditOutlined, 
@@ -57,6 +60,7 @@ const Dashboard = () => {
   const [fireNocFilter, setFireNocFilter] = useState('');
   const [selectedLandType, setSelectedLandType] = useState('');
   const [selectedUploadedBy, setSelectedUploadedBy] = useState('');
+  const [selectedVisibility, setSelectedVisibility] = useState('');
   const [areaRange, setAreaRange] = useState([0, 100000]);
   const [budgetRange, setBudgetRange] = useState([0, 1000]);
   
@@ -74,6 +78,10 @@ const Dashboard = () => {
     y: 0,
     record: null
   });
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   
   // Get modal instance from App context
   const { modal } = App.useApp();
@@ -174,10 +182,12 @@ const Dashboard = () => {
     if (fireNocFilter) {
       filtered = filtered.filter(warehouse => {
         const fireNoc = warehouse.WarehouseData?.fireNocAvailable || warehouse.warehouseData?.fireNocAvailable;
-        const fireNocText = fireNoc ? 'yes' : 'no';
-        return fireNocText.includes(fireNocFilter.toLowerCase()) || 
-               (fireNoc && fireNocFilter.toLowerCase().includes('available')) ||
-               (!fireNoc && fireNocFilter.toLowerCase().includes('not'));
+        if (fireNocFilter === 'available') {
+          return fireNoc === true;
+        } else if (fireNocFilter === 'not_available') {
+          return fireNoc === false || fireNoc === null || fireNoc === undefined;
+        }
+        return true;
       });
     }
 
@@ -194,6 +204,18 @@ const Dashboard = () => {
       filtered = filtered.filter(warehouse => 
         warehouse.uploadedBy?.toLowerCase().includes(selectedUploadedBy.toLowerCase())
       );
+    }
+
+    // Apply visibility filter
+    if (selectedVisibility) {
+      filtered = filtered.filter(warehouse => {
+        if (selectedVisibility === 'visible') {
+          return warehouse.visibility === true;
+        } else if (selectedVisibility === 'hidden') {
+          return warehouse.visibility === false;
+        }
+        return true;
+      });
     }
 
     // Apply area range filter
@@ -215,7 +237,7 @@ const Dashboard = () => {
     }
 
     setFilteredWarehouses(filtered);
-  }, [warehouses, searchText, selectedOwnerType, selectedType, selectedCity, selectedState, selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType, selectedUploadedBy, areaRange, budgetRange]);
+  }, [warehouses, searchText, selectedOwnerType, selectedType, selectedCity, selectedState, selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType, selectedUploadedBy, selectedVisibility, areaRange, budgetRange]);
 
   const clearFilters = () => {
     setSearchText('');
@@ -229,6 +251,7 @@ const Dashboard = () => {
     setFireNocFilter('');
     setSelectedLandType('');
     setSelectedUploadedBy('');
+    setSelectedVisibility('');
     setAreaRange([0, 100000]);
     setBudgetRange([0, 1000]);
   };
@@ -649,6 +672,16 @@ const Dashboard = () => {
       render: (_, record) => renderPhotoCount(record.photos),
     },
     {
+      title: 'Visibility',
+      dataIndex: 'visibility',
+      key: 'visibility',
+      width: 90,
+      align: 'center',
+      render: (visible) => (
+        <span>{visible ? 'Visible' : 'Hidden'}</span>
+      ),
+    },
+    {
       title: 'Uploaded By',
       dataIndex: 'uploadedBy',
       key: 'uploadedBy',
@@ -771,12 +804,19 @@ const Dashboard = () => {
                 <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
                   Zone
                 </div>
-                <Input
-                  placeholder="Filter by zone"
-                  value={selectedZone}
-                  onChange={(e) => setSelectedZone(e.target.value)}
+                <Select
+                  placeholder="Select zone"
+                  value={selectedZone || undefined}
+                  onChange={setSelectedZone}
                   allowClear
-                />
+                  style={{ width: '100%' }}
+                >
+                  <Option value="NORTH">North</Option>
+                  <Option value="SOUTH">South</Option>
+                  <Option value="EAST">East</Option>
+                  <Option value="WEST">West</Option>
+                  <Option value="CENTRAL">Central</Option>
+                </Select>
               </Col>
 
               <Col xs={24} sm={12} md={8} lg={6}>
@@ -795,24 +835,32 @@ const Dashboard = () => {
                 <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
                   Broker Status
                 </div>
-                <Input
-                  placeholder="Filter by broker status"
-                  value={selectedBroker}
-                  onChange={(e) => setSelectedBroker(e.target.value)}
+                <Select
+                  placeholder="Select broker status"
+                  value={selectedBroker || undefined}
+                  onChange={setSelectedBroker}
                   allowClear
-                />
+                  style={{ width: '100%' }}
+                >
+                  <Option value="y">Y</Option>
+                  <Option value="n">N</Option>
+                </Select>
               </Col>
 
               <Col xs={24} sm={12} md={8} lg={6}>
                 <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
                   Fire NOC
                 </div>
-                <Input
-                  placeholder="Filter by Fire NOC"
-                  value={fireNocFilter}
-                  onChange={(e) => setFireNocFilter(e.target.value)}
+                <Select
+                  placeholder="Select Fire NOC status"
+                  value={fireNocFilter || undefined}
+                  onChange={setFireNocFilter}
                   allowClear
-                />
+                  style={{ width: '100%' }}
+                >
+                  <Option value="available">Available</Option>
+                  <Option value="not_available">Not Available</Option>
+                </Select>
               </Col>
 
               <Col xs={24} sm={12} md={8} lg={6}>
@@ -882,6 +930,22 @@ const Dashboard = () => {
               </Col>
 
               <Col xs={24} sm={12} md={8} lg={6}>
+                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                  Visibility
+                </div>
+                <Select
+                  placeholder="Select visibility"
+                  value={selectedVisibility || undefined}
+                  onChange={setSelectedVisibility}
+                  allowClear
+                  style={{ width: '100%' }}
+                >
+                  <Option value="visible">Visible</Option>
+                  <Option value="hidden">Hidden</Option>
+                </Select>
+              </Col>
+
+              <Col xs={24} sm={12} md={8} lg={6}>
                 <Button
                   onClick={clearFilters}
                   style={{ marginTop: '20px' }}
@@ -924,15 +988,23 @@ const Dashboard = () => {
                 style: { cursor: 'context-menu' }
               })}
               pagination={{
-                pageSize: 10,
+                current: currentPage,
+                pageSize: pageSize,
                 showSizeChanger: true,
                 showQuickJumper: true,
                 pageSizeOptions: ['10', '20', '50', '100'],
                 showTotal: (total, range) => 
                   `${range[0]}-${range[1]} of ${total} warehouses`,
                 position: ['bottomCenter'],
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  if (size !== pageSize) {
+                    setPageSize(size);
+                  }
+                },
                 onShowSizeChange: (current, size) => {
-                  // This handler ensures the pagination dropdown works properly
+                  setCurrentPage(1); // Reset to first page when changing page size
+                  setPageSize(size);
                   console.log('Page size changed to:', size);
                 },
                 style: {
@@ -1031,6 +1103,15 @@ const Dashboard = () => {
               
               <Col xs={24} sm={12}>
                 <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>WAREHOUSE OWNER TYPE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.warehouseOwnerType || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
                   <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>WAREHOUSE TYPE</Text>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
                     {selectedWarehouse.warehouseType}
@@ -1043,6 +1124,15 @@ const Dashboard = () => {
                   <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>ZONE</Text>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
                     {selectedWarehouse.zone}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>VISIBILITY</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.visibility ? 'Visible' : 'Hidden'}
                   </div>
                 </div>
               </Col>
@@ -1077,6 +1167,28 @@ const Dashboard = () => {
                   <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>STATE</Text>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
                     {selectedWarehouse.state}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>POSTAL CODE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.postalCode || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>GOOGLE LOCATION</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.googleLocation ? (
+                      <a href={selectedWarehouse.googleLocation} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)' }}>
+                        View on Google Maps
+                      </a>
+                    ) : '-'}
                   </div>
                 </div>
               </Col>
@@ -1118,8 +1230,17 @@ const Dashboard = () => {
                   <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>TOTAL SPACE</Text>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
                     {Array.isArray(selectedWarehouse.totalSpaceSqft) 
-                      ? selectedWarehouse.totalSpaceSqft[0]?.toLocaleString() 
-                      : selectedWarehouse.totalSpaceSqft?.toLocaleString()} sq ft
+                      ? `[${selectedWarehouse.totalSpaceSqft.join(', ')}] sq ft`
+                      : `${selectedWarehouse.totalSpaceSqft?.toLocaleString()} sq ft`}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={8}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>OFFERED SPACE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.offeredSpaceSqft || '-'}
                   </div>
                 </div>
               </Col>
@@ -1135,11 +1256,45 @@ const Dashboard = () => {
 
               <Col xs={24} sm={8}>
                 <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>FIRE NOC</Text>
-                  <div style={{ fontSize: '14px', fontWeight: 500 }}>
-                    <span>
-                      {(selectedWarehouse.WarehouseData?.fireNocAvailable || selectedWarehouse.warehouseData?.fireNocAvailable) ? 'Available' : 'Not Available'}
-                    </span>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>NUMBER OF DOCKS</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.numberOfDocks || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={8}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>CLEAR HEIGHT</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.clearHeightFt || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={8}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>AVAILABILITY</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.availability || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={8}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>IS BROKER</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.isBroker || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>OTHER SPECIFICATIONS</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {selectedWarehouse.otherSpecifications || '-'}
                   </div>
                 </div>
               </Col>
@@ -1169,6 +1324,91 @@ const Dashboard = () => {
                     {(selectedWarehouse.WarehouseData?.longitude || selectedWarehouse.warehouseData?.longitude)
                       ? parseFloat(selectedWarehouse.WarehouseData?.longitude || selectedWarehouse.warehouseData?.longitude).toFixed(6)
                       : '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>FIRE NOC AVAILABLE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.fireNocAvailable || selectedWarehouse.warehouseData?.fireNocAvailable) ? 'Yes' : 'No'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>FIRE SAFETY MEASURES</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.fireSafetyMeasures || selectedWarehouse.warehouseData?.fireSafetyMeasures) || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>LAND TYPE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.landType || selectedWarehouse.warehouseData?.landType) || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>APPROACH ROAD WIDTH</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.approachRoadWidth || selectedWarehouse.warehouseData?.approachRoadWidth) 
+                      ? `${selectedWarehouse.WarehouseData?.approachRoadWidth || selectedWarehouse.warehouseData?.approachRoadWidth} ft` 
+                      : '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>POWER (KVA)</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.powerKva || selectedWarehouse.warehouseData?.powerKva) 
+                      ? `${selectedWarehouse.WarehouseData?.powerKva || selectedWarehouse.warehouseData?.powerKva} KVA` 
+                      : '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>POLLUTION ZONE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.pollutionZone || selectedWarehouse.warehouseData?.pollutionZone) || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>VAASTU COMPLIANCE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.vaastuCompliance || selectedWarehouse.warehouseData?.vaastuCompliance) || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24} sm={12}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>DIMENSIONS</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.dimensions || selectedWarehouse.warehouseData?.dimensions) || '-'}
+                  </div>
+                </div>
+              </Col>
+
+              <Col xs={24}>
+                <div style={{ marginBottom: '12px' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>PARKING & DOCKING SPACE</Text>
+                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
+                    {(selectedWarehouse.WarehouseData?.parkingDockingSpace || selectedWarehouse.warehouseData?.parkingDockingSpace) || '-'}
                   </div>
                 </div>
               </Col>

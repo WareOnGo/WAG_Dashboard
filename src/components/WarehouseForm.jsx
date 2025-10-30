@@ -63,6 +63,7 @@ const WarehouseForm = ({
           ratePerSqft: initialData.ratePerSqft,
           availability: initialData.availability,
           uploadedBy: initialData.uploadedBy,
+          visibility: initialData.visibility !== undefined ? initialData.visibility : true,
           isBroker: initialData.isBroker,
           photos: initialData.photos,
 
@@ -117,6 +118,7 @@ const WarehouseForm = ({
         ratePerSqft: values.ratePerSqft,
         availability: values.availability || null,
         uploadedBy: values.uploadedBy,
+        visibility: values.visibility !== undefined ? values.visibility : true,
         isBroker: values.isBroker || null,
         photos: values.photos || null,
 
@@ -527,6 +529,20 @@ const WarehouseForm = ({
             </Row>
 
             <Row gutter={16}>
+              <Col xs={24} sm={12}>
+                <Form.Item
+                  name="visibility"
+                  label={<span style={{ color: 'var(--text-secondary)' }}>Visibility</span>}
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="Visible"
+                    unCheckedChildren="Hidden"
+                    defaultChecked={true}
+                  />
+                </Form.Item>
+              </Col>
+
               <Col xs={24} sm={12}>
                 <Form.Item
                   name="compliances"
