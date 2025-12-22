@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Upload, Button, Progress, Typography, Space, Image, Card, Row, Col } from 'antd';
 import { UploadOutlined, DeleteOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
-import { 
-  handleUploadError, 
-  showSuccessMessage, 
-  showErrorMessage 
-} from '../utils/errorHandler';
+import { useErrorHandler } from '../hooks/useErrorHandler';
 
 const { Text } = Typography;
 
@@ -21,6 +17,8 @@ const FileUpload = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [imageUrls, setImageUrls] = useState([]);
+  
+  const { handleUploadError, showSuccessMessage, showErrorMessage } = useErrorHandler();
 
   // Parse existing value into array of URLs
   useEffect(() => {
@@ -161,7 +159,7 @@ const FileUpload = ({
                     background: '#262626',
                     border: '1px solid #303030'
                   }}
-                  bodyStyle={{ padding: '8px' }}
+                  styles={{ body: { padding: '8px' } }}
                   actions={[
                     <EyeOutlined 
                       key="view" 

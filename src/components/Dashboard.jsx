@@ -104,8 +104,10 @@ const Dashboard = () => {
           onError: (errorInfo) => setError(errorInfo.message)
         }
       );
-      setWarehouses(data);
-      setFilteredWarehouses(data);
+      // Ensure data is always an array
+      const warehouseData = Array.isArray(data) ? data : [];
+      setWarehouses(warehouseData);
+      setFilteredWarehouses(warehouseData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -981,7 +983,7 @@ const Dashboard = () => {
           <Spin spinning={loading} tip="Loading warehouses...">
             <Table
               columns={columns}
-              dataSource={filteredWarehouses}
+              dataSource={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
               rowKey="id"
               onRow={(record) => ({
                 onContextMenu: (event) => handleRowContextMenu(record, event),
