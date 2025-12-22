@@ -3,6 +3,8 @@ import { message, notification } from 'antd';
 /**
  * Centralized error handling utility for the warehouse dashboard
  * Provides consistent error display and messaging across the application
+ * 
+ * Note: For components, prefer using the useErrorHandler hook for better context support
  */
 
 /**
