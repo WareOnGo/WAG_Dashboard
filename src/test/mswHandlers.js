@@ -62,7 +62,7 @@ export const handlers = [
 
   // POST /warehouses/presigned-url - Get presigned URL for file upload
   http.post(`${API_BASE_URL}/warehouses/presigned-url`, async ({ request }) => {
-    const { contentType } = await request.json();
+    const { contentType: _contentType } = await request.json();
     
     return HttpResponse.json({
       uploadUrl: 'https://mock-r2-bucket.com/upload-url',

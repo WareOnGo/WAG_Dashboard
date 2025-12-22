@@ -16,8 +16,6 @@ import {
 import { SaveOutlined, CloseOutlined, PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import {
-  handleOperationError,
-  showSuccessMessage,
   clearErrors
 } from '../utils/errorHandler';
 

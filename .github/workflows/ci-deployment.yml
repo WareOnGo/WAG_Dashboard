@@ -1,0 +1,77 @@
+name: CI + Deployment
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.21.1'
+        cache: 'npm'
+        
+    - name: Verify Node.js version
+      run: node --version
+        
+    - name: Install Dependencies
+      run: npm ci
+      
+    # 🔍 NEW STEP: Run Linting
+    - name: Run Lint
+      run: npm run lint
+      
+    # 🧪 NEW STEP: Run Tests
+    # If this fails, the workflow stops here and will NOT deploy.
+    - name: Run Tests
+      run: npm test
+      env:
+        CI: true # Crucial: Forces the test runner to run once and exit (no watch mode)
+        
+    # 🏗️ Build Step
+    - name: Build
+      run: npm run build
+      env:
+        CI: false # Optional: Prevents the build from failing just because of warnings
+        # 👇 Inject the API URL from GitHub secrets - this gets "baked" into the static files
+        VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        
+    # 🔍 Debug: Verify the built files contain the correct API URL
+    - name: Verify API URL in built files
+      run: |
+        echo "Checking if API URL was properly injected..."
+        echo "Environment variable VITE_API_BASE_URL: $VITE_API_BASE_URL"
+        echo "Searching for API URL in built files..."
+        find dist/ -name "*.js" -exec grep -l "u3yrpp3726.ap-south-1.awsapprunner.com" {} \; || echo "⚠️  API URL not found in built files - check GitHub secret!"
+        echo "Searching for any API references..."
+        find dist/ -name "*.js" -exec grep -l "api" {} \; | head -3
+        echo "Checking if environment variable is in built files..."
+        find dist/ -name "*.js" -exec grep -l "VITE_API_BASE_URL" {} \; || echo "Environment variable not found in built files"
+      env:
+        VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        
+    # 🚀 Deploy Step
+    - name: Deploy to S3
+      # Using 'dist/' for Vite build output
+      run: |
+        aws s3 sync dist/ s3://${{ secrets.AWS_S3_BUCKET }} --delete
+        
+    - name: Invalidate CloudFront
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} \
+          --paths "/*"

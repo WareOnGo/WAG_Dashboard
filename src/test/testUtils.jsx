@@ -9,7 +9,7 @@ import { App, ConfigProvider, theme } from 'antd';
  * @returns {Object} - Render result with additional utilities
  */
 export function renderWithProviders(ui, options = {}) {
-  const { initialProps = {}, ...renderOptions } = options;
+  const { initialProps: _initialProps = {}, ...renderOptions } = options;
 
   function Wrapper({ children }) {
     return (

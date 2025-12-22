@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders, createMockFormData } from '../../test/testUtils';
+import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouse } from '../../test/mockData';
 import WarehouseForm from '../WarehouseForm';
 

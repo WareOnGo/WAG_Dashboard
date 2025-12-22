@@ -31,7 +31,6 @@ import {
 import { warehouseService } from '../services/warehouseService';
 import { WarehouseForm, ContextMenu } from './index';
 import { 
-  handleOperationError, 
   showSuccessMessage, 
   withRetry,
   clearErrors 
@@ -290,7 +289,7 @@ const Dashboard = () => {
           // Update local state after successful deletion
           setWarehouses(prev => prev.filter(w => w.id !== warehouse.id));
           showSuccessMessage('delete');
-        } catch (err) {
+        } catch {
           // Error already handled by withRetry
         }
       },
