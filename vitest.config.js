@@ -8,6 +8,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.js', './src/test/mswServer.js'],
     css: true,
+    env: {
+      VITE_API_BASE_URL: 'http://localhost:3001/api'
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

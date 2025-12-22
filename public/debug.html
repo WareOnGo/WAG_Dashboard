@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug - API Configuration</title>
+</head>
+<body>
+    <h1>Debug Information</h1>
+    <p>This page helps verify if the API URL was properly injected during build.</p>
+    <p>Check the browser console for API_BASE_URL value.</p>
+    <script type="module">
+        // This will show the actual API URL being used
+        // Note: In production, we need to use the actual built file path
+        // For now, let's just show the environment variable directly
+        const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://u3yrpp3726.ap-south-1.awsapprunner.com/api';
+        console.log('API_BASE_URL from env:', apiUrl);
+        document.body.innerHTML += `<p><strong>API_BASE_URL:</strong> ${apiUrl}</p>`;
+        document.body.innerHTML += `<p><strong>Environment:</strong> ${import.meta.env.MODE}</p>`;
+    </script>
+</body>
+</html>

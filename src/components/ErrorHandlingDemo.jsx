@@ -2,7 +2,6 @@ import React from 'react';
 import { Button, Space, Card, Typography } from 'antd';
 import { 
   showErrorMessage, 
-  showErrorNotification, 
   handleOperationError,
   showSuccessMessage,
   ERROR_TYPES 
@@ -70,7 +69,7 @@ const ErrorHandlingDemo = () => {
   };
 
   const demoUploadError = () => {
-    const mockError = {
+    const MOCK_ERROR = {
       response: {
         status: 413,
         data: { error: 'File too large' }

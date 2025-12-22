@@ -11,8 +11,7 @@ const FileUpload = ({
   onChange, 
   disabled = false,
   maxSize = 5, // Max size in MB
-  accept = 'image/*',
-  multiple = true
+  accept = 'image/*'
 }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
