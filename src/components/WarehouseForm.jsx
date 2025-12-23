@@ -61,7 +61,7 @@ const WarehouseForm = ({
           ratePerSqft: initialData.ratePerSqft,
           availability: initialData.availability,
           uploadedBy: initialData.uploadedBy,
-          visibility: initialData.visibility !== undefined ? initialData.visibility : true,
+          visibility: initialData.visibility === true || initialData.visibility === 'true' || initialData.visibility === 1,
           isBroker: initialData.isBroker,
           photos: initialData.photos,
 
@@ -92,6 +92,9 @@ const WarehouseForm = ({
     setSubmitting(true);
 
     try {
+      console.log('Form values received:', values);
+      console.log('Form values JSON:', JSON.stringify(values, null, 2));
+      
       // Format payload with nested warehouseData structure
       const payload = {
         // Main warehouse fields
@@ -116,7 +119,7 @@ const WarehouseForm = ({
         ratePerSqft: values.ratePerSqft,
         availability: values.availability || null,
         uploadedBy: values.uploadedBy,
-        visibility: values.visibility !== undefined ? values.visibility : true,
+        visibility: Boolean(values.visibility),
         isBroker: values.isBroker || null,
         photos: values.photos || null,
 
@@ -161,8 +164,8 @@ const WarehouseForm = ({
     required: { required: true, message: 'This field is required' },
     email: { type: 'email', message: 'Please enter a valid email' },
     phone: {
-      pattern: /^[0-9]{10}$/,
-      message: 'Please enter a valid 10-digit phone number'
+      pattern: /^[\+]?[0-9\s\-\(\)]{10,15}$/,
+      message: 'Please enter a valid phone number (10-15 digits, may include country code)'
     },
     number: {
       type: 'number',

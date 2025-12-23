@@ -210,10 +210,13 @@ const Dashboard = () => {
     // Apply visibility filter
     if (selectedVisibility) {
       filtered = filtered.filter(warehouse => {
+        // Handle different data types for visibility
+        const isVisible = warehouse.visibility === true || warehouse.visibility === 'true' || warehouse.visibility === 1;
+        
         if (selectedVisibility === 'visible') {
-          return warehouse.visibility === true;
+          return isVisible;
         } else if (selectedVisibility === 'hidden') {
-          return warehouse.visibility === false;
+          return !isVisible;
         }
         return true;
       });
@@ -352,8 +355,16 @@ const Dashboard = () => {
               );
               
               // Update local state with updated warehouse
+              // Ensure the updated warehouse has all necessary fields
+              const updatedWarehouse = {
+                ...editingWarehouse, // Keep original data as fallback
+                ...result, // Override with API response
+                // Ensure visibility is properly set - use the value we sent if API doesn't return it
+                visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(formData.visibility)
+              };
+              
               setWarehouses(prev => 
-                prev.map(w => w.id === editingWarehouse.id ? result : w)
+                prev.map(w => w.id === editingWarehouse.id ? updatedWarehouse : w)
               );
             } else {
               // Create new warehouse
@@ -372,6 +383,12 @@ const Dashboard = () => {
             // Close form and reset state
             setFormVisible(false);
             setEditingWarehouse(null);
+            
+            // Force refresh of filtered warehouses to ensure UI updates
+            setTimeout(() => {
+              setFilteredWarehouses(prev => [...prev]);
+            }, 100);
+            
             showSuccessMessage(operationType);
             resolve(result);
             
@@ -678,9 +695,14 @@ const Dashboard = () => {
       key: 'visibility',
       width: 90,
       align: 'center',
-      render: (visible) => (
-        <span>{visible ? 'Visible' : 'Hidden'}</span>
-      ),
+      render: (visible, record) => {
+        // Handle different data types for visibility
+        const isVisible = visible === true || visible === 'true' || visible === 1;
+        
+        return (
+          <span>{isVisible ? 'Visible' : 'Hidden'}</span>
+        );
+      },
     },
     {
       title: 'Uploaded By',
@@ -1133,7 +1155,7 @@ const Dashboard = () => {
                 <div style={{ marginBottom: '12px' }}>
                   <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>VISIBILITY</Text>
                   <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.visibility ? 'Visible' : 'Hidden'}
+                    {(selectedWarehouse.visibility === true || selectedWarehouse.visibility === 'true' || selectedWarehouse.visibility === 1) ? 'Visible' : 'Hidden'}
                   </div>
                 </div>
               </Col>
