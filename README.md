@@ -38,3 +38,4 @@ The CI pipeline will automatically:
 - Block merging if tests fail
 - Generate coverage reports and upload as artifacts
 - Comment on PRs with coverage information
+# Force rebuild
