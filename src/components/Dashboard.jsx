@@ -695,7 +695,7 @@ const Dashboard = () => {
       key: 'visibility',
       width: 90,
       align: 'center',
-      render: (visible, record) => {
+      render: (visible) => {
         // Handle different data types for visibility
         const isVisible = visible === true || visible === 'true' || visible === 1;
         

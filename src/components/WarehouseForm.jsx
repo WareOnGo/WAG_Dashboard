@@ -164,7 +164,7 @@ const WarehouseForm = ({
     required: { required: true, message: 'This field is required' },
     email: { type: 'email', message: 'Please enter a valid email' },
     phone: {
-      pattern: /^[\+]?[0-9\s\-\(\)]{10,15}$/,
+      pattern: /^[+]?[0-9\s\-()]{10,15}$/,
       message: 'Please enter a valid phone number (10-15 digits, may include country code)'
     },
     number: {
