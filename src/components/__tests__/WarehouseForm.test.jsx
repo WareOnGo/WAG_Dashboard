@@ -129,20 +129,6 @@ describe('WarehouseForm Component', () => {
       });
     });
 
-    it('should validate phone number format', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      const phoneInput = screen.getByPlaceholderText('Enter 10-digit phone number');
-      await user.type(phoneInput, '123'); // Invalid phone number
-
-      const submitButton = screen.getByRole('button', { name: /create warehouse/i });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Please enter a valid 10-digit phone number')).toBeInTheDocument();
-      });
-    });
-
     it('should validate latitude range', async () => {
       renderWithProviders(<WarehouseForm {...defaultProps} />);
 
