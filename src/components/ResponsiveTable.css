@@ -1,0 +1,256 @@
+/* ResponsiveTable.css - Mobile-optimized table styling */
+
+.responsive-table {
+  position: relative;
+  width: 100%;
+}
+
+/* Mobile-specific table optimizations */
+.responsive-table--mobile {
+  /* Enable momentum scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+}
+
+.responsive-table--mobile .ant-table {
+  /* Ensure table takes full width */
+  min-width: 100%;
+}
+
+.responsive-table--mobile .ant-table-thead > tr > th {
+  /* Sticky headers for mobile */
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-header);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-primary);
+  
+  /* Ensure minimum touch target size */
+  min-height: 44px;
+  padding: 12px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.responsive-table--mobile .ant-table-tbody > tr > td {
+  /* Optimize cell padding for mobile */
+  padding: 12px 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  
+  /* Ensure minimum touch target height */
+  min-height: 44px;
+  vertical-align: middle;
+}
+
+/* Mobile cell content optimization */
+.mobile-cell-content {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile scroll hint */
+.mobile-scroll-hint {
+  display: none;
+  text-align: center;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  animation: fadeInOut 3s ease-in-out;
+}
+
+.responsive-table--mobile .mobile-scroll-hint {
+  display: block;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Scroll shadow indicators */
+.scroll-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.scroll-shadow--left {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.3), transparent);
+}
+
+.scroll-shadow--right {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.3), transparent);
+}
+
+.responsive-table--scrolling .scroll-shadow {
+  opacity: 1;
+}
+
+/* Table body scrolling optimizations */
+.responsive-table--mobile .ant-table-body {
+  /* Enable smooth scrolling */
+  scroll-behavior: smooth;
+  
+  /* Optimize touch scrolling */
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  
+  /* Hide scrollbar on mobile for cleaner look */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.responsive-table--mobile .ant-table-body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tablet optimizations */
+.responsive-table--tablet .ant-table-thead > tr > th {
+  padding: 14px 12px;
+  font-size: 13px;
+}
+
+.responsive-table--tablet .ant-table-tbody > tr > td {
+  padding: 14px 12px;
+  font-size: 14px;
+}
+
+/* Enhanced row hover effects for touch devices */
+.responsive-table--mobile .ant-table-tbody > tr:hover > td,
+.responsive-table--tablet .ant-table-tbody > tr:hover > td {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+  transition: background-color 0.2s ease;
+}
+
+/* Pagination optimizations for mobile */
+.responsive-table--mobile .ant-pagination {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.responsive-table--mobile .ant-pagination-item,
+.responsive-table--mobile .ant-pagination-prev,
+.responsive-table--mobile .ant-pagination-next {
+  /* Ensure minimum touch target size */
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 42px;
+  margin: 0 2px;
+}
+
+.responsive-table--mobile .ant-pagination-item a {
+  line-height: 42px;
+}
+
+/* Loading state optimizations */
+.responsive-table--mobile .ant-spin-container {
+  min-height: 200px;
+}
+
+/* Context menu positioning for mobile */
+.responsive-table--mobile .ant-table-tbody > tr {
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Accessibility improvements */
+.responsive-table--mobile .ant-table-thead > tr > th[aria-sort] {
+  /* Visual indicator for sortable columns */
+  position: relative;
+}
+
+.responsive-table--mobile .ant-table-thead > tr > th[aria-sort]::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid rgba(255, 255, 255, 0.45);
+}
+
+/* Performance optimizations */
+.responsive-table--mobile .ant-table-tbody {
+  /* Enable hardware acceleration */
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* Dark theme specific adjustments */
+.responsive-table .ant-table {
+  background: transparent;
+}
+
+.responsive-table .ant-table-thead > tr > th {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-primary);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.responsive-table .ant-table-tbody > tr > td {
+  background: transparent;
+  border-bottom: 1px solid var(--border-secondary);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.responsive-table .ant-table-tbody > tr:hover > td {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Empty state styling */
+.responsive-table .ant-empty {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.responsive-table .ant-empty-description {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Media queries for fine-tuning */
+@media (max-width: 480px) {
+  .responsive-table--mobile .ant-table-thead > tr > th {
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+  
+  .responsive-table--mobile .ant-table-tbody > tr > td {
+    padding: 10px 6px;
+    font-size: 12px;
+  }
+  
+  .mobile-scroll-hint {
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .responsive-table--mobile .ant-table-thead > tr > th {
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+  
+  .responsive-table--mobile .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+}

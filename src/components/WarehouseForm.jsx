@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Form,
   Input,
@@ -8,20 +8,25 @@ import {
   Button,
   Row,
   Col,
-  Card,
   Typography,
   Space,
-  Spin
+  Spin,
+  Collapse
 } from 'antd';
-import { SaveOutlined, CloseOutlined, PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { SaveOutlined, PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
+import ResponsiveModal from './ResponsiveModal';
+import './ResponsiveModal.css';
+import './WarehouseForm.css';
 import {
   clearErrors
 } from '../utils/errorHandler';
+import { useViewport } from '../hooks/useViewport';
 
 const { Title } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
+const { Panel } = Collapse;
 
 const WarehouseForm = ({
   visible,
@@ -32,6 +37,8 @@ const WarehouseForm = ({
 }) => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const [focusedField, setFocusedField] = useState(null);
+  const { isMobile } = useViewport();
 
   // Reset form when modal opens/closes or initial data changes
   useEffect(() => {
@@ -92,8 +99,14 @@ const WarehouseForm = ({
     setSubmitting(true);
 
     try {
-      console.log('Form values received:', values);
-      console.log('Form values JSON:', JSON.stringify(values, null, 2));
+      // Show loading feedback on mobile
+      if (isMobile) {
+        // Scroll to top to show loading state
+        const modalContent = document.querySelector('.responsive-modal [tabindex="-1"]');
+        if (modalContent) {
+          modalContent.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
       
       // Format payload with nested warehouseData structure
       const payload = {
@@ -139,18 +152,710 @@ const WarehouseForm = ({
         }
       };
 
-      console.log('Payload being sent:', payload);
       await onSubmit(payload);
       form.resetFields();
       // Success message will be shown by parent component
     } catch (error) {
       // Error handling will be done by parent component
-      console.error('Form submission error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Validation issues:', error.issues);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Form submission error:', error);
+      }
+      
+      // On mobile, scroll to first error field if validation fails
+      if (isMobile && error.errorFields) {
+        setTimeout(() => {
+          const firstErrorField = error.errorFields[0]?.name[0];
+          if (firstErrorField) {
+            const element = document.querySelector(`[data-field="${firstErrorField}"]`);
+            if (element) {
+              element.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'nearest'
+              });
+              element.focus();
+            }
+          }
+        }, 100);
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Render functions for form sections
+  const renderBasicInformation = (isMobileLayout) => (
+    <>
+      {!isMobileLayout && (
+        <Title level={5} style={{ color: 'var(--text-primary)', marginBottom: '16px' }}>
+          Basic Information
+        </Title>
+      )}
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="warehouseOwnerType"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Warehouse Owner Type</span>}
+          >
+            <Select 
+              placeholder="Select owner type"
+              size={isMobileLayout ? 'large' : 'middle'}
+            >
+              <Option value="Owner">Owner</Option>
+              <Option value="Tenant">Tenant</Option>
+              <Option value="Broker">Broker</Option>
+              <Option value="Agent">Agent</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="warehouseType"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Warehouse Type <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <Input 
+              placeholder="Enter warehouse type (e.g., Cold Storage, Dry Storage)" 
+              {...getInputProps('warehouseType', 'text', 'text')}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="zone"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Zone <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <Select 
+              placeholder="Select zone"
+              size={isMobileLayout ? 'large' : 'middle'}
+            >
+              <Option value="North">North</Option>
+              <Option value="South">South</Option>
+              <Option value="East">East</Option>
+              <Option value="West">West</Option>
+              <Option value="Central">Central</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
+
+      {/* Address Information */}
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24}>
+          <Form.Item
+            name="address"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Address <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <TextArea
+              placeholder="Enter complete address"
+              rows={isMobileLayout ? 3 : 2}
+              {...getInputProps('address', 'text', 'text')}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="city"
+            label={<span style={{ color: 'var(--text-secondary)' }}>City <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <Input 
+              placeholder="Enter city" 
+              {...getInputProps('city', 'text', 'text')}
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="state"
+            label={<span style={{ color: 'var(--text-secondary)' }}>State <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <Input 
+              placeholder="Enter state" 
+              {...getInputProps('state', 'text', 'text')}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="postalCode"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Postal Code</span>}
+          >
+            <Input 
+              placeholder="Enter postal code" 
+              {...getInputProps('postalCode', 'numeric', 'text')}
+              pattern="[0-9]*"
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="googleLocation"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Google Location URL</span>}
+          >
+            <Input 
+              placeholder="Enter Google Maps URL" 
+              {...getInputProps('googleLocation', 'url', 'url')}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  );
+
+  const renderContactInformation = (isMobileLayout) => (
+    <>
+      {!isMobileLayout && (
+        <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
+          Contact Information
+        </Title>
+      )}
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="contactPerson"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Contact Person <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <Input 
+              placeholder="Enter contact person name" 
+              {...getInputProps('contactPerson', 'text', 'text')}
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="contactNumber"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Contact Number <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required, validationRules.phone]}
+          >
+            <Input 
+              placeholder="Enter 10-digit phone number" 
+              {...getInputProps('contactNumber', 'tel', 'tel')}
+              maxLength={15}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  );
+
+  const renderWarehouseDetails = (isMobileLayout) => (
+    <>
+      {!isMobileLayout && (
+        <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
+          Warehouse Details
+        </Title>
+      )}
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            label={<span style={{ color: 'var(--text-secondary)' }}>Total Space (sq ft) <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            required
+          >
+            <Form.List
+              name="totalSpaceSqft"
+              rules={[
+                {
+                  validator: async (_, spaces) => {
+                    if (!spaces || spaces.length < 1) {
+                      return Promise.reject(new Error('At least one space value is required'));
+                    }
+                  },
+                },
+              ]}
+            >
+              {(fields, { add, remove }, { errors }) => (
+                <>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space key={key} style={{ display: 'flex', marginBottom: 8, width: '100%' }} align="baseline">
+                      <Form.Item
+                        {...restField}
+                        name={name}
+                        rules={[
+                          { required: true, message: 'Space value is required' },
+                          { type: 'number', min: 1, message: 'Must be a positive number' }
+                        ]}
+                        style={{ flex: 1, marginBottom: 0 }}
+                      >
+                        <InputNumber
+                          placeholder="Enter space"
+                          style={{ width: '100%' }}
+                          size={isMobileLayout ? 'large' : 'middle'}
+                          min={1}
+                          inputMode="numeric"
+                          formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                          parser={value => value.replace(/\$\s?|(,*)/g, '')}
+                        />
+                      </Form.Item>
+                      {fields.length > 1 && (
+                        <MinusCircleOutlined
+                          onClick={() => remove(name)}
+                          style={{ 
+                            color: '#ff4d4f',
+                            fontSize: isMobileLayout ? '20px' : '16px',
+                            minHeight: isMobileLayout ? '44px' : 'auto',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                        />
+                      )}
+                    </Space>
+                  ))}
+                  <Form.Item style={{ marginBottom: 0 }}>
+                    <Button
+                      type="dashed"
+                      onClick={() => add()}
+                      block
+                      icon={<PlusOutlined />}
+                      style={{ 
+                        marginTop: 8,
+                        minHeight: isMobileLayout ? '44px' : 'auto'
+                      }}
+                      size={isMobileLayout ? 'large' : 'middle'}
+                    >
+                      Add Space Value
+                    </Button>
+                    <Form.ErrorList errors={errors} />
+                  </Form.Item>
+                </>
+              )}
+            </Form.List>
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="ratePerSqft"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Rate per sq ft (₹) <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <InputNumber 
+              placeholder="Enter rate per sq ft" 
+              size={isMobileLayout ? 'large' : 'middle'}
+              inputMode="numeric"
+              style={{ width: '100%' }}
+              min={0}
+              formatter={value => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={value => value.replace(/₹\s?|(,*)/g, '')}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="offeredSpaceSqft"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Offered Space (sq ft)</span>}
+          >
+            <InputNumber 
+              placeholder="Enter offered space" 
+              size={isMobileLayout ? 'large' : 'middle'}
+              inputMode="numeric"
+              style={{ width: '100%' }}
+              min={0}
+              formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={value => value.replace(/\$\s?|(,*)/g, '')}
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="numberOfDocks"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Number of Docks</span>}
+          >
+            <InputNumber 
+              placeholder="Enter number of docks" 
+              size={isMobileLayout ? 'large' : 'middle'}
+              inputMode="numeric"
+              style={{ width: '100%' }}
+              min={0}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="clearHeightFt"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Clear Height (ft)</span>}
+          >
+            <InputNumber 
+              placeholder="Enter clear height in feet" 
+              size={isMobileLayout ? 'large' : 'middle'}
+              inputMode="numeric"
+              style={{ width: '100%' }}
+              min={0}
+              step={0.1}
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="availability"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Availability</span>}
+          >
+            <Select 
+              placeholder="Select availability"
+              size={isMobileLayout ? 'large' : 'middle'}
+            >
+              <Option value="Available">Available</Option>
+              <Option value="Occupied">Occupied</Option>
+              <Option value="Under Maintenance">Under Maintenance</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="isBroker"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Is Broker</span>}
+          >
+            <Select 
+              placeholder="Select broker status"
+              size={isMobileLayout ? 'large' : 'middle'}
+            >
+              <Option value="Yes">Yes</Option>
+              <Option value="No">No</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="uploadedBy"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Uploaded By <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <Input 
+              placeholder="Enter uploader name" 
+              size={isMobileLayout ? 'large' : 'middle'}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="visibility"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Visibility</span>}
+            valuePropName="checked"
+          >
+            <Switch
+              checkedChildren="Visible"
+              unCheckedChildren="Hidden"
+              defaultChecked={true}
+              size={isMobileLayout ? 'default' : 'default'}
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="compliances"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Compliances <span style={{ color: '#ff4d4f' }}>*</span></span>}
+            rules={[validationRules.required]}
+          >
+            <Input 
+              placeholder="Enter compliance details" 
+              size={isMobileLayout ? 'large' : 'middle'}
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="otherSpecifications"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Other Specifications</span>}
+          >
+            <TextArea
+              placeholder="Enter other specifications"
+              rows={isMobileLayout ? 3 : 2}
+              size={isMobileLayout ? 'large' : 'middle'}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  );
+
+  const renderLocationData = (isMobileLayout) => (
+    <>
+      {!isMobileLayout && (
+        <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
+          Location Data
+        </Title>
+      )}
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="latitude"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Latitude</span>}
+            rules={[validationRules.coordinates.latitude]}
+          >
+            <InputNumber
+              placeholder="Enter latitude (-90 to 90)"
+              style={{ width: '100%' }}
+              size={isMobileLayout ? 'large' : 'middle'}
+              step={0.000001}
+              precision={6}
+              inputMode="decimal"
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="longitude"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Longitude</span>}
+            rules={[validationRules.coordinates.longitude]}
+          >
+            <InputNumber
+              placeholder="Enter longitude (-180 to 180)"
+              style={{ width: '100%' }}
+              size={isMobileLayout ? 'large' : 'middle'}
+              step={0.000001}
+              precision={6}
+              inputMode="decimal"
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="fireNocAvailable"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Fire NOC Available</span>}
+            valuePropName="checked"
+          >
+            <Switch
+              checkedChildren="Yes"
+              unCheckedChildren="No"
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="fireSafetyMeasures"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Fire Safety Measures</span>}
+          >
+            <Input 
+              placeholder="Enter fire safety measures" 
+              size={isMobileLayout ? 'large' : 'middle'}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="landType"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Land Type</span>}
+          >
+            <Select 
+              placeholder="Select land type"
+              size={isMobileLayout ? 'large' : 'middle'}
+            >
+              <Option value="Commercial">Commercial</Option>
+              <Option value="Industrial">Industrial</Option>
+              <Option value="Others">Others</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="approachRoadWidth"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Approach Road Width (ft)</span>}
+          >
+            <InputNumber
+              placeholder="Enter road width"
+              style={{ width: '100%' }}
+              size={isMobileLayout ? 'large' : 'middle'}
+              min={1}
+              inputMode="numeric"
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="powerKva"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Power (KVA)</span>}
+          >
+            <InputNumber
+              placeholder="Enter power in KVA"
+              style={{ width: '100%' }}
+              size={isMobileLayout ? 'large' : 'middle'}
+              min={1}
+              inputMode="numeric"
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="pollutionZone"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Pollution Zone</span>}
+          >
+            <Select 
+              placeholder="Select pollution zone"
+              size={isMobileLayout ? 'large' : 'middle'}
+            >
+              <Option value="Green">Green</Option>
+              <Option value="Orange">Orange</Option>
+              <Option value="Red">Red</Option>
+              <Option value="White">White</Option>
+            </Select>
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="vaastuCompliance"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Vaastu Compliance</span>}
+            valuePropName="checked"
+          >
+            <Switch
+              checkedChildren="Yes"
+              unCheckedChildren="No"
+            />
+          </Form.Item>
+        </Col>
+
+        <Col xs={24} sm={isMobileLayout ? 24 : 12}>
+          <Form.Item
+            name="dimensions"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Dimensions</span>}
+          >
+            <Input 
+              placeholder="Enter warehouse dimensions" 
+              size={isMobileLayout ? 'large' : 'middle'}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24}>
+          <Form.Item
+            name="parkingDockingSpace"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Parking & Docking Space</span>}
+          >
+            <TextArea
+              placeholder="Enter parking and docking space details"
+              rows={isMobileLayout ? 3 : 2}
+              size={isMobileLayout ? 'large' : 'middle'}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  );
+
+  const renderPhotoUpload = (isMobileLayout) => (
+    <>
+      {!isMobileLayout && (
+        <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
+          Warehouse Photos
+        </Title>
+      )}
+
+      <Row gutter={isMobileLayout ? [0, 16] : 16}>
+        <Col xs={24}>
+          <Form.Item
+            name="photos"
+            label={<span style={{ color: 'var(--text-secondary)' }}>Upload Image</span>}
+          >
+            <FileUpload />
+          </Form.Item>
+        </Col>
+      </Row>
+    </>
+  );
+
+  // Handle input focus for better mobile UX
+  const handleInputFocus = (fieldName) => {
+    setFocusedField(fieldName);
+    // On mobile, scroll the focused field into view
+    if (isMobile) {
+      setTimeout(() => {
+        const element = document.querySelector(`[data-field="${fieldName}"]`);
+        if (element) {
+          element.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      }, 100);
+    }
+  };
+
+  const handleInputBlur = () => {
+    setFocusedField(null);
+  };
+
+  // Enhanced input props for mobile optimization
+  const getInputProps = (fieldName, inputMode = 'text', type = 'text') => ({
+    size: isMobile ? 'large' : 'middle',
+    onFocus: () => handleInputFocus(fieldName),
+    onBlur: handleInputBlur,
+    'data-field': fieldName,
+    inputMode,
+    type,
+    autoComplete: getAutoCompleteValue(fieldName),
+    style: {
+      fontSize: isMobile ? '16px' : '14px' // Prevent zoom on iOS
+    }
+  });
+
+  // Auto-complete values for better mobile experience
+  const getAutoCompleteValue = (fieldName) => {
+    const autoCompleteMap = {
+      address: 'street-address',
+      city: 'address-level2',
+      state: 'address-level1',
+      postalCode: 'postal-code',
+      contactPerson: 'name',
+      contactNumber: 'tel',
+      googleLocation: 'url'
+    };
+    return autoCompleteMap[fieldName] || 'off';
   };
 
   const handleCancel = () => {
@@ -158,8 +863,6 @@ const WarehouseForm = ({
     clearErrors(); // Clear any existing error messages
     onCancel();
   };
-
-  // Form validation rules
   const validationRules = {
     required: { required: true, message: 'This field is required' },
     email: { type: 'email', message: 'Please enter a valid email' },
@@ -191,565 +894,184 @@ const WarehouseForm = ({
   if (!visible) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(0, 0, 0, 0.7)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px'
-    }}>
-      <Card
-        style={{
-          width: '100%',
-          maxWidth: '900px',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-primary)',
-        }}
-        bodyStyle={{ padding: '24px' }}
+    <ResponsiveModal
+      visible={visible}
+      onClose={handleCancel}
+      title={initialData ? 'Edit Warehouse' : 'Create New Warehouse'}
+      maxWidth="900px"
+      className="warehouse-form-modal"
+    >
+      <Spin 
+        spinning={loading || submitting} 
+        tip={
+          <div style={{ 
+            color: 'var(--text-primary)', 
+            fontSize: isMobile ? '16px' : '14px',
+            marginTop: '8px'
+          }}>
+            {submitting ? "Saving warehouse..." : "Loading..."}
+          </div>
+        }
+        size={isMobile ? 'large' : 'default'}
       >
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px'
-        }}>
-          <Title
-            level={3}
-            style={{
-              color: 'var(--text-primary)',
-              margin: 0
-            }}
-          >
-            {initialData ? 'Edit Warehouse' : 'Create New Warehouse'}
-          </Title>
-          <Button
-            type="text"
-            icon={<CloseOutlined />}
-            onClick={handleCancel}
-            style={{ color: 'var(--text-muted)' }}
-          />
-        </div>
-
-        <Spin spinning={loading || submitting} tip={submitting ? "Saving..." : "Loading..."}>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            requiredMark={false}
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {/* Basic Information Section */}
-            <Title level={5} style={{ color: 'var(--text-primary)', marginBottom: '16px' }}>
-              Basic Information
-            </Title>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="warehouseOwnerType"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Warehouse Owner Type</span>}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          onFinishFailed={(errorInfo) => {
+            // On mobile, scroll to first error field
+            if (isMobile && errorInfo.errorFields && errorInfo.errorFields.length > 0) {
+              setTimeout(() => {
+                const firstErrorField = errorInfo.errorFields[0]?.name[0];
+                if (firstErrorField) {
+                  const element = document.querySelector(`[data-field="${firstErrorField}"]`);
+                  if (element) {
+                    element.scrollIntoView({ 
+                      behavior: 'smooth', 
+                      block: 'center',
+                      inline: 'nearest'
+                    });
+                    element.focus();
+                  }
+                }
+              }, 100);
+            }
+          }}
+          requiredMark={false}
+          style={{ color: 'var(--text-primary)' }}
+          scrollToFirstError={!isMobile} // Use custom scroll behavior on mobile
+        >
+            {isMobile ? (
+              // Mobile layout with collapsible sections
+              <Collapse 
+                defaultActiveKey={['basic']} 
+                ghost
+                style={{ 
+                  background: 'transparent',
+                  border: 'none'
+                }}
+              >
+                <Panel 
+                  header={
+                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                      Basic Information
+                    </Title>
+                  } 
+                  key="basic"
+                  style={{ 
+                    background: 'transparent',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}
                 >
-                  <Select placeholder="Select owner type">
-                    <Option value="Owner">Owner</Option>
-                    <Option value="Tenant">Tenant</Option>
-                    <Option value="Broker">Broker</Option>
-                    <Option value="Agent">Agent</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
+                  {renderBasicInformation(true)}
+                </Panel>
 
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="warehouseType"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Warehouse Type <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
+                <Panel 
+                  header={
+                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                      Contact Information
+                    </Title>
+                  } 
+                  key="contact"
+                  style={{ 
+                    background: 'transparent',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}
                 >
-                  <Input placeholder="Enter warehouse type (e.g., Cold Storage, Dry Storage)" />
-                </Form.Item>
-              </Col>
-            </Row>
+                  {renderContactInformation(true)}
+                </Panel>
 
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="zone"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Zone <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
+                <Panel 
+                  header={
+                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                      Warehouse Details
+                    </Title>
+                  } 
+                  key="details"
+                  style={{ 
+                    background: 'transparent',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}
                 >
-                  <Select placeholder="Select zone">
-                    <Option value="North">North</Option>
-                    <Option value="South">South</Option>
-                    <Option value="East">East</Option>
-                    <Option value="West">West</Option>
-                    <Option value="Central">Central</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
+                  {renderWarehouseDetails(true)}
+                </Panel>
 
-            {/* Address Information */}
-            <Row gutter={16}>
-              <Col xs={24}>
-                <Form.Item
-                  name="address"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Address <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
+                <Panel 
+                  header={
+                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                      Location Data
+                    </Title>
+                  } 
+                  key="location"
+                  style={{ 
+                    background: 'transparent',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}
                 >
-                  <TextArea
-                    placeholder="Enter complete address"
-                    rows={2}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
+                  {renderLocationData(true)}
+                </Panel>
 
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="city"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>City <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
+                <Panel 
+                  header={
+                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                      Warehouse Photos
+                    </Title>
+                  } 
+                  key="photos"
+                  style={{ 
+                    background: 'transparent',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: '8px',
+                    marginBottom: '16px'
+                  }}
                 >
-                  <Input placeholder="Enter city" />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="state"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>State <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
-                >
-                  <Input placeholder="Enter state" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="postalCode"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Postal Code</span>}
-                >
-                  <Input placeholder="Enter postal code" />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="googleLocation"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Google Location URL</span>}
-                >
-                  <Input placeholder="Enter Google Maps URL" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            {/* Contact Information */}
-            <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
-              Contact Information
-            </Title>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="contactPerson"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Contact Person <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
-                >
-                  <Input placeholder="Enter contact person name" />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="contactNumber"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Contact Number <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required, validationRules.phone]}
-                >
-                  <Input placeholder="Enter 10-digit phone number" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            {/* Warehouse Details */}
-            <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
-              Warehouse Details
-            </Title>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Total Space (sq ft) <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  required
-                >
-                  <Form.List
-                    name="totalSpaceSqft"
-                    rules={[
-                      {
-                        validator: async (_, spaces) => {
-                          if (!spaces || spaces.length < 1) {
-                            return Promise.reject(new Error('At least one space value is required'));
-                          }
-                        },
-                      },
-                    ]}
-                  >
-                    {(fields, { add, remove }, { errors }) => (
-                      <>
-                        {fields.map(({ key, name, ...restField }) => (
-                          <Space key={key} style={{ display: 'flex', marginBottom: 8, width: '100%' }} align="baseline">
-                            <Form.Item
-                              {...restField}
-                              name={name}
-                              rules={[
-                                { required: true, message: 'Space value is required' },
-                                { type: 'number', min: 1, message: 'Must be a positive number' }
-                              ]}
-                              style={{ flex: 1, marginBottom: 0 }}
-                            >
-                              <InputNumber
-                                placeholder="Enter space"
-                                style={{ width: '100%' }}
-                                min={1}
-                                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                                parser={value => value.replace(/\$\s?|(,*)/g, '')}
-                              />
-                            </Form.Item>
-                            {fields.length > 1 && (
-                              <MinusCircleOutlined
-                                onClick={() => remove(name)}
-                                style={{ color: '#ff4d4f' }}
-                              />
-                            )}
-                          </Space>
-                        ))}
-                        <Form.Item style={{ marginBottom: 0 }}>
-                          <Button
-                            type="dashed"
-                            onClick={() => add()}
-                            block
-                            icon={<PlusOutlined />}
-                            style={{ marginTop: 8 }}
-                          >
-                            Add Space Value
-                          </Button>
-                          <Form.ErrorList errors={errors} />
-                        </Form.Item>
-                      </>
-                    )}
-                  </Form.List>
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="ratePerSqft"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Rate per sq ft (₹) <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
-                >
-                  <Input placeholder="Enter rate per sq ft" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="offeredSpaceSqft"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Offered Space (sq ft)</span>}
-                >
-                  <Input placeholder="Enter offered space" />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="numberOfDocks"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Number of Docks</span>}
-                >
-                  <Input placeholder="Enter number of docks" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="clearHeightFt"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Clear Height (ft)</span>}
-                >
-                  <Input placeholder="Enter clear height in feet" />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="availability"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Availability</span>}
-                >
-                  <Select placeholder="Select availability">
-                    <Option value="Available">Available</Option>
-                    <Option value="Occupied">Occupied</Option>
-                    <Option value="Under Maintenance">Under Maintenance</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="isBroker"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Is Broker</span>}
-                >
-                  <Select placeholder="Select broker status">
-                    <Option value="Yes">Yes</Option>
-                    <Option value="No">No</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="uploadedBy"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Uploaded By <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
-                >
-                  <Input placeholder="Enter uploader name" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="visibility"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Visibility</span>}
-                  valuePropName="checked"
-                >
-                  <Switch
-                    checkedChildren="Visible"
-                    unCheckedChildren="Hidden"
-                    defaultChecked={true}
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="compliances"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Compliances <span style={{ color: '#ff4d4f' }}>*</span></span>}
-                  rules={[validationRules.required]}
-                >
-                  <Input placeholder="Enter compliance details" />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="otherSpecifications"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Other Specifications</span>}
-                >
-                  <TextArea
-                    placeholder="Enter other specifications"
-                    rows={2}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            {/* Location Data */}
-            <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
-              Location Data
-            </Title>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="latitude"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Latitude</span>}
-                  rules={[validationRules.coordinates.latitude]}
-                >
-                  <InputNumber
-                    placeholder="Enter latitude (-90 to 90)"
-                    style={{ width: '100%' }}
-                    step={0.000001}
-                    precision={6}
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="longitude"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Longitude</span>}
-                  rules={[validationRules.coordinates.longitude]}
-                >
-                  <InputNumber
-                    placeholder="Enter longitude (-180 to 180)"
-                    style={{ width: '100%' }}
-                    step={0.000001}
-                    precision={6}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="fireNocAvailable"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Fire NOC Available</span>}
-                  valuePropName="checked"
-                >
-                  <Switch
-                    checkedChildren="Yes"
-                    unCheckedChildren="No"
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="fireSafetyMeasures"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Fire Safety Measures</span>}
-                >
-                  <Input placeholder="Enter fire safety measures" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="landType"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Land Type</span>}
-                >
-                  <Select placeholder="Select land type">
-                    <Option value="Commercial">Commercial</Option>
-                    <Option value="Industrial">Industrial</Option>
-                    <Option value="Others">Others</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="approachRoadWidth"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Approach Road Width (ft)</span>}
-                >
-                  <InputNumber
-                    placeholder="Enter road width"
-                    style={{ width: '100%' }}
-                    min={1}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="powerKva"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Power (KVA)</span>}
-                >
-                  <InputNumber
-                    placeholder="Enter power in KVA"
-                    style={{ width: '100%' }}
-                    min={1}
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="pollutionZone"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Pollution Zone</span>}
-                >
-                  <Select placeholder="Select pollution zone">
-                    <Option value="Green">Green</Option>
-                    <Option value="Orange">Orange</Option>
-                    <Option value="Red">Red</Option>
-                    <Option value="White">White</Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="vaastuCompliance"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Vaastu Compliance</span>}
-                  valuePropName="checked"
-                >
-                  <Switch
-                    checkedChildren="Yes"
-                    unCheckedChildren="No"
-                  />
-                </Form.Item>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="dimensions"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Dimensions</span>}
-                >
-                  <Input placeholder="Enter warehouse dimensions" />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col xs={24}>
-                <Form.Item
-                  name="parkingDockingSpace"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Parking & Docking Space</span>}
-                >
-                  <TextArea
-                    placeholder="Enter parking and docking space details"
-                    rows={2}
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            {/* Photo Upload */}
-            <Title level={5} style={{ color: 'var(--text-primary)', marginTop: '24px', marginBottom: '16px' }}>
-              Warehouse Photos
-            </Title>
-
-            <Row gutter={16}>
-              <Col xs={24}>
-                <Form.Item
-                  name="photos"
-                  label={<span style={{ color: 'var(--text-secondary)' }}>Upload Image</span>}
-                >
-                  <FileUpload />
-                </Form.Item>
-              </Col>
-            </Row>
+                  {renderPhotoUpload(true)}
+                </Panel>
+              </Collapse>
+            ) : (
+              // Desktop layout with sections
+              <>
+                {renderBasicInformation(false)}
+                {renderContactInformation(false)}
+                {renderWarehouseDetails(false)}
+                {renderLocationData(false)}
+                {renderPhotoUpload(false)}
+              </>
+            )}
 
             {/* Form Actions */}
-            <div style={{
-              marginTop: '32px',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px'
-            }}>
+            <div 
+              className={isMobile ? 'warehouse-form-actions' : ''}
+              style={{
+                marginTop: '32px',
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                justifyContent: 'flex-end',
+                gap: isMobile ? '12px' : '12px',
+                position: isMobile ? 'sticky' : 'static',
+                bottom: isMobile ? '0' : 'auto',
+                background: isMobile ? 'var(--bg-secondary)' : 'transparent',
+                padding: isMobile ? '16px 0' : '0',
+                borderTop: isMobile ? '1px solid var(--border-primary)' : 'none'
+              }}
+            >
               <Button
                 size="large"
                 onClick={handleCancel}
-                style={{ minWidth: '100px' }}
+                style={{ 
+                  minWidth: '120px',
+                  minHeight: isMobile ? '44px' : 'auto',
+                  order: isMobile ? 2 : 1,
+                  flex: isMobile ? '1' : 'none'
+                }}
               >
                 Cancel
               </Button>
@@ -757,17 +1079,25 @@ const WarehouseForm = ({
                 type="primary"
                 htmlType="submit"
                 size="large"
-                icon={<SaveOutlined />}
+                icon={submitting ? null : <SaveOutlined />}
                 loading={submitting}
-                style={{ minWidth: '100px' }}
+                disabled={loading}
+                style={{ 
+                  minWidth: '120px',
+                  minHeight: isMobile ? '44px' : 'auto',
+                  order: isMobile ? 1 : 2,
+                  flex: isMobile ? '1' : 'none'
+                }}
               >
-                {initialData ? 'Update' : 'Create'} Warehouse
+                {submitting 
+                  ? (isMobile ? 'Saving...' : 'Saving') 
+                  : `${initialData ? 'Update' : 'Create'} Warehouse`
+                }
               </Button>
             </div>
           </Form>
         </Spin>
-      </Card>
-    </div>
+    </ResponsiveModal>
   );
 };
 

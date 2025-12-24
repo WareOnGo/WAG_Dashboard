@@ -3,6 +3,7 @@ import { Upload, Button, Progress, Typography, Space, Image, Card, Row, Col } fr
 import { UploadOutlined, DeleteOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
 import { useErrorHandler } from '../hooks/useErrorHandler';
+import { useViewport } from '../hooks/useViewport';
 
 const { Text } = Typography;
 
@@ -16,6 +17,7 @@ const FileUpload = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [imageUrls, setImageUrls] = useState([]);
+  const { isMobile } = useViewport();
   
   const { handleUploadError, showSuccessMessage, showErrorMessage } = useErrorHandler();
 
@@ -142,6 +144,8 @@ const FileUpload = ({
     disabled: disabled || uploading,
     showUploadList: false,
     multiple: false, // Handle one at a time for better UX
+    // Mobile-specific props
+    capture: isMobile ? 'environment' : undefined, // Enable camera on mobile
   };
 
   return (
@@ -163,12 +167,20 @@ const FileUpload = ({
                     <EyeOutlined 
                       key="view" 
                       onClick={() => window.open(url, '_blank')}
-                      style={{ color: '#1890ff' }}
+                      style={{ 
+                        color: '#1890ff',
+                        fontSize: isMobile ? '18px' : '14px',
+                        padding: isMobile ? '8px' : '4px'
+                      }}
                     />,
                     <DeleteOutlined 
                       key="delete" 
                       onClick={() => handleRemove(url)}
-                      style={{ color: '#ff4d4f' }}
+                      style={{ 
+                        color: '#ff4d4f',
+                        fontSize: isMobile ? '18px' : '14px',
+                        padding: isMobile ? '8px' : '4px'
+                      }}
                     />
                   ]}
                 >
@@ -195,7 +207,12 @@ const FileUpload = ({
         <Button 
           icon={<PlusOutlined />} 
           disabled={disabled || uploading}
-          style={{ width: '100%' }}
+          style={{ 
+            width: '100%',
+            minHeight: isMobile ? '44px' : 'auto',
+            fontSize: isMobile ? '16px' : '14px'
+          }}
+          size={isMobile ? 'large' : 'middle'}
           type="dashed"
         >
           {imageUrls.length === 0 ? 'Upload Images' : 'Add More Images'}

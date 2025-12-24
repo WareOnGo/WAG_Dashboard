@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Update Required - Warehouse Portal</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            max-width: 600px;
+            text-align: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+            color: #ffffff;
+        }
+        
+        p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .browsers {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 20px;
+            margin: 32px 0;
+        }
+        
+        .browser {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            text-decoration: none;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .browser:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #1890ff;
+            transform: translateY(-2px);
+        }
+        
+        .browser-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .browser-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .browser-version {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .continue-anyway {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .continue-link {
+            color: #1890ff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .continue-link:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px;
+                padding: 24px;
+            }
+            
+            .browsers {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🌐</div>
+        <h1>Browser Update Required</h1>
+        <p>
+            Your current browser doesn't support all the modern features needed for the best 
+            experience with our Warehouse Portal. Please update to one of the supported browsers below:
+        </p>
+        
+        <div class="browsers">
+            <a href="https://www.google.com/chrome/" class="browser" target="_blank" rel="noopener">
+                <div class="browser-icon">🟢</div>
+                <div class="browser-name">Chrome</div>
+                <div class="browser-version">Version 90+</div>
+            </a>
+            
+            <a href="https://www.apple.com/safari/" class="browser" target="_blank" rel="noopener">
+                <div class="browser-icon">🔵</div>
+                <div class="browser-name">Safari</div>
+                <div class="browser-version">Version 14+</div>
+            </a>
+            
+            <a href="https://www.mozilla.org/firefox/" class="browser" target="_blank" rel="noopener">
+                <div class="browser-icon">🟠</div>
+                <div class="browser-name">Firefox</div>
+                <div class="browser-version">Version 88+</div>
+            </a>
+            
+            <a href="https://www.microsoft.com/edge" class="browser" target="_blank" rel="noopener">
+                <div class="browser-icon">🔷</div>
+                <div class="browser-name">Edge</div>
+                <div class="browser-version">Version 90+</div>
+            </a>
+        </div>
+        
+        <p>
+            <strong>Why update?</strong><br>
+            Modern browsers provide better security, performance, and support for the latest web technologies 
+            that make our warehouse management system faster and more reliable.
+        </p>
+        
+        <div class="continue-anyway">
+            <a href="/" class="continue-link">
+                Continue with current browser (some features may not work properly)
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-redirect after 30 seconds if user doesn't interact
+        setTimeout(() => {
+            if (confirm('Would you like to continue with your current browser? Some features may not work properly.')) {
+                window.location.href = '/';
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
