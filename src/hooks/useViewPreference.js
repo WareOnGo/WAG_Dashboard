@@ -48,7 +48,7 @@ export const useViewPreference = (defaultView = 'auto') => {
           setCurrentView(recommendedView);
         }
       }
-    } catch (error) {
+    } catch {
       // Fallback to auto-detection if localStorage fails
       const recommendedView = isMobile ? 'cards' : 'table';
       if (currentView !== recommendedView) {
@@ -123,7 +123,7 @@ export const useViewPreference = (defaultView = 'auto') => {
   const hasExplicitPreference = () => {
     try {
       return localStorage.getItem('warehouse-view-preference') !== null;
-    } catch (error) {
+    } catch {
       return false;
     }
   };

@@ -69,7 +69,7 @@ const LazyImage = ({
   }
 
   // Debug logging to understand the state
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.log('LazyImage Debug:', { 
       src: src?.substring(0, 50), 
       isLoading, 
@@ -79,9 +79,6 @@ const LazyImage = ({
       imageSrc: imageSrc?.substring(0, 50)
     });
   }
-
-  // Only show placeholder when actually loading and image is not loaded yet
-  const showPlaceholder = isLoading && !isLoaded;
 
   return (
     <div 

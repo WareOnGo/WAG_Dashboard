@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Table, 
   Button, 
@@ -41,8 +41,6 @@ import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
 import './ResponsiveModal.css';
 import { useViewport, useViewPreference } from '../hooks';
-import { useApiCache } from '../hooks/useCaching';
-import { usePerformanceMonitoring } from '../hooks/usePerformanceMonitoring';
 import { 
   showSuccessMessage, 
   withRetry,
@@ -67,18 +65,6 @@ const Dashboard = () => {
     changeView, 
     isTransitioning 
   } = useViewPreference();
-  
-  // Performance optimizations
-  const { cacheApiCall, isOnline } = useApiCache({
-    ttl: 300000, // 5 minutes cache
-    maxSize: isMobile ? 10 : 20,
-    enableOffline: true
-  });
-  
-  const { measureAsync, getPerformanceSummary } = usePerformanceMonitoring({
-    enableMemoryMonitoring: isMobile,
-    enableNetworkMonitoring: isMobile
-  });
   
   // Filter and search states
   const [searchText, setSearchText] = useState('');
@@ -118,20 +104,13 @@ const Dashboard = () => {
   // Get modal instance from App context
   const { modal } = App.useApp();
 
-  // Fetch warehouses on component mount
-  useEffect(() => {
-    fetchWarehouses();
-  }, []);
-
-  const fetchWarehouses = async () => {
+  const fetchWarehouses = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Use cached API call with performance monitoring
-      const data = await measureAsync('fetch_warehouses', async () => {
-        return await cacheApiCall('warehouses_list', () => warehouseService.getAll());
-      });
+      // Simple API call without complex caching/monitoring to avoid infinite loops
+      const data = await warehouseService.getAll();
       
       // Ensure data is always an array
       const warehouseData = Array.isArray(data) ? data : [];
@@ -139,15 +118,15 @@ const Dashboard = () => {
       setFilteredWarehouses(warehouseData);
     } catch (err) {
       setError(err.message);
-      
-      // Log performance summary on error for debugging
-      if (isMobile) {
-        console.warn('Performance summary on error:', getPerformanceSummary());
-      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // Empty dependency array to prevent infinite loops
+
+  // Fetch warehouses on component mount
+  useEffect(() => {
+    fetchWarehouses();
+  }, [fetchWarehouses]);
 
   // Filter and search functionality
   useEffect(() => {
@@ -1065,7 +1044,7 @@ const Dashboard = () => {
           transition: 'all 0.3s ease',
           opacity: isTransitioning ? 0.7 : 1
         }}>
-          <Spin spinning={loading} tip="Loading warehouses...">>
+          <Spin spinning={loading} tip="Loading warehouses...">
             {currentView === 'table' ? (
               <ResponsiveTable
                 columns={columns}
@@ -1119,21 +1098,7 @@ const Dashboard = () => {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onViewDetails={handleViewDetails}
-                  onContextMenu={(warehouse, event) => handleRowContextMenu(warehouse, event)}
                 />
-                
-                {/* Card view pagination */}
-                {filteredWarehouses.length > pageSize && (
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    marginTop: '24px',
-                    padding: '16px',
-                    borderTop: '1px solid var(--border-primary)'
-                  }}>
-                    {/* Add pagination component for card view if needed */}
-                  </div>
-                )}
               </div>
             )}
           </Spin>

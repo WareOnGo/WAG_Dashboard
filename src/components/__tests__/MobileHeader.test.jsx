@@ -64,7 +64,7 @@ describe('MobileHeader Component', () => {
       render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
       
       const hamburgerButton = screen.getByLabelText('Toggle navigation menu');
-      const styles = window.getComputedStyle(hamburgerButton);
+      const _styles = window.getComputedStyle(hamburgerButton);
       
       // Check that button has minimum touch target styling applied
       expect(hamburgerButton).toHaveClass('hamburger-menu-btn');

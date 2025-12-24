@@ -1,23 +1,7 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { CompatibilityContext } from '../contexts/CompatibilityContext';
 import { useBrowserCompatibility, addBrowserClasses } from '../hooks/useBrowserCompatibility';
 import { useDeviceFeatures, addDeviceClasses } from '../hooks/useDeviceFeatures';
-
-/**
- * Compatibility Context for sharing browser and device information
- */
-const CompatibilityContext = createContext(null);
-
-/**
- * Hook to access compatibility information
- * @returns {Object} Combined browser and device compatibility information
- */
-export const useCompatibility = () => {
-  const context = useContext(CompatibilityContext);
-  if (!context) {
-    throw new Error('useCompatibility must be used within a CompatibilityProvider');
-  }
-  return context;
-};
 
 /**
  * Compatibility Provider Component
@@ -39,7 +23,7 @@ export const CompatibilityProvider = ({ children }) => {
     browserCompatibility.applyPolyfills();
     
     // Only log critical compatibility issues, not general info
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       // Only log if there are actual compatibility issues
       if (!browserCompatibility.isSupported) {
         console.warn('⚠️ Browser compatibility issues detected');
@@ -71,7 +55,7 @@ export const CompatibilityProvider = ({ children }) => {
         }
       }
     }
-  }, []); // Run only once on mount
+  }, [browserCompatibility, deviceFeatures]); // Run only once on mount
 
   // Combine all compatibility information
   const compatibilityInfo = {
@@ -150,106 +134,6 @@ export const CompatibilityProvider = ({ children }) => {
       {children}
     </CompatibilityContext.Provider>
   );
-};
-
-/**
- * Higher-order component for compatibility-aware components
- * @param {React.Component} WrappedComponent - Component to wrap
- * @returns {React.Component} Enhanced component with compatibility props
- */
-export const withCompatibility = (WrappedComponent) => {
-  const CompatibilityEnhancedComponent = (props) => {
-    const compatibility = useCompatibility();
-    
-    return (
-      <WrappedComponent 
-        {...props} 
-        compatibility={compatibility}
-      />
-    );
-  };
-  
-  CompatibilityEnhancedComponent.displayName = 
-    `withCompatibility(${WrappedComponent.displayName || WrappedComponent.name})`;
-  
-  return CompatibilityEnhancedComponent;
-};
-
-/**
- * Conditional rendering component based on feature support
- */
-export const FeatureGate = ({ 
-  feature, 
-  fallback = null, 
-  children, 
-  requireAll = false 
-}) => {
-  const { isFeatureSupported } = useCompatibility();
-  
-  const features = Array.isArray(feature) ? feature : [feature];
-  const isSupported = requireAll 
-    ? features.every(f => isFeatureSupported(f))
-    : features.some(f => isFeatureSupported(f));
-  
-  return isSupported ? children : fallback;
-};
-
-/**
- * Browser-specific rendering component
- */
-export const BrowserGate = ({ 
-  browsers, 
-  fallback = null, 
-  children, 
-  minVersions = {} 
-}) => {
-  const { browser } = useCompatibility();
-  
-  const supportedBrowsers = Array.isArray(browsers) ? browsers : [browsers];
-  const isSupportedBrowser = supportedBrowsers.includes(browser.name);
-  
-  let meetsVersionRequirement = true;
-  if (minVersions[browser.name]) {
-    const currentVersion = parseInt(browser.version, 10);
-    const minVersion = minVersions[browser.name];
-    meetsVersionRequirement = currentVersion >= minVersion;
-  }
-  
-  const isSupported = isSupportedBrowser && meetsVersionRequirement;
-  
-  return isSupported ? children : fallback;
-};
-
-/**
- * Device-specific rendering component
- */
-export const DeviceGate = ({ 
-  devices, 
-  fallback = null, 
-  children 
-}) => {
-  const { device } = useCompatibility();
-  
-  const supportedDevices = Array.isArray(devices) ? devices : [devices];
-  
-  const isSupported = supportedDevices.some(deviceType => {
-    switch (deviceType) {
-      case 'mobile':
-        return device.isAndroid || device.isIPhone;
-      case 'tablet':
-        return device.isTablet;
-      case 'ios':
-        return device.isIOS;
-      case 'android':
-        return device.isAndroid;
-      case 'desktop':
-        return !device.isMobile;
-      default:
-        return false;
-    }
-  });
-  
-  return isSupported ? children : fallback;
 };
 
 export default CompatibilityProvider;

@@ -19,7 +19,7 @@ const ViewSwitcher = ({
   disabled = false,
   showLabels = true 
 }) => {
-  const { isMobile, isTablet } = useViewport();
+  const { isMobile } = useViewport();
 
   // Get recommended view for current screen size
   const getRecommendedView = () => {

@@ -263,7 +263,7 @@ export const useComponentPerformance = (componentName) => {
   });
 
   const measureRender = useCallback((renderFn) => {
-    const startTime = startTiming(`${componentName}_render`);
+    const _startTime = startTiming(`${componentName}_render`);
     const result = renderFn();
     endTiming(`${componentName}_render`);
     return result;

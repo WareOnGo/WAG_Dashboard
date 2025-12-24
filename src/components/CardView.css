@@ -218,4 +218,82 @@
     padding-left: 16px;
     padding-right: 16px;
   }
+}/* P
+agination styling */
+.card-view .ant-pagination {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.card-view .ant-pagination-item {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.card-view .ant-pagination-item:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.card-view .ant-pagination-item-active {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+  color: #fff !important;
+}
+
+.card-view .ant-pagination-item-active:hover {
+  background-color: #40a9ff !important;
+  border-color: #40a9ff !important;
+}
+
+.card-view .ant-pagination-prev,
+.card-view .ant-pagination-next,
+.card-view .ant-pagination-jump-prev,
+.card-view .ant-pagination-jump-next {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.card-view .ant-pagination-prev:hover,
+.card-view .ant-pagination-next:hover,
+.card-view .ant-pagination-jump-prev:hover,
+.card-view .ant-pagination-jump-next:hover {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.card-view .ant-pagination-disabled {
+  color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.card-view .ant-pagination-options {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.card-view .ant-select-selector {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.card-view .ant-select-arrow {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* Mobile pagination adjustments */
+.card-view--mobile .ant-pagination {
+  margin-top: 16px;
+}
+
+.card-view--mobile .ant-pagination-item {
+  min-width: 28px;
+  height: 28px;
+  line-height: 26px;
+  font-size: 12px;
+}
+
+.card-view--mobile .ant-pagination-prev,
+.card-view--mobile .ant-pagination-next {
+  min-width: 28px;
+  height: 28px;
+  line-height: 26px;
 }

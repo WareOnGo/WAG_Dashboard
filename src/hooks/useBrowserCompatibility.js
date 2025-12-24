@@ -91,14 +91,14 @@ const detectFeatures = () => {
     localStorage: (() => {
       try {
         return 'localStorage' in window && window.localStorage !== null;
-      } catch (e) {
+      } catch {
         return false;
       }
     })(),
     sessionStorage: (() => {
       try {
         return 'sessionStorage' in window && window.sessionStorage !== null;
-      } catch (e) {
+      } catch {
         return false;
       }
     })(),
@@ -129,7 +129,7 @@ const detectFeatures = () => {
     asyncAwait: (() => {
       try {
         return (async () => {})().constructor === (async function(){}).constructor;
-      } catch (e) {
+      } catch {
         return false;
       }
     })(),
@@ -206,8 +206,8 @@ const getBrowserSpecificStyles = (browserInfo) => {
  * @returns {Object} Browser compatibility information and utilities
  */
 export const useBrowserCompatibility = () => {
-  const [browserInfo, setBrowserInfo] = useState(() => detectBrowser());
-  const [features, setFeatures] = useState(() => detectFeatures());
+  const [browserInfo, _setBrowserInfo] = useState(() => detectBrowser());
+  const [features, _setFeatures] = useState(() => detectFeatures());
   const [isSupported, setIsSupported] = useState(true);
 
   useEffect(() => {
@@ -246,7 +246,7 @@ export const useBrowserCompatibility = () => {
     };
 
     checkSupport();
-  }, []); // Empty dependency array to run only once
+  }, [browserInfo.name, browserInfo.version, features]); // Empty dependency array to run only once
 
   /**
    * Check if a specific feature is supported
@@ -288,7 +288,7 @@ export const useBrowserCompatibility = () => {
     }
     
     // Only log if there are critical missing features
-    if (criticalMissing.length > 0 && process.env.NODE_ENV === 'development') {
+    if (criticalMissing.length > 0 && import.meta.env.DEV) {
       console.warn(`Missing features: ${criticalMissing.join(', ')}`);
     }
   };
@@ -338,7 +338,7 @@ export const addBrowserClasses = (browserCompatibility) => {
  * @returns {boolean} Whether environment supports modern web features
  */
 export const isModernBrowser = () => {
-  const { features, browserInfo } = detectBrowser();
+  const { features: _features, browserInfo: _browserInfo } = detectBrowser();
   const featureSupport = detectFeatures();
   
   const modernFeatures = [

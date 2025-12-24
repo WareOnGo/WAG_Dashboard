@@ -20,7 +20,7 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       // Measure app initialization time
-      const initTime = await performanceService.measureResponseTime('app_initialization', async () => {
+      await performanceService.measureResponseTime('app_initialization', async () => {
         // Prioritize critical content loading
         await performanceService.prioritizeAboveFold();
         
