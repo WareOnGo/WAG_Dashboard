@@ -219,8 +219,8 @@ const handleOrientationChange = (callback) => {
  * @returns {Object} Device features and utilities
  */
 export const useDeviceFeatures = () => {
-  const [safeAreas, setSafeAreas] = useState(() => detectSafeAreas());
-  const [capabilities, setCapabilities] = useState(() => detectDeviceCapabilities());
+  const [safeAreas, _setSafeAreas] = useState(() => detectSafeAreas());
+  const [capabilities, _setCapabilities] = useState(() => detectDeviceCapabilities());
   const [orientation, setOrientation] = useState(() => ({
     orientation: typeof window !== 'undefined' 
       ? (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait')
@@ -247,7 +247,7 @@ export const useDeviceFeatures = () => {
     return () => {
       cleanupOrientation();
     };
-  }, []); // Empty dependency array to run only once
+  }, [capabilities, safeAreas]); // Empty dependency array to run only once
 
   /**
    * Check if device has specific capability

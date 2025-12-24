@@ -239,8 +239,7 @@ const WarehouseDetailsModal = ({
                 toolbarRender: (
                   _,
                   {
-                    transform: { scale },
-                    actions: { onFlipY, onFlipX, onRotateLeft, onRotateRight, onZoomOut, onZoomIn, onReset }
+                    actions: { onRotateLeft, onRotateRight, onZoomOut, onZoomIn, onReset }
                   }
                 ) => (
                   <Space size={12} className="toolbar-wrapper">

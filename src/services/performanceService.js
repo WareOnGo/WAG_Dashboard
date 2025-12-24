@@ -249,7 +249,7 @@ class PerformanceService {
             if (item && item.timestamp && (now - item.timestamp) > maxAge) {
               localStorage.removeItem(key);
             }
-          } catch (error) {
+          } catch {
             // Remove invalid cache entries
             localStorage.removeItem(key);
           }

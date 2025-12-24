@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Layout, Typography, Button, Space } from 'antd';
 import {
   UserOutlined,
@@ -16,7 +16,7 @@ const { Title } = Typography;
  * Implements responsive design with proper touch targets and mobile-first approach
  * Requirements: 2.1, 2.2, 2.4
  */
-const MobileHeader = ({ onMenuToggle, isMenuOpen }) => {
+const MobileHeader = ({ onMenuToggle }) => {
   const { isMobile, isTablet } = useViewport();
 
   return (

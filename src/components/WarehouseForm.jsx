@@ -37,7 +37,7 @@ const WarehouseForm = ({
 }) => {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
+  const [_focusedField, setFocusedField] = useState(null);
   const { isMobile } = useViewport();
 
   // Reset form when modal opens/closes or initial data changes
@@ -157,7 +157,7 @@ const WarehouseForm = ({
       // Success message will be shown by parent component
     } catch (error) {
       // Error handling will be done by parent component
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('Form submission error:', error);
       }
       

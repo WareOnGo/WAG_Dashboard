@@ -16,11 +16,11 @@ export { default as ResponsiveModal } from './ResponsiveModal';
 export { default as WarehouseDetailsModal } from './WarehouseDetailsModal';
 export { default as LazyImage } from './LazyImage';
 export { default as CriticalContentLoader, AboveFoldOptimizer } from './CriticalContentLoader';
-export { 
-  default as CompatibilityProvider, 
-  useCompatibility, 
-  withCompatibility, 
-  FeatureGate, 
-  BrowserGate, 
-  DeviceGate 
-} from './CompatibilityProvider';
+export { default as CompatibilityProvider } from './CompatibilityProvider';
+export { default as FeatureGate } from './FeatureGate';
+export { default as BrowserGate } from './BrowserGate';
+export { default as DeviceGate } from './DeviceGate';
+
+// Re-export hooks and utilities
+export { useCompatibility } from '../hooks/useCompatibility';
+export { withCompatibility } from '../utils/compatibilityUtils.jsx';

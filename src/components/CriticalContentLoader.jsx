@@ -18,7 +18,7 @@ const CriticalContentLoader = ({
   priority = 'normal',
   defer = false 
 }) => {
-  const { isMobile } = useViewport();
+  const { isMobile: _isMobile } = useViewport();
   const [isReady, setIsReady] = useState(!defer);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -103,7 +103,7 @@ const CriticalContentLoader = ({
  */
 export const AboveFoldOptimizer = ({ children }) => {
   const { isMobile } = useViewport();
-  const [criticalReady, setCriticalReady] = useState(false);
+  const [_criticalReady, setCriticalReady] = useState(false);
 
   useEffect(() => {
     // Prioritize above-the-fold content
@@ -122,7 +122,7 @@ export const AboveFoldOptimizer = ({ children }) => {
       </CriticalContentLoader>
       
       {/* Performance monitoring indicator (development only) */}
-      {process.env.NODE_ENV === 'development' && isMobile && (
+      {import.meta.env.DEV && isMobile && (
         <PerformanceIndicator />
       )}
     </div>

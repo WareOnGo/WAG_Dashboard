@@ -404,7 +404,7 @@ describe('Responsive Data Display Testing', () => {
     });
 
     it('should handle rapid view switching', async () => {
-      const { rerender } = render(
+      const { rerender: _rerender } = render(
         <TestWrapper>
           <ViewSwitcher
             currentView="cards"

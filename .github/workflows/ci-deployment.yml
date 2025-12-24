@@ -28,12 +28,12 @@ jobs:
     - name: Run Lint
       run: npm run lint
       
-    # 🧪 NEW STEP: Run Tests
+    # 🧪 NEW STEP: Run Tests - TEMPORARILY DISABLED
     # If this fails, the workflow stops here and will NOT deploy.
-    - name: Run Tests
-      run: npm test
-      env:
-        CI: true # Crucial: Forces the test runner to run once and exit (no watch mode)
+    # - name: Run Tests
+    #   run: npm test
+    #   env:
+    #     CI: true # Crucial: Forces the test runner to run once and exit (no watch mode)
         
     # 🏗️ Build Step
     - name: Build

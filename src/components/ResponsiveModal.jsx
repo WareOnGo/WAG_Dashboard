@@ -34,7 +34,7 @@ const ResponsiveModal = ({
   headerStyle = {},
   ...props
 }) => {
-  const { isMobile, isTablet, width: viewportWidth, height: viewportHeight } = useViewport();
+  const { isMobile, isTablet } = useViewport();
   const modalRef = useRef(null);
   const contentRef = useRef(null);
 
