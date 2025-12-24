@@ -89,8 +89,15 @@ const WarehouseForm = ({
         };
         form.setFieldsValue(formData);
       } else {
-        // Reset form for create mode
+        // Reset form for create mode with some sensible defaults
         form.resetFields();
+        // Set default values for better UX
+        form.setFieldsValue({
+          totalSpaceSqft: [1000], // Default space value
+          visibility: true, // Default to visible
+          fireNocAvailable: false, // Default to false
+          vaastuCompliance: false // Default to false
+        });
       }
     }
   }, [visible, initialData, form]);
@@ -107,7 +114,7 @@ const WarehouseForm = ({
           modalContent.scrollTo({ top: 0, behavior: 'smooth' });
         }
       }
-      
+
       // Format payload with nested warehouseData structure
       const payload = {
         // Main warehouse fields
@@ -124,12 +131,12 @@ const WarehouseForm = ({
         totalSpaceSqft: Array.isArray(values.totalSpaceSqft)
           ? values.totalSpaceSqft.filter(val => val != null && val > 0)
           : [values.totalSpaceSqft].filter(val => val != null && val > 0), // API expects array of positive integers
-        offeredSpaceSqft: values.offeredSpaceSqft || null,
-        numberOfDocks: values.numberOfDocks || null,
-        clearHeightFt: values.clearHeightFt || null,
+        offeredSpaceSqft: values.offeredSpaceSqft ? String(values.offeredSpaceSqft) : null,
+        numberOfDocks: values.numberOfDocks ? String(values.numberOfDocks) : null,
+        clearHeightFt: values.clearHeightFt ? String(values.clearHeightFt) : null,
         compliances: values.compliances,
         otherSpecifications: values.otherSpecifications || null,
-        ratePerSqft: values.ratePerSqft,
+        ratePerSqft: values.ratePerSqft ? String(values.ratePerSqft) : null,
         availability: values.availability || null,
         uploadedBy: values.uploadedBy,
         visibility: Boolean(values.visibility),
@@ -160,7 +167,7 @@ const WarehouseForm = ({
       if (import.meta.env.DEV) {
         console.error('Form submission error:', error);
       }
-      
+
       // On mobile, scroll to first error field if validation fails
       if (isMobile && error.errorFields) {
         setTimeout(() => {
@@ -168,8 +175,8 @@ const WarehouseForm = ({
           if (firstErrorField) {
             const element = document.querySelector(`[data-field="${firstErrorField}"]`);
             if (element) {
-              element.scrollIntoView({ 
-                behavior: 'smooth', 
+              element.scrollIntoView({
+                behavior: 'smooth',
                 block: 'center',
                 inline: 'nearest'
               });
@@ -198,7 +205,7 @@ const WarehouseForm = ({
             name="warehouseOwnerType"
             label={<span style={{ color: 'var(--text-secondary)' }}>Warehouse Owner Type</span>}
           >
-            <Select 
+            <Select
               placeholder="Select owner type"
               size={isMobileLayout ? 'large' : 'middle'}
             >
@@ -214,10 +221,10 @@ const WarehouseForm = ({
           <Form.Item
             name="warehouseType"
             label={<span style={{ color: 'var(--text-secondary)' }}>Warehouse Type <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.warehouseType}
           >
-            <Input 
-              placeholder="Enter warehouse type (e.g., Cold Storage, Dry Storage)" 
+            <Input
+              placeholder="Enter warehouse type (e.g., Cold Storage, Dry Storage)"
               {...getInputProps('warehouseType', 'text', 'text')}
             />
           </Form.Item>
@@ -231,7 +238,7 @@ const WarehouseForm = ({
             label={<span style={{ color: 'var(--text-secondary)' }}>Zone <span style={{ color: '#ff4d4f' }}>*</span></span>}
             rules={[validationRules.required]}
           >
-            <Select 
+            <Select
               placeholder="Select zone"
               size={isMobileLayout ? 'large' : 'middle'}
             >
@@ -251,7 +258,7 @@ const WarehouseForm = ({
           <Form.Item
             name="address"
             label={<span style={{ color: 'var(--text-secondary)' }}>Address <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.address}
           >
             <TextArea
               placeholder="Enter complete address"
@@ -267,10 +274,10 @@ const WarehouseForm = ({
           <Form.Item
             name="city"
             label={<span style={{ color: 'var(--text-secondary)' }}>City <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.city}
           >
-            <Input 
-              placeholder="Enter city" 
+            <Input
+              placeholder="Enter city"
               {...getInputProps('city', 'text', 'text')}
             />
           </Form.Item>
@@ -280,10 +287,10 @@ const WarehouseForm = ({
           <Form.Item
             name="state"
             label={<span style={{ color: 'var(--text-secondary)' }}>State <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.state}
           >
-            <Input 
-              placeholder="Enter state" 
+            <Input
+              placeholder="Enter state"
               {...getInputProps('state', 'text', 'text')}
             />
           </Form.Item>
@@ -296,8 +303,8 @@ const WarehouseForm = ({
             name="postalCode"
             label={<span style={{ color: 'var(--text-secondary)' }}>Postal Code</span>}
           >
-            <Input 
-              placeholder="Enter postal code" 
+            <Input
+              placeholder="Enter postal code"
               {...getInputProps('postalCode', 'numeric', 'text')}
               pattern="[0-9]*"
             />
@@ -309,8 +316,8 @@ const WarehouseForm = ({
             name="googleLocation"
             label={<span style={{ color: 'var(--text-secondary)' }}>Google Location URL</span>}
           >
-            <Input 
-              placeholder="Enter Google Maps URL" 
+            <Input
+              placeholder="Enter Google Maps URL"
               {...getInputProps('googleLocation', 'url', 'url')}
             />
           </Form.Item>
@@ -332,10 +339,10 @@ const WarehouseForm = ({
           <Form.Item
             name="contactPerson"
             label={<span style={{ color: 'var(--text-secondary)' }}>Contact Person <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.contactPerson}
           >
-            <Input 
-              placeholder="Enter contact person name" 
+            <Input
+              placeholder="Enter contact person name"
               {...getInputProps('contactPerson', 'text', 'text')}
             />
           </Form.Item>
@@ -347,8 +354,8 @@ const WarehouseForm = ({
             label={<span style={{ color: 'var(--text-secondary)' }}>Contact Number <span style={{ color: '#ff4d4f' }}>*</span></span>}
             rules={[validationRules.required, validationRules.phone]}
           >
-            <Input 
-              placeholder="Enter 10-digit phone number" 
+            <Input
+              placeholder="Enter 10-digit phone number"
               {...getInputProps('contactNumber', 'tel', 'tel')}
               maxLength={15}
             />
@@ -410,7 +417,7 @@ const WarehouseForm = ({
                       {fields.length > 1 && (
                         <MinusCircleOutlined
                           onClick={() => remove(name)}
-                          style={{ 
+                          style={{
                             color: '#ff4d4f',
                             fontSize: isMobileLayout ? '20px' : '16px',
                             minHeight: isMobileLayout ? '44px' : 'auto',
@@ -427,7 +434,7 @@ const WarehouseForm = ({
                       onClick={() => add()}
                       block
                       icon={<PlusOutlined />}
-                      style={{ 
+                      style={{
                         marginTop: 8,
                         minHeight: isMobileLayout ? '44px' : 'auto'
                       }}
@@ -447,10 +454,10 @@ const WarehouseForm = ({
           <Form.Item
             name="ratePerSqft"
             label={<span style={{ color: 'var(--text-secondary)' }}>Rate per sq ft (₹) <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.ratePerSqft}
           >
-            <InputNumber 
-              placeholder="Enter rate per sq ft" 
+            <InputNumber
+              placeholder="Enter rate per sq ft"
               size={isMobileLayout ? 'large' : 'middle'}
               inputMode="numeric"
               style={{ width: '100%' }}
@@ -468,8 +475,8 @@ const WarehouseForm = ({
             name="offeredSpaceSqft"
             label={<span style={{ color: 'var(--text-secondary)' }}>Offered Space (sq ft)</span>}
           >
-            <InputNumber 
-              placeholder="Enter offered space" 
+            <InputNumber
+              placeholder="Enter offered space"
               size={isMobileLayout ? 'large' : 'middle'}
               inputMode="numeric"
               style={{ width: '100%' }}
@@ -485,8 +492,8 @@ const WarehouseForm = ({
             name="numberOfDocks"
             label={<span style={{ color: 'var(--text-secondary)' }}>Number of Docks</span>}
           >
-            <InputNumber 
-              placeholder="Enter number of docks" 
+            <InputNumber
+              placeholder="Enter number of docks"
               size={isMobileLayout ? 'large' : 'middle'}
               inputMode="numeric"
               style={{ width: '100%' }}
@@ -502,8 +509,8 @@ const WarehouseForm = ({
             name="clearHeightFt"
             label={<span style={{ color: 'var(--text-secondary)' }}>Clear Height (ft)</span>}
           >
-            <InputNumber 
-              placeholder="Enter clear height in feet" 
+            <InputNumber
+              placeholder="Enter clear height in feet"
               size={isMobileLayout ? 'large' : 'middle'}
               inputMode="numeric"
               style={{ width: '100%' }}
@@ -518,7 +525,7 @@ const WarehouseForm = ({
             name="availability"
             label={<span style={{ color: 'var(--text-secondary)' }}>Availability</span>}
           >
-            <Select 
+            <Select
               placeholder="Select availability"
               size={isMobileLayout ? 'large' : 'middle'}
             >
@@ -536,7 +543,7 @@ const WarehouseForm = ({
             name="isBroker"
             label={<span style={{ color: 'var(--text-secondary)' }}>Is Broker</span>}
           >
-            <Select 
+            <Select
               placeholder="Select broker status"
               size={isMobileLayout ? 'large' : 'middle'}
             >
@@ -550,10 +557,10 @@ const WarehouseForm = ({
           <Form.Item
             name="uploadedBy"
             label={<span style={{ color: 'var(--text-secondary)' }}>Uploaded By <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.uploadedBy}
           >
-            <Input 
-              placeholder="Enter uploader name" 
+            <Input
+              placeholder="Enter uploader name"
               size={isMobileLayout ? 'large' : 'middle'}
             />
           </Form.Item>
@@ -580,10 +587,10 @@ const WarehouseForm = ({
           <Form.Item
             name="compliances"
             label={<span style={{ color: 'var(--text-secondary)' }}>Compliances <span style={{ color: '#ff4d4f' }}>*</span></span>}
-            rules={[validationRules.required]}
+            rules={validationRules.compliances}
           >
-            <Input 
-              placeholder="Enter compliance details" 
+            <Input
+              placeholder="Enter compliance details"
               size={isMobileLayout ? 'large' : 'middle'}
             />
           </Form.Item>
@@ -668,8 +675,8 @@ const WarehouseForm = ({
             name="fireSafetyMeasures"
             label={<span style={{ color: 'var(--text-secondary)' }}>Fire Safety Measures</span>}
           >
-            <Input 
-              placeholder="Enter fire safety measures" 
+            <Input
+              placeholder="Enter fire safety measures"
               size={isMobileLayout ? 'large' : 'middle'}
             />
           </Form.Item>
@@ -682,7 +689,7 @@ const WarehouseForm = ({
             name="landType"
             label={<span style={{ color: 'var(--text-secondary)' }}>Land Type</span>}
           >
-            <Select 
+            <Select
               placeholder="Select land type"
               size={isMobileLayout ? 'large' : 'middle'}
             >
@@ -730,7 +737,7 @@ const WarehouseForm = ({
             name="pollutionZone"
             label={<span style={{ color: 'var(--text-secondary)' }}>Pollution Zone</span>}
           >
-            <Select 
+            <Select
               placeholder="Select pollution zone"
               size={isMobileLayout ? 'large' : 'middle'}
             >
@@ -762,8 +769,8 @@ const WarehouseForm = ({
             name="dimensions"
             label={<span style={{ color: 'var(--text-secondary)' }}>Dimensions</span>}
           >
-            <Input 
-              placeholder="Enter warehouse dimensions" 
+            <Input
+              placeholder="Enter warehouse dimensions"
               size={isMobileLayout ? 'large' : 'middle'}
             />
           </Form.Item>
@@ -816,8 +823,8 @@ const WarehouseForm = ({
       setTimeout(() => {
         const element = document.querySelector(`[data-field="${fieldName}"]`);
         if (element) {
-          element.scrollIntoView({ 
-            behavior: 'smooth', 
+          element.scrollIntoView({
+            behavior: 'smooth',
             block: 'center',
             inline: 'nearest'
           });
@@ -888,7 +895,38 @@ const WarehouseForm = ({
         max: 180,
         message: 'Longitude must be between -180 and 180'
       }
-    }
+    },
+    // Enhanced validation for warehouse-specific fields
+    warehouseType: [
+      { required: true, message: 'Warehouse type is required' },
+      { min: 2, message: 'Warehouse type must be at least 2 characters' }
+    ],
+    address: [
+      { required: true, message: 'Address is required' },
+      { min: 10, message: 'Please provide a complete address (minimum 10 characters)' }
+    ],
+    city: [
+      { required: true, message: 'City is required' },
+      { min: 2, message: 'City name must be at least 2 characters' }
+    ],
+    state: [
+      { required: true, message: 'State is required' },
+      { min: 2, message: 'State name must be at least 2 characters' }
+    ],
+    contactPerson: [
+      { required: true, message: 'Contact person name is required' },
+      { min: 2, message: 'Contact person name must be at least 2 characters' }
+    ],
+    ratePerSqft: [
+      { required: true, message: 'Rate per sq ft is required' }
+    ],
+    uploadedBy: [
+      { required: true, message: 'Uploaded by field is required' },
+      { min: 2, message: 'Uploader name must be at least 2 characters' }
+    ],
+    compliances: [
+      { required: true, message: 'Compliance information is required' }
+    ]
   };
 
   if (!visible) return null;
@@ -901,11 +939,11 @@ const WarehouseForm = ({
       maxWidth="900px"
       className="warehouse-form-modal"
     >
-      <Spin 
-        spinning={loading || submitting} 
+      <Spin
+        spinning={loading || submitting}
         tip={
-          <div style={{ 
-            color: 'var(--text-primary)', 
+          <div style={{
+            color: 'var(--text-primary)',
             fontSize: isMobile ? '16px' : '14px',
             marginTop: '8px'
           }}>
@@ -926,8 +964,8 @@ const WarehouseForm = ({
                 if (firstErrorField) {
                   const element = document.querySelector(`[data-field="${firstErrorField}"]`);
                   if (element) {
-                    element.scrollIntoView({ 
-                      behavior: 'smooth', 
+                    element.scrollIntoView({
+                      behavior: 'smooth',
                       block: 'center',
                       inline: 'nearest'
                     });
@@ -941,162 +979,162 @@ const WarehouseForm = ({
           style={{ color: 'var(--text-primary)' }}
           scrollToFirstError={!isMobile} // Use custom scroll behavior on mobile
         >
-            {isMobile ? (
-              // Mobile layout with collapsible sections
-              <Collapse 
-                defaultActiveKey={['basic']} 
-                ghost
-                style={{ 
-                  background: 'transparent',
-                  border: 'none'
-                }}
-              >
-                <Panel 
-                  header={
-                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
-                      Basic Information
-                    </Title>
-                  } 
-                  key="basic"
-                  style={{ 
-                    background: 'transparent',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    marginBottom: '16px'
-                  }}
-                >
-                  {renderBasicInformation(true)}
-                </Panel>
-
-                <Panel 
-                  header={
-                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
-                      Contact Information
-                    </Title>
-                  } 
-                  key="contact"
-                  style={{ 
-                    background: 'transparent',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    marginBottom: '16px'
-                  }}
-                >
-                  {renderContactInformation(true)}
-                </Panel>
-
-                <Panel 
-                  header={
-                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
-                      Warehouse Details
-                    </Title>
-                  } 
-                  key="details"
-                  style={{ 
-                    background: 'transparent',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    marginBottom: '16px'
-                  }}
-                >
-                  {renderWarehouseDetails(true)}
-                </Panel>
-
-                <Panel 
-                  header={
-                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
-                      Location Data
-                    </Title>
-                  } 
-                  key="location"
-                  style={{ 
-                    background: 'transparent',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    marginBottom: '16px'
-                  }}
-                >
-                  {renderLocationData(true)}
-                </Panel>
-
-                <Panel 
-                  header={
-                    <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
-                      Warehouse Photos
-                    </Title>
-                  } 
-                  key="photos"
-                  style={{ 
-                    background: 'transparent',
-                    border: '1px solid var(--border-primary)',
-                    borderRadius: '8px',
-                    marginBottom: '16px'
-                  }}
-                >
-                  {renderPhotoUpload(true)}
-                </Panel>
-              </Collapse>
-            ) : (
-              // Desktop layout with sections
-              <>
-                {renderBasicInformation(false)}
-                {renderContactInformation(false)}
-                {renderWarehouseDetails(false)}
-                {renderLocationData(false)}
-                {renderPhotoUpload(false)}
-              </>
-            )}
-
-            {/* Form Actions */}
-            <div 
-              className={isMobile ? 'warehouse-form-actions' : ''}
+          {isMobile ? (
+            // Mobile layout with collapsible sections
+            <Collapse
+              defaultActiveKey={['basic']}
+              ghost
               style={{
-                marginTop: '32px',
-                display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                justifyContent: 'flex-end',
-                gap: isMobile ? '12px' : '12px',
-                position: isMobile ? 'sticky' : 'static',
-                bottom: isMobile ? '0' : 'auto',
-                background: isMobile ? 'var(--bg-secondary)' : 'transparent',
-                padding: isMobile ? '16px 0' : '0',
-                borderTop: isMobile ? '1px solid var(--border-primary)' : 'none'
+                background: 'transparent',
+                border: 'none'
               }}
             >
-              <Button
-                size="large"
-                onClick={handleCancel}
-                style={{ 
-                  minWidth: '120px',
-                  minHeight: isMobile ? '44px' : 'auto',
-                  order: isMobile ? 2 : 1,
-                  flex: isMobile ? '1' : 'none'
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="large"
-                icon={submitting ? null : <SaveOutlined />}
-                loading={submitting}
-                disabled={loading}
-                style={{ 
-                  minWidth: '120px',
-                  minHeight: isMobile ? '44px' : 'auto',
-                  order: isMobile ? 1 : 2,
-                  flex: isMobile ? '1' : 'none'
-                }}
-              >
-                {submitting 
-                  ? (isMobile ? 'Saving...' : 'Saving') 
-                  : `${initialData ? 'Update' : 'Create'} Warehouse`
+              <Panel
+                header={
+                  <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                    Basic Information
+                  </Title>
                 }
-              </Button>
-            </div>
-          </Form>
-        </Spin>
+                key="basic"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}
+              >
+                {renderBasicInformation(true)}
+              </Panel>
+
+              <Panel
+                header={
+                  <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                    Contact Information
+                  </Title>
+                }
+                key="contact"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}
+              >
+                {renderContactInformation(true)}
+              </Panel>
+
+              <Panel
+                header={
+                  <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                    Warehouse Details
+                  </Title>
+                }
+                key="details"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}
+              >
+                {renderWarehouseDetails(true)}
+              </Panel>
+
+              <Panel
+                header={
+                  <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                    Location Data
+                  </Title>
+                }
+                key="location"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}
+              >
+                {renderLocationData(true)}
+              </Panel>
+
+              <Panel
+                header={
+                  <Title level={5} style={{ color: 'var(--text-primary)', margin: 0 }}>
+                    Warehouse Photos
+                  </Title>
+                }
+                key="photos"
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border-primary)',
+                  borderRadius: '8px',
+                  marginBottom: '16px'
+                }}
+              >
+                {renderPhotoUpload(true)}
+              </Panel>
+            </Collapse>
+          ) : (
+            // Desktop layout with sections
+            <>
+              {renderBasicInformation(false)}
+              {renderContactInformation(false)}
+              {renderWarehouseDetails(false)}
+              {renderLocationData(false)}
+              {renderPhotoUpload(false)}
+            </>
+          )}
+
+          {/* Form Actions */}
+          <div
+            className={isMobile ? 'warehouse-form-actions' : ''}
+            style={{
+              marginTop: '32px',
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              justifyContent: 'flex-end',
+              gap: isMobile ? '12px' : '12px',
+              position: isMobile ? 'sticky' : 'static',
+              bottom: isMobile ? '0' : 'auto',
+              background: isMobile ? 'var(--bg-secondary)' : 'transparent',
+              padding: isMobile ? '16px 0' : '0',
+              borderTop: isMobile ? '1px solid var(--border-primary)' : 'none'
+            }}
+          >
+            <Button
+              size="large"
+              onClick={handleCancel}
+              style={{
+                minWidth: '120px',
+                minHeight: isMobile ? '44px' : 'auto',
+                order: isMobile ? 2 : 1,
+                flex: isMobile ? '1' : 'none'
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
+              icon={submitting ? null : <SaveOutlined />}
+              loading={submitting}
+              disabled={loading}
+              style={{
+                minWidth: '120px',
+                minHeight: isMobile ? '44px' : 'auto',
+                order: isMobile ? 1 : 2,
+                flex: isMobile ? '1' : 'none'
+              }}
+            >
+              {submitting
+                ? (isMobile ? 'Saving...' : 'Saving')
+                : `${initialData ? 'Update' : 'Create'} Warehouse`
+              }
+            </Button>
+          </div>
+        </Form>
+      </Spin>
     </ResponsiveModal>
   );
 };

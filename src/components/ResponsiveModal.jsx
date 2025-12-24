@@ -38,7 +38,7 @@ const ResponsiveModal = ({
   const modalRef = useRef(null);
   const contentRef = useRef(null);
 
-  // Handle escape key press
+  // Handle escape key press and scroll reset
   useEffect(() => {
     const handleEscapeKey = (event) => {
       if (event.key === 'Escape' && visible && onClose) {
@@ -50,13 +50,28 @@ const ResponsiveModal = ({
       document.addEventListener('keydown', handleEscapeKey);
       // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
+      
+      // Reset modal scroll position to ensure proper centering
+      // Use setTimeout to ensure DOM is ready
+      setTimeout(() => {
+        if (modalRef.current) {
+          modalRef.current.scrollTop = 0;
+          // For desktop, ensure the modal is properly centered
+          if (!isMobile) {
+            modalRef.current.scrollTo({
+              top: 0,
+              behavior: 'instant'
+            });
+          }
+        }
+      }, 0);
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscapeKey);
       document.body.style.overflow = 'unset';
     };
-  }, [visible, onClose]);
+  }, [visible, onClose, isMobile]);
 
   // Focus management for accessibility
   useEffect(() => {
@@ -111,7 +126,7 @@ const ResponsiveModal = ({
     bottom: 0,
     background: 'rgba(0, 0, 0, 0.7)',
     display: 'flex',
-    alignItems: isMobile ? 'flex-start' : 'center',
+    alignItems: 'flex-start', // Always start from top
     justifyContent: 'center',
     zIndex: 1000,
     padding: isMobile ? '0' : '20px',
@@ -119,6 +134,8 @@ const ResponsiveModal = ({
     // Handle safe areas on mobile devices
     paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '20px',
     paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0)' : '20px',
+    // Ensure modal starts from top of viewport, not document
+    scrollBehavior: 'smooth',
     ...style
   };
 
@@ -136,7 +153,13 @@ const ResponsiveModal = ({
     flexDirection: 'column',
     overflow: 'hidden',
     // Ensure modal doesn't exceed viewport on mobile
-    minHeight: isMobile ? '100vh' : 'auto'
+    minHeight: isMobile ? '100vh' : 'auto',
+    // Ensure proper positioning on desktop - add top margin for centering
+    position: 'relative',
+    marginTop: isMobile ? '0' : '10vh', // Center vertically with top margin
+    marginBottom: isMobile ? '0' : 'auto',
+    // Remove focus outline
+    outline: 'none'
   };
 
   // Header styles

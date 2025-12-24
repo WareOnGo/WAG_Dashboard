@@ -60,8 +60,19 @@
 }
 
 .responsive-modal [tabindex="-1"]:focus {
-  outline: 2px solid var(--accent-primary, #1890ff);
-  outline-offset: -2px;
+  outline: none !important;
+}
+
+.responsive-modal [tabindex="-1"] {
+  outline: none !important;
+}
+
+/* Remove any potential Ant Design focus outlines */
+.responsive-modal .ant-modal-content,
+.responsive-modal .ant-card,
+.responsive-modal div[tabindex] {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* High contrast mode support */
