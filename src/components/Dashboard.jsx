@@ -4,7 +4,6 @@ import {
   Button, 
   Typography, 
   Card, 
-  Spin,
   Tooltip,
   App,
   Input,
@@ -377,6 +376,7 @@ const Dashboard = () => {
                 visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(formData.visibility)
               };
               
+              // Update the warehouses array - the filtering effect will handle filteredWarehouses
               setWarehouses(prev => 
                 prev.map(w => w.id === editingWarehouse.id ? updatedWarehouse : w)
               );
@@ -391,6 +391,7 @@ const Dashboard = () => {
               );
               
               // Add new warehouse to local state
+              // The filtering effect will automatically update filteredWarehouses
               setWarehouses(prev => [...prev, result]);
             }
             
@@ -398,12 +399,12 @@ const Dashboard = () => {
             setFormVisible(false);
             setEditingWarehouse(null);
             
-            // Force refresh of filtered warehouses to ensure UI updates
-            setTimeout(() => {
-              setFilteredWarehouses(prev => [...prev]);
-            }, 100);
-            
-            showSuccessMessage(operationType);
+            // Show success message with the new warehouse info
+            showSuccessMessage(operationType, {
+              details: operationType === 'create' 
+                ? `${result.warehouseType} in ${result.city}` 
+                : `${result.warehouseType || formData.warehouseType} in ${result.city || formData.city}`
+            });
             resolve(result);
             
           } catch (error) {
@@ -1044,64 +1045,62 @@ const Dashboard = () => {
           transition: 'all 0.3s ease',
           opacity: isTransitioning ? 0.7 : 1
         }}>
-          <Spin spinning={loading} tip="Loading warehouses...">
-            {currentView === 'table' ? (
-              <ResponsiveTable
-                columns={columns}
-                dataSource={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
-                rowKey="id"
-                onRow={(record) => ({
-                  onContextMenu: (event) => handleRowContextMenu(record, event),
-                  style: { cursor: 'context-menu' }
-                })}
-                pagination={{
-                  current: currentPage,
-                  pageSize: pageSize,
-                  showSizeChanger: !isMobile,
-                  showQuickJumper: !isMobile,
-                  pageSizeOptions: ['10', '20', '50', '100'],
-                  showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} of ${total} warehouses`,
-                  position: ['bottomCenter'],
-                  onChange: (page, size) => {
-                    setCurrentPage(page);
-                    if (size !== pageSize) {
-                      setPageSize(size);
-                    }
-                  },
-                  onShowSizeChange: (current, size) => {
-                    setCurrentPage(1);
+          {currentView === 'table' ? (
+            <ResponsiveTable
+              columns={columns}
+              dataSource={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+              rowKey="id"
+              onRow={(record) => ({
+                onContextMenu: (event) => handleRowContextMenu(record, event),
+                style: { cursor: 'context-menu' }
+              })}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                showSizeChanger: !isMobile,
+                showQuickJumper: !isMobile,
+                pageSizeOptions: ['10', '20', '50', '100'],
+                showTotal: (total, range) => 
+                  `${range[0]}-${range[1]} of ${total} warehouses`,
+                position: ['bottomCenter'],
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  if (size !== pageSize) {
                     setPageSize(size);
-                  },
-                  style: {
-                    padding: isMobile ? '12px 16px' : '16px 24px',
-                    background: 'var(--bg-header)',
-                    backdropFilter: 'blur(10px)',
-                    WebkitBackdropFilter: 'blur(10px)',
-                    borderTop: '1px solid var(--border-primary)',
-                    margin: 0
                   }
-                }}
-                scroll={{ 
-                  x: isMobile ? 1200 : 2400, 
-                  y: isMobile ? 'calc(100vh - 300px)' : 'calc(100vh - 400px)',
-                  scrollToFirstRowOnChange: true
-                }}
+                },
+                onShowSizeChange: (current, size) => {
+                  setCurrentPage(1);
+                  setPageSize(size);
+                },
+                style: {
+                  padding: isMobile ? '12px 16px' : '16px 24px',
+                  background: 'var(--bg-header)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderTop: '1px solid var(--border-primary)',
+                  margin: 0
+                }
+              }}
+              scroll={{ 
+                x: isMobile ? 1200 : 2400, 
+                y: isMobile ? 'calc(100vh - 300px)' : 'calc(100vh - 400px)',
+                scrollToFirstRowOnChange: true
+              }}
+              loading={loading}
+              className="dark-table"
+            />
+          ) : (
+            <div style={{ padding: isMobile ? '12px' : '16px' }}>
+              <CardView
+                warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
                 loading={loading}
-                className="dark-table"
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onViewDetails={handleViewDetails}
               />
-            ) : (
-              <div style={{ padding: isMobile ? '12px' : '16px' }}>
-                <CardView
-                  warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
-                  loading={loading}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onViewDetails={handleViewDetails}
-                />
-              </div>
-            )}
-          </Spin>
+            </div>
+          )}
         </div>
       </Card>
 
