@@ -1,0 +1,218 @@
+/* WarehouseForm Mobile Optimization Styles */
+
+/* Mobile form layout optimizations */
+@media (max-width: 767px) {
+  .warehouse-form-modal .ant-form {
+    /* Optimize form spacing for mobile */
+    padding: 0;
+  }
+
+  .warehouse-form-modal .ant-form-item {
+    margin-bottom: 20px;
+  }
+
+  .warehouse-form-modal .ant-form-item-label {
+    padding-bottom: 8px;
+  }
+
+  .warehouse-form-modal .ant-form-item-label > label {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  /* Optimize input controls for touch */
+  .warehouse-form-modal .ant-input,
+  .warehouse-form-modal .ant-input-number,
+  .warehouse-form-modal .ant-select-selector,
+  .warehouse-form-modal .ant-picker {
+    min-height: 44px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    border-radius: 8px;
+  }
+
+  .warehouse-form-modal .ant-input-number-input {
+    font-size: 16px;
+  }
+
+  .warehouse-form-modal .ant-select-selection-item {
+    font-size: 16px;
+    line-height: 28px;
+  }
+
+  /* Optimize textarea for mobile */
+  .warehouse-form-modal .ant-input {
+    padding: 12px 16px;
+  }
+
+  /* Optimize switches for mobile */
+  .warehouse-form-modal .ant-switch {
+    min-width: 44px;
+    height: 24px;
+  }
+
+  /* Optimize buttons for mobile */
+  .warehouse-form-modal .ant-btn {
+    min-height: 44px;
+    font-size: 16px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+
+  /* Form actions sticky positioning */
+  .warehouse-form-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-secondary);
+    padding: 16px 0;
+    margin: 16px -16px -16px -16px;
+    border-top: 1px solid var(--border-primary);
+    z-index: 10;
+  }
+
+  /* Collapse panel optimizations */
+  .warehouse-form-modal .ant-collapse-header {
+    padding: 16px 0 !important;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .warehouse-form-modal .ant-collapse-content-box {
+    padding: 0 0 16px 0 !important;
+  }
+
+  .warehouse-form-modal .ant-collapse-item {
+    border-bottom: 1px solid var(--border-primary);
+  }
+
+  .warehouse-form-modal .ant-collapse-item:last-child {
+    border-bottom: none;
+  }
+
+  /* Dynamic list items (space fields) */
+  .warehouse-form-modal .ant-form-list .ant-space {
+    width: 100%;
+  }
+
+  .warehouse-form-modal .ant-form-list .ant-btn-dashed {
+    margin-top: 12px;
+  }
+
+  /* Error message styling */
+  .warehouse-form-modal .ant-form-item-explain-error {
+    font-size: 14px;
+    margin-top: 4px;
+  }
+
+  /* Loading spinner optimization */
+  .warehouse-form-modal .ant-spin-container {
+    min-height: 200px;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .warehouse-form-modal .ant-form-item {
+    margin-bottom: 24px;
+  }
+
+  .warehouse-form-modal .ant-input,
+  .warehouse-form-modal .ant-input-number,
+  .warehouse-form-modal .ant-select-selector {
+    min-height: 40px;
+  }
+}
+
+/* Focus states for better accessibility */
+.warehouse-form-modal .ant-input:focus,
+.warehouse-form-modal .ant-input-number:focus,
+.warehouse-form-modal .ant-select-focused .ant-select-selector,
+.warehouse-form-modal .ant-picker:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .warehouse-form-modal .ant-form-item-label > label {
+    font-weight: 700;
+  }
+
+  .warehouse-form-modal .ant-input,
+  .warehouse-form-modal .ant-input-number,
+  .warehouse-form-modal .ant-select-selector {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .warehouse-form-modal .ant-collapse-content {
+    transition: none;
+  }
+}
+
+/* Form validation error states */
+.warehouse-form-modal .ant-form-item-has-error .ant-input,
+.warehouse-form-modal .ant-form-item-has-error .ant-input-number,
+.warehouse-form-modal .ant-form-item-has-error .ant-select-selector {
+  border-color: #ff4d4f;
+}
+
+.warehouse-form-modal .ant-form-item-has-error .ant-input:focus,
+.warehouse-form-modal .ant-form-item-has-error .ant-input-number:focus,
+.warehouse-form-modal .ant-form-item-has-error .ant-select-focused .ant-select-selector {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* Success states */
+.warehouse-form-modal .ant-form-item-has-success .ant-input,
+.warehouse-form-modal .ant-form-item-has-success .ant-input-number,
+.warehouse-form-modal .ant-form-item-has-success .ant-select-selector {
+  border-color: #52c41a;
+}
+
+/* Loading state optimizations */
+.warehouse-form-modal .ant-spin-container {
+  position: relative;
+}
+
+.warehouse-form-modal .ant-spin-spinning {
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .warehouse-form-modal .ant-spin-dot {
+    font-size: 24px;
+  }
+  
+  .warehouse-form-modal .ant-spin-text {
+    font-size: 16px;
+    margin-top: 12px;
+  }
+  
+  /* Form submission feedback */
+  .warehouse-form-modal .ant-btn-loading {
+    pointer-events: none;
+  }
+  
+  .warehouse-form-modal .ant-btn-primary.ant-btn-loading {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    opacity: 0.8;
+  }
+  
+  /* Smooth transitions for form states */
+  .warehouse-form-modal .ant-form-item {
+    transition: all 0.2s ease;
+  }
+  
+  .warehouse-form-modal .ant-form-item-has-error {
+    animation: shake 0.3s ease-in-out;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}

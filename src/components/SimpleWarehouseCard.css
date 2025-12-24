@@ -1,0 +1,353 @@
+/* SimpleWarehouseCard.css - Matching site's design system */
+
+.simple-warehouse-card {
+  background: rgba(31, 31, 31, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.simple-warehouse-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Header */
+.simple-warehouse-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.simple-warehouse-card__id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  /* Removed blue, using neutral white */
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.simple-warehouse-card__status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid;
+}
+
+.simple-warehouse-card__status--visible {
+  background-color: transparent;
+  border-color: rgba(140, 150, 140, 0.5);
+  /* Very faint grey-green blend */
+  color: rgba(140, 150, 140, 0.8);
+}
+
+.simple-warehouse-card__status--hidden {
+  background-color: transparent;
+  border-color: rgba(140, 140, 140, 0.4);
+  color: rgba(140, 140, 140, 0.6);
+}
+
+/* Image */
+.simple-warehouse-card__image {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 6px;
+  background-color: #1f1f1f;
+  margin-bottom: 12px;
+}
+
+.simple-warehouse-card__image-placeholder {
+  width: 100%;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.simple-warehouse-card:hover .simple-warehouse-card__image-placeholder {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.simple-warehouse-card__placeholder-text {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Content */
+.simple-warehouse-card__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.simple-warehouse-card__top-content {
+  flex-shrink: 0;
+}
+
+.simple-warehouse-card__bottom-content {
+  margin-top: auto;
+}
+
+.simple-warehouse-card__title {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+}
+
+.simple-warehouse-card__owner-type {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  font-weight: 400;
+  margin-bottom: 12px;
+}
+
+.simple-warehouse-card__location,
+.simple-warehouse-card__contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+}
+
+.simple-warehouse-card__icon {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.simple-warehouse-card__icon--secondary {
+  margin-left: 12px;
+}
+
+.simple-warehouse-card__zone-tag {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  /* Removed blue, using neutral */
+  color: rgba(255, 255, 255, 0.75);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Metrics */
+.simple-warehouse-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.simple-warehouse-card__metric {
+  text-align: center;
+}
+
+.simple-warehouse-card__metric-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.simple-warehouse-card__metric-value {
+  display: block;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Actions */
+.simple-warehouse-card__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 4px;
+}
+
+.simple-warehouse-card__action-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  padding: 8px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  min-height: 36px;
+}
+
+.simple-warehouse-card__action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.simple-warehouse-card__action-btn--danger {
+  color: rgba(255, 77, 79, 0.85);
+}
+
+.simple-warehouse-card__action-btn--danger:hover {
+  background: rgba(255, 77, 79, 0.15);
+  color: #ff4d4f;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .simple-warehouse-card {
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .simple-warehouse-card__image,
+  .simple-warehouse-card__image-placeholder {
+    height: 100px;
+  }
+
+  .simple-warehouse-card__placeholder-text {
+    font-size: 11px;
+  }
+
+  .simple-warehouse-card__title {
+    font-size: 15px;
+  }
+
+  .simple-warehouse-card__location,
+  .simple-warehouse-card__contact {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .simple-warehouse-card__metrics {
+    gap: 8px;
+    padding: 8px;
+    margin: 8px 0;
+  }
+
+  .simple-warehouse-card__metric-label {
+    font-size: 9px;
+  }
+
+  .simple-warehouse-card__metric-value {
+    font-size: 12px;
+  }
+
+  .simple-warehouse-card__actions {
+    padding-top: 8px;
+    gap: 2px;
+  }
+
+  .simple-warehouse-card__action-btn {
+    font-size: 11px;
+    padding: 6px 2px;
+    min-height: 32px;
+  }
+}
+
+/* Small screens */
+@media (max-width: 480px) {
+  .simple-warehouse-card__metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .simple-warehouse-card__metrics {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .simple-warehouse-card__metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .simple-warehouse-card__metric-label,
+  .simple-warehouse-card__metric-value {
+    display: inline;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .simple-warehouse-card {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .simple-warehouse-card__header {
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .simple-warehouse-card__actions {
+    border-top-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .simple-warehouse-card__image-placeholder {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+
+  .simple-warehouse-card,
+  .simple-warehouse-card__action-btn,
+  .simple-warehouse-card__image-placeholder {
+    transition: none;
+  }
+
+  .simple-warehouse-card:hover {
+    transform: none;
+  }
+}

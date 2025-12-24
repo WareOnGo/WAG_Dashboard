@@ -1,12 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/constants';
 
-// AGGRESSIVE DEBUG LOGGING
-console.log('=== WAREHOUSE SERVICE DEBUG ===');
-console.log('Imported API_BASE_URL:', API_BASE_URL);
-console.log('Current window.location.origin:', window.location.origin);
-console.log('Current window.location.href:', window.location.href);
-
 // Configure axios instance for warehouse API
 const warehouseAPI = axios.create({
   baseURL: API_BASE_URL,
@@ -14,10 +8,6 @@ const warehouseAPI = axios.create({
     'Content-Type': 'application/json',
   },
 });
-
-// Debug logging to verify the baseURL
-console.log('Axios instance baseURL:', warehouseAPI.defaults.baseURL);
-console.log('Axios instance full config:', warehouseAPI.defaults);
 
 // Add response interceptor for consistent error handling
 warehouseAPI.interceptors.response.use(
@@ -59,10 +49,6 @@ export const warehouseService = {
    * @returns {Promise} Array of warehouse objects with nested WarehouseData
    */
   getAll: async () => {
-    console.log('=== MAKING API CALL ===');
-    console.log('warehouseAPI baseURL:', warehouseAPI.defaults.baseURL);
-    console.log('Full URL will be:', warehouseAPI.defaults.baseURL + '/warehouses');
-    
     const response = await warehouseAPI.get('/warehouses');
     return response.data;
   },

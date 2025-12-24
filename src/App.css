@@ -1,3 +1,6 @@
+/* Import responsive infrastructure */
+@import './styles/responsive.css';
+
 /* High contrast dark theme */
 body {
   background-color: var(--bg-primary);
@@ -18,6 +21,8 @@ body {
   --glass-hover: rgba(255, 255, 255, 0.08);
   --glass-active: rgba(255, 255, 255, 0.12);
   --accent-primary: #ffffff;
+  --accent-primary-rgb: 255, 255, 255;
+  --accent-primary-hover: #e6e6e6;
   --accent-hover: #e6e6e6;
   --accent-light: rgba(255, 255, 255, 0.1);
   --bg-primary: #1a1a1a;
@@ -32,10 +37,23 @@ body {
   --text-muted: rgba(255, 255, 255, 0.5);
 }
 
-/* Dark theme table styling */
+/* Dark theme table styling - Mobile First */
 .dark-table .ant-table {
   background: transparent;
   color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* Mobile table adjustments */
+@media (max-width: 767px) {
+  .dark-table .ant-table {
+    font-size: var(--font-size-xs);
+  }
+  
+  .dark-table .ant-table-thead > tr > th,
+  .dark-table .ant-table-tbody > tr > td {
+    padding: var(--spacing-sm) var(--spacing-xs);
+  }
 }
 
 /* Table headers */
@@ -45,8 +63,8 @@ body {
   border-bottom: 1px solid var(--border-primary);
   border-right: 1px solid var(--border-secondary);
   font-weight: 500;
-  font-size: 13px;
-  padding: 16px 12px;
+  font-size: var(--font-size-xs);
+  padding: var(--spacing-md) var(--spacing-sm);
   text-transform: none;
   letter-spacing: normal;
 }
@@ -55,8 +73,8 @@ body {
   background: transparent;
   border-bottom: 1px solid var(--border-secondary);
   color: var(--text-secondary);
-  padding: 16px 12px;
-  font-size: 14px;
+  padding: var(--spacing-md) var(--spacing-sm);
+  font-size: var(--font-size-sm);
 }
 
 .dark-table .ant-table-tbody > tr:hover > td {
@@ -122,20 +140,47 @@ body {
   overflow: visible !important;
 }
 
-/* Sticky pagination */
+/* Responsive table container */
 .table-container {
   position: relative;
   height: calc(100vh - 300px);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
+/* Mobile table container adjustments */
+@media (max-width: 767px) {
+  .table-container {
+    height: calc(100vh - 200px);
+    margin: 0 calc(-1 * var(--container-padding));
+    padding: 0 var(--container-padding);
+  }
+}
+
+/* Responsive sticky pagination */
 .sticky-pagination {
   position: sticky !important;
   bottom: 0 !important;
   background: var(--bg-header) !important;
-  padding: 16px 0 !important;
+  padding: var(--spacing-md) 0 !important;
   border-top: 1px solid var(--border-primary) !important;
-  z-index: 10 !important;
+  z-index: var(--z-sticky) !important;
   margin: 0 !important;
+}
+
+/* Mobile pagination adjustments */
+@media (max-width: 767px) {
+  .sticky-pagination {
+    padding: var(--spacing-sm) 0 !important;
+  }
+  
+  .sticky-pagination .ant-pagination {
+    justify-content: center;
+  }
+  
+  .sticky-pagination .ant-pagination-options {
+    display: none;
+  }
 }
 
 /* Dark theme pagination */
@@ -283,12 +328,44 @@ body {
   background-color: var(--accent-primary);
 }
 
-/* Dark theme for modal */
+/* Responsive modal styling */
 .ant-modal-content {
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border-radius: 8px;
+  border-radius: var(--border-radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  margin: var(--spacing-lg);
+}
+
+/* Mobile modal adjustments */
+@media (max-width: 767px) {
+  .ant-modal {
+    max-width: calc(100vw - var(--spacing-md));
+    margin: var(--spacing-sm);
+  }
+  
+  .ant-modal-content {
+    margin: 0;
+    border-radius: var(--border-radius-md);
+  }
+  
+  .ant-modal-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  .ant-modal-body {
+    padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md) var(--spacing-lg);
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+  }
+  
+  .ant-modal-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  .ant-modal-footer .ant-btn {
+    margin-left: var(--spacing-sm);
+  }
 }
 
 .ant-modal-header {
@@ -386,11 +463,28 @@ body {
   background: var(--glass-hover);
 }
 
-/* Clean button styling */
+/* Responsive button styling */
 .ant-btn {
-  border-radius: 4px;
+  border-radius: var(--border-radius-sm);
   font-weight: 400;
   transition: all 0.15s ease;
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+}
+
+/* Mobile button adjustments */
+@media (max-width: 767px) {
+  .ant-btn {
+    min-height: var(--touch-target-recommended);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-base);
+  }
+  
+  .ant-btn-sm {
+    min-height: var(--touch-target-min);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+  }
 }
 
 .ant-btn-primary,
@@ -418,15 +512,33 @@ body {
   color: var(--text-muted) !important;
 }
 
-/* Clean input styling */
+/* Responsive input styling */
 .ant-input,
 .ant-select-selector,
 .ant-input-number,
 .ant-input-number-input {
-  border-radius: 4px;
+  border-radius: var(--border-radius-sm);
   border-color: var(--border-secondary);
   background: var(--bg-surface);
   color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  min-height: var(--touch-target-min);
+}
+
+/* Mobile input adjustments */
+@media (max-width: 767px) {
+  .ant-input,
+  .ant-select-selector,
+  .ant-input-number,
+  .ant-input-number-input {
+    min-height: var(--touch-target-recommended);
+    font-size: var(--font-size-base);
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .ant-select-selector {
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) var(--spacing-sm) !important;
+  }
 }
 
 .ant-input:focus,
@@ -705,9 +817,19 @@ a:hover .ant-typography {
   color: var(--text-primary) !important;
 }
 
-/* Header layout styling */
+/* Responsive header layout styling */
 .ant-layout-header {
   box-shadow: none !important;
+  padding: 0 var(--container-padding) !important;
+  height: 56px !important;
+}
+
+/* Mobile header adjustments */
+@media (max-width: 767px) {
+  .ant-layout-header {
+    height: 64px !important;
+    padding: 0 var(--spacing-md) !important;
+  }
 }
 
 .ant-layout-header .ant-btn-text {
@@ -715,11 +837,20 @@ a:hover .ant-typography {
   border: none !important;
   background: transparent !important;
   height: 32px !important;
-  padding: 6px 12px !important;
-  border-radius: 4px !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  border-radius: var(--border-radius-sm) !important;
   transition: all 0.15s ease !important;
   font-weight: 400 !important;
-  font-size: 13px !important;
+  font-size: var(--font-size-xs) !important;
+}
+
+/* Mobile header button adjustments */
+@media (max-width: 767px) {
+  .ant-layout-header .ant-btn-text {
+    height: var(--touch-target-min) !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    font-size: var(--font-size-sm) !important;
+  }
 }
 
 .ant-layout-header .ant-btn-text:hover {
@@ -740,20 +871,37 @@ a:hover .ant-typography {
   color: var(--text-primary) !important;
 }
 
-/* Clean navbar button styling */
+/* Responsive navbar button styling */
 .navbar-btn {
   color: var(--text-muted) !important;
   border: none !important;
   background: transparent !important;
   height: 32px !important;
-  padding: 6px 12px !important;
-  border-radius: 4px !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  border-radius: var(--border-radius-sm) !important;
   transition: color 0.15s ease !important;
   font-weight: 400 !important;
-  font-size: 13px !important;
+  font-size: var(--font-size-xs) !important;
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  gap: var(--spacing-xs) !important;
+}
+
+/* Mobile navbar button adjustments */
+@media (max-width: 767px) {
+  .navbar-btn {
+    height: var(--touch-target-min) !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    font-size: var(--font-size-sm) !important;
+    gap: var(--spacing-sm) !important;
+  }
+  
+  /* Hide text on very small screens, keep icons */
+  @media (max-width: 480px) {
+    .navbar-btn span:not(.anticon) {
+      display: none;
+    }
+  }
 }
 
 .navbar-btn:hover {
@@ -765,10 +913,30 @@ a:hover .ant-typography {
   background: transparent !important;
 }
 
-/* Clean user profile styling */
+/* Responsive user profile styling */
 .user-profile {
   transition: color 0.15s ease !important;
-  border-radius: 4px !important;
+  border-radius: var(--border-radius-sm) !important;
+  padding: var(--spacing-xs) var(--spacing-sm) !important;
+  min-height: var(--touch-target-min);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+/* Mobile user profile adjustments */
+@media (max-width: 767px) {
+  .user-profile {
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    gap: var(--spacing-sm);
+  }
+  
+  /* Hide user text on very small screens */
+  @media (max-width: 480px) {
+    .user-profile span {
+      display: none;
+    }
+  }
 }
 
 .user-profile:hover {
@@ -781,4 +949,117 @@ a:hover .ant-typography {
 
 .user-profile:hover .anticon {
   color: var(--text-secondary) !important;
+}/* Pe
+rformance optimizations for mobile devices */
+.critical-content {
+  contain: layout style paint;
+}
+
+.critical-content--visible {
+  contain: none;
+}
+
+/* Above-the-fold optimization */
+.above-fold-optimizer {
+  min-height: 100vh;
+}
+
+.critical-layout {
+  will-change: auto;
+}
+
+/* Hardware acceleration for critical elements */
+.ant-layout,
+.ant-card,
+.ant-table-wrapper,
+.warehouse-card,
+.mobile-header {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Optimize font loading */
+@font-face {
+  font-family: 'Inter';
+  font-display: swap;
+  src: local('Inter'), url('/fonts/inter.woff2') format('woff2');
+}
+
+/* Critical CSS for above-the-fold content */
+.critical-content-ready .ant-layout {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.non-critical-content-ready .ant-card,
+.non-critical-content-ready .ant-table {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+/* Mobile-specific performance optimizations */
+@media (max-width: 767px) {
+  /* Reduce animations on mobile for better performance */
+  .ant-card {
+    transition: none;
+  }
+  
+  /* Optimize touch targets */
+  .ant-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Reduce blur effects on mobile */
+  .ant-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  
+  /* Optimize scrolling */
+  .ant-table-body {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
+/* Preload critical images */
+.warehouse-card__image::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 120px;
+  background: linear-gradient(90deg, #262626 25%, #303030 50%, #262626 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Performance monitoring indicator styles */
+.performance-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .critical-content,
+  .ant-card,
+  .ant-table,
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,0 +1,454 @@
+/**
+ * Cross-browser and cross-device compatibility styles
+ * Handles browser-specific quirks, device limitations, and progressive enhancement
+ */
+
+/* ==========================================================================
+   Browser Compatibility Base Styles
+   ========================================================================== */
+
+/* Normalize browser differences */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* Prevent iOS text size adjust after orientation change */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  
+  /* Improve font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  /* Prevent bounce scrolling on iOS */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  
+  /* Prevent text selection on touch devices */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection for content areas */
+.selectable-text,
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* ==========================================================================
+   Safe Area and Notch Handling
+   ========================================================================== */
+
+/* CSS Environment Variables for Safe Areas */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+  
+  /* Platform-specific padding */
+  --platform-padding-top: max(var(--safe-area-inset-top), 8px);
+  --platform-padding-right: max(var(--safe-area-inset-right), 8px);
+  --platform-padding-bottom: max(var(--safe-area-inset-bottom), 8px);
+  --platform-padding-left: max(var(--safe-area-inset-left), 8px);
+}
+
+/* Safe area aware containers */
+.safe-area-container {
+  padding-top: var(--platform-padding-top);
+  padding-right: var(--platform-padding-right);
+  padding-bottom: var(--platform-padding-bottom);
+  padding-left: var(--platform-padding-left);
+}
+
+.safe-area-top {
+  padding-top: var(--platform-padding-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: var(--platform-padding-bottom);
+}
+
+.safe-area-horizontal {
+  padding-left: var(--platform-padding-left);
+  padding-right: var(--platform-padding-right);
+}
+
+/* ==========================================================================
+   Browser-Specific Styles
+   ========================================================================== */
+
+/* Chrome and Safari (WebKit) */
+.browser-chrome,
+.browser-safari {
+  /* Custom scrollbar styling */
+  --scrollbar-width: 8px;
+  --scrollbar-track-color: var(--color-background-secondary);
+  --scrollbar-thumb-color: var(--color-border);
+}
+
+.browser-chrome ::-webkit-scrollbar,
+.browser-safari ::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+  height: var(--scrollbar-width);
+}
+
+.browser-chrome ::-webkit-scrollbar-track,
+.browser-safari ::-webkit-scrollbar-track {
+  background: var(--scrollbar-track-color);
+  border-radius: 4px;
+}
+
+.browser-chrome ::-webkit-scrollbar-thumb,
+.browser-safari ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-color);
+  border-radius: 4px;
+}
+
+.browser-chrome ::-webkit-scrollbar-thumb:hover,
+.browser-safari ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-hover);
+}
+
+/* Firefox */
+.browser-firefox {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) var(--color-background-secondary);
+}
+
+/* Edge */
+.browser-edge {
+  /* Edge-specific adjustments */
+  -ms-overflow-style: -ms-autohiding-scrollbar;
+}
+
+/* Samsung Internet */
+.browser-samsung {
+  /* Samsung Internet specific optimizations */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   Device-Specific Styles
+   ========================================================================== */
+
+/* iOS Devices */
+.is-ios {
+  /* Prevent zoom on input focus */
+  --input-font-size: max(16px, 1rem);
+  
+  /* Optimize touch interactions */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+.is-ios input,
+.is-ios textarea,
+.is-ios select {
+  font-size: var(--input-font-size);
+}
+
+.is-ios .modal,
+.is-ios .drawer {
+  /* Prevent background scrolling on iOS */
+  position: fixed;
+  overflow: hidden;
+}
+
+/* Android Devices */
+.is-android {
+  /* Optimize scrolling performance */
+  overscroll-behavior: contain;
+  touch-action: manipulation;
+}
+
+.is-android input[type="date"],
+.is-android input[type="time"],
+.is-android input[type="datetime-local"] {
+  /* Improve native picker appearance on Android */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* iPhone specific */
+.device-iphone {
+  /* iPhone-specific optimizations */
+}
+
+.device-iphone.has-notch {
+  /* Additional padding for notched iPhones */
+  --platform-padding-top: max(var(--safe-area-inset-top), 44px);
+}
+
+/* iPad specific */
+.device-ipad {
+  /* iPad-specific optimizations */
+}
+
+/* Android tablet specific */
+.device-android.device-tablet {
+  /* Android tablet optimizations */
+}
+
+/* ==========================================================================
+   Performance-Based Styles
+   ========================================================================== */
+
+/* Low-end device optimizations */
+.low-end-device {
+  /* Reduce animations for better performance */
+  --animation-duration: 0.2s;
+  --transition-duration: 0.15s;
+}
+
+.low-end-device * {
+  animation-duration: var(--animation-duration) !important;
+  transition-duration: var(--transition-duration) !important;
+}
+
+.low-end-device .complex-animation {
+  /* Disable complex animations on low-end devices */
+  animation: none !important;
+  transform: none !important;
+}
+
+/* High-end device enhancements */
+.high-end-device {
+  /* Enable enhanced animations and effects */
+  --animation-duration: 0.3s;
+  --transition-duration: 0.25s;
+}
+
+/* ==========================================================================
+   Touch Interface Optimizations
+   ========================================================================== */
+
+/* Touch target sizing */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px;
+  margin: 4px;
+}
+
+/* Touch-friendly buttons */
+.touch-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  line-height: 1.5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-duration) ease;
+}
+
+.touch-button:hover,
+.touch-button:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.touch-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Touch-optimized form controls */
+.touch-input {
+  padding: 12px 16px;
+  font-size: 16px;
+  line-height: 1.5;
+  border-radius: 8px;
+  min-height: 44px;
+}
+
+/* ==========================================================================
+   Accessibility and Reduced Motion
+   ========================================================================== */
+
+/* Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border: #000000;
+    --color-text: #000000;
+    --color-background: #ffffff;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark mode variables are handled by the main theme */
+  }
+}
+
+/* ==========================================================================
+   Orientation Handling
+   ========================================================================== */
+
+/* Portrait orientation */
+.orientation-portrait {
+  /* Portrait-specific styles */
+}
+
+/* Landscape orientation */
+.orientation-landscape {
+  /* Landscape-specific styles */
+}
+
+/* Orientation change transitions */
+@media (orientation: landscape) {
+  .responsive-container {
+    transition: all 0.3s ease;
+  }
+}
+
+@media (orientation: portrait) {
+  .responsive-container {
+    transition: all 0.3s ease;
+  }
+}
+
+/* ==========================================================================
+   Feature Detection Fallbacks
+   ========================================================================== */
+
+/* CSS Grid fallback */
+.no-css-grid .grid-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.no-css-grid .grid-item {
+  flex: 1 1 auto;
+  min-width: 250px;
+}
+
+/* Flexbox fallback */
+.no-css-flexbox .flex-container {
+  display: block;
+}
+
+.no-css-flexbox .flex-item {
+  display: inline-block;
+  vertical-align: top;
+}
+
+/* Custom properties fallback */
+.no-css-custom-properties {
+  /* Fallback values for browsers without CSS custom properties */
+  color: #ffffff;
+  background-color: #1a1a1a;
+  border-color: #333333;
+}
+
+/* ==========================================================================
+   Network and Connection Optimizations
+   ========================================================================== */
+
+/* Slow connection optimizations */
+@media (prefers-reduced-data: reduce) {
+  .optional-image,
+  .decorative-image {
+    display: none;
+  }
+  
+  .background-image {
+    background-image: none !important;
+  }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+
+/* ==========================================================================
+   Utility Classes for Compatibility
+   ========================================================================== */
+
+/* Hide elements on unsupported browsers */
+.is-unsupported .modern-feature {
+  display: none;
+}
+
+.is-unsupported .fallback-feature {
+  display: block;
+}
+
+/* Show elements only on supported browsers */
+.is-supported .fallback-feature {
+  display: none;
+}
+
+.is-supported .modern-feature {
+  display: block;
+}
+
+/* Browser-specific visibility */
+.chrome-only { display: none; }
+.safari-only { display: none; }
+.firefox-only { display: none; }
+.edge-only { display: none; }
+
+.browser-chrome .chrome-only { display: block; }
+.browser-safari .safari-only { display: block; }
+.browser-firefox .firefox-only { display: block; }
+.browser-edge .edge-only { display: block; }
+
+/* Device-specific visibility */
+.mobile-only { display: none; }
+.desktop-only { display: block; }
+
+.is-mobile .mobile-only { display: block; }
+.is-mobile .desktop-only { display: none; }
+
+/* Standalone app styles */
+.standalone-app {
+  /* PWA-specific styles when running as standalone app */
+}
+
+.browser-app {
+  /* Browser-specific styles when running in browser */
+}

@@ -29,7 +29,20 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
-import { WarehouseForm, ContextMenu } from './index';
+import { 
+  WarehouseForm, 
+  ContextMenu, 
+  ResponsiveTable, 
+  CardView, 
+  ViewSwitcher,
+  MobileFilterDrawer
+} from './index';
+import ResponsiveModal from './ResponsiveModal';
+import WarehouseDetailsModal from './WarehouseDetailsModal';
+import './ResponsiveModal.css';
+import { useViewport, useViewPreference } from '../hooks';
+import { useApiCache } from '../hooks/useCaching';
+import { usePerformanceMonitoring } from '../hooks/usePerformanceMonitoring';
 import { 
   showSuccessMessage, 
   withRetry,
@@ -46,6 +59,26 @@ const Dashboard = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Responsive and view management
+  const { isMobile } = useViewport();
+  const { 
+    currentView, 
+    changeView, 
+    isTransitioning 
+  } = useViewPreference();
+  
+  // Performance optimizations
+  const { cacheApiCall, isOnline } = useApiCache({
+    ttl: 300000, // 5 minutes cache
+    maxSize: isMobile ? 10 : 20,
+    enableOffline: true
+  });
+  
+  const { measureAsync, getPerformanceSummary } = usePerformanceMonitoring({
+    enableMemoryMonitoring: isMobile,
+    enableNetworkMonitoring: isMobile
+  });
   
   // Filter and search states
   const [searchText, setSearchText] = useState('');
@@ -95,20 +128,22 @@ const Dashboard = () => {
     setError(null);
     
     try {
-      const data = await withRetry(
-        () => warehouseService.getAll(),
-        { 
-          operationType: 'fetch',
-          maxRetries: 2,
-          onError: (errorInfo) => setError(errorInfo.message)
-        }
-      );
+      // Use cached API call with performance monitoring
+      const data = await measureAsync('fetch_warehouses', async () => {
+        return await cacheApiCall('warehouses_list', () => warehouseService.getAll());
+      });
+      
       // Ensure data is always an array
       const warehouseData = Array.isArray(data) ? data : [];
       setWarehouses(warehouseData);
       setFilteredWarehouses(warehouseData);
     } catch (err) {
       setError(err.message);
+      
+      // Log performance summary on error for debugging
+      if (isMobile) {
+        console.warn('Performance summary on error:', getPerformanceSummary());
+      }
     } finally {
       setLoading(false);
     }
@@ -729,41 +764,68 @@ const Dashboard = () => {
           gap: '12px', 
           marginBottom: '16px',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          flexWrap: 'wrap'
         }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1 }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px', 
+            alignItems: 'center', 
+            flex: 1,
+            minWidth: isMobile ? '100%' : 'auto'
+          }}>
             <Input
               placeholder="Search warehouses..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
-              style={{ maxWidth: '400px' }}
+              style={{ maxWidth: isMobile ? '100%' : '400px' }}
             />
             <Button
               icon={<FilterOutlined />}
               onClick={() => setFiltersVisible(!filtersVisible)}
               type={filtersVisible ? 'primary' : 'default'}
+              size={isMobile ? 'small' : 'middle'}
             >
-              Filters
+              {isMobile ? '' : 'Filters'}
             </Button>
-            <div style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '14px' }}>
+            <div style={{ 
+              color: 'rgba(255, 255, 255, 0.65)', 
+              fontSize: isMobile ? '12px' : '14px',
+              whiteSpace: 'nowrap'
+            }}>
               {filteredWarehouses.length} of {warehouses.length} results
             </div>
           </div>
           
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreate}
-            size="large"
-          >
-            Add Warehouse
-          </Button>
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px', 
+            alignItems: 'center',
+            flexWrap: 'wrap'
+          }}>
+            {/* View Switcher */}
+            <ViewSwitcher
+              currentView={currentView}
+              onViewChange={changeView}
+              disabled={loading}
+              showLabels={!isMobile}
+            />
+            
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreate}
+              size={isMobile ? 'small' : 'large'}
+            >
+              {isMobile ? 'Add' : 'Add Warehouse'}
+            </Button>
+          </div>
         </div>
 
-        {/* Collapsible Filter Panel */}
-        {filtersVisible && (
+        {/* Desktop Filter Panel */}
+        {filtersVisible && !isMobile && (
           <Card
             size="small"
             style={{
@@ -999,56 +1061,81 @@ const Dashboard = () => {
           WebkitBackdropFilter: 'blur(15px)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: '8px',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          transition: 'all 0.3s ease',
+          opacity: isTransitioning ? 0.7 : 1
         }}>
-          <Spin spinning={loading} tip="Loading warehouses...">
-            <Table
-              columns={columns}
-              dataSource={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
-              rowKey="id"
-              onRow={(record) => ({
-                onContextMenu: (event) => handleRowContextMenu(record, event),
-                style: { cursor: 'context-menu' }
-              })}
-              pagination={{
-                current: currentPage,
-                pageSize: pageSize,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} of ${total} warehouses`,
-                position: ['bottomCenter'],
-                onChange: (page, size) => {
-                  setCurrentPage(page);
-                  if (size !== pageSize) {
+          <Spin spinning={loading} tip="Loading warehouses...">>
+            {currentView === 'table' ? (
+              <ResponsiveTable
+                columns={columns}
+                dataSource={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                rowKey="id"
+                onRow={(record) => ({
+                  onContextMenu: (event) => handleRowContextMenu(record, event),
+                  style: { cursor: 'context-menu' }
+                })}
+                pagination={{
+                  current: currentPage,
+                  pageSize: pageSize,
+                  showSizeChanger: !isMobile,
+                  showQuickJumper: !isMobile,
+                  pageSizeOptions: ['10', '20', '50', '100'],
+                  showTotal: (total, range) => 
+                    `${range[0]}-${range[1]} of ${total} warehouses`,
+                  position: ['bottomCenter'],
+                  onChange: (page, size) => {
+                    setCurrentPage(page);
+                    if (size !== pageSize) {
+                      setPageSize(size);
+                    }
+                  },
+                  onShowSizeChange: (current, size) => {
+                    setCurrentPage(1);
                     setPageSize(size);
+                  },
+                  style: {
+                    padding: isMobile ? '12px 16px' : '16px 24px',
+                    background: 'var(--bg-header)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    borderTop: '1px solid var(--border-primary)',
+                    margin: 0
                   }
-                },
-                onShowSizeChange: (current, size) => {
-                  setCurrentPage(1); // Reset to first page when changing page size
-                  setPageSize(size);
-                  console.log('Page size changed to:', size);
-                },
-                style: {
-                  padding: '16px 24px',
-                  background: 'var(--bg-header)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
-                  borderTop: '1px solid var(--border-primary)',
-                  margin: 0
-                }
-              }}
-              scroll={{ 
-                x: 2400, 
-                y: 'calc(100vh - 400px)',
-                scrollToFirstRowOnChange: true
-              }}
-              style={{
-                background: 'transparent',
-              }}
-              className="dark-table"
-            />
+                }}
+                scroll={{ 
+                  x: isMobile ? 1200 : 2400, 
+                  y: isMobile ? 'calc(100vh - 300px)' : 'calc(100vh - 400px)',
+                  scrollToFirstRowOnChange: true
+                }}
+                loading={loading}
+                className="dark-table"
+              />
+            ) : (
+              <div style={{ padding: isMobile ? '12px' : '16px' }}>
+                <CardView
+                  warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                  loading={loading}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onViewDetails={handleViewDetails}
+                  onContextMenu={(warehouse, event) => handleRowContextMenu(warehouse, event)}
+                />
+                
+                {/* Card view pagination */}
+                {filteredWarehouses.length > pageSize && (
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    marginTop: '24px',
+                    padding: '16px',
+                    borderTop: '1px solid var(--border-primary)'
+                  }}>
+                    {/* Add pagination component for card view if needed */}
+                  </div>
+                )}
+              </div>
+            )}
           </Spin>
         </div>
       </Card>
@@ -1063,494 +1150,11 @@ const Dashboard = () => {
       />
 
       {/* View Details Modal */}
-      {selectedWarehouse && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.7)',
-            display: viewDetailsVisible ? 'flex' : 'none',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
-          }}
-          onClick={() => setViewDetailsVisible(false)}
-        >
-          <Card
-            style={{
-              width: '100%',
-              maxWidth: '800px',
-              maxHeight: '90vh',
-              overflow: 'auto',
-              background: 'rgba(31, 31, 31, 0.8)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              marginBottom: '24px'
-            }}>
-              <Title 
-                level={3} 
-                style={{ 
-                  color: '#fff', 
-                  margin: 0 
-                }}
-              >
-                Warehouse Details - #{selectedWarehouse.id}
-              </Title>
-              <Button
-                type="text"
-                icon={<CloseOutlined />}
-                onClick={() => setViewDetailsVisible(false)}
-                style={{ color: 'rgba(255, 255, 255, 0.65)' }}
-              />
-            </div>
-
-            <Row gutter={[24, 16]}>
-              {/* Basic Information */}
-              <Col xs={24}>
-                <Title level={5} style={{ color: '#fff', marginBottom: '16px' }}>
-                  Basic Information
-                </Title>
-              </Col>
-              
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>WAREHOUSE OWNER TYPE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.warehouseOwnerType || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>WAREHOUSE TYPE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.warehouseType}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>ZONE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.zone}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>VISIBILITY</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.visibility === true || selectedWarehouse.visibility === 'true' || selectedWarehouse.visibility === 1) ? 'Visible' : 'Hidden'}
-                  </div>
-                </div>
-              </Col>
-
-              {/* Address Information */}
-              <Col xs={24}>
-                <Title level={5} style={{ color: '#fff', marginTop: '16px', marginBottom: '16px' }}>
-                  Address Information
-                </Title>
-              </Col>
-
-              <Col xs={24}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>ADDRESS</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.address}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>CITY</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.city}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>STATE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.state}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>POSTAL CODE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.postalCode || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>GOOGLE LOCATION</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.googleLocation ? (
-                      <a href={selectedWarehouse.googleLocation} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)' }}>
-                        View on Google Maps
-                      </a>
-                    ) : '-'}
-                  </div>
-                </div>
-              </Col>
-
-              {/* Contact Information */}
-              <Col xs={24}>
-                <Title level={5} style={{ color: '#fff', marginTop: '16px', marginBottom: '16px' }}>
-                  Contact Information
-                </Title>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>CONTACT PERSON</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.contactPerson}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>CONTACT NUMBER</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.contactNumber}
-                  </div>
-                </div>
-              </Col>
-
-              {/* Warehouse Details */}
-              <Col xs={24}>
-                <Title level={5} style={{ color: '#fff', marginTop: '16px', marginBottom: '16px' }}>
-                  Warehouse Details
-                </Title>
-              </Col>
-
-              <Col xs={24} sm={8}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>TOTAL SPACE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {Array.isArray(selectedWarehouse.totalSpaceSqft) 
-                      ? `[${selectedWarehouse.totalSpaceSqft.join(', ')}] sq ft`
-                      : `${selectedWarehouse.totalSpaceSqft?.toLocaleString()} sq ft`}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={8}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>OFFERED SPACE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.offeredSpaceSqft || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={8}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>RATE PER SQ FT</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.ratePerSqft}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={8}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>NUMBER OF DOCKS</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.numberOfDocks || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={8}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>CLEAR HEIGHT</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.clearHeightFt || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={8}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>AVAILABILITY</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.availability || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={8}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>IS BROKER</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.isBroker || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>OTHER SPECIFICATIONS</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.otherSpecifications || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              {/* Location Data */}
-              <Col xs={24}>
-                <Title level={5} style={{ color: '#fff', marginTop: '16px', marginBottom: '16px' }}>
-                  Location Data
-                </Title>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>LATITUDE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.latitude || selectedWarehouse.warehouseData?.latitude)
-                      ? parseFloat(selectedWarehouse.WarehouseData?.latitude || selectedWarehouse.warehouseData?.latitude).toFixed(6)
-                      : '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>LONGITUDE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.longitude || selectedWarehouse.warehouseData?.longitude)
-                      ? parseFloat(selectedWarehouse.WarehouseData?.longitude || selectedWarehouse.warehouseData?.longitude).toFixed(6)
-                      : '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>FIRE NOC AVAILABLE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.fireNocAvailable || selectedWarehouse.warehouseData?.fireNocAvailable) ? 'Yes' : 'No'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>FIRE SAFETY MEASURES</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.fireSafetyMeasures || selectedWarehouse.warehouseData?.fireSafetyMeasures) || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>LAND TYPE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.landType || selectedWarehouse.warehouseData?.landType) || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>APPROACH ROAD WIDTH</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.approachRoadWidth || selectedWarehouse.warehouseData?.approachRoadWidth) 
-                      ? `${selectedWarehouse.WarehouseData?.approachRoadWidth || selectedWarehouse.warehouseData?.approachRoadWidth} ft` 
-                      : '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>POWER (KVA)</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.powerKva || selectedWarehouse.warehouseData?.powerKva) 
-                      ? `${selectedWarehouse.WarehouseData?.powerKva || selectedWarehouse.warehouseData?.powerKva} KVA` 
-                      : '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>POLLUTION ZONE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.pollutionZone || selectedWarehouse.warehouseData?.pollutionZone) || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>VAASTU COMPLIANCE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.vaastuCompliance || selectedWarehouse.warehouseData?.vaastuCompliance) || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>DIMENSIONS</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.dimensions || selectedWarehouse.warehouseData?.dimensions) || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>PARKING & DOCKING SPACE</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {(selectedWarehouse.WarehouseData?.parkingDockingSpace || selectedWarehouse.warehouseData?.parkingDockingSpace) || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              {/* Photos */}
-              {selectedWarehouse.photos && (
-                <>
-                  <Col xs={24}>
-                    <Title level={5} style={{ color: '#fff', marginTop: '16px', marginBottom: '16px' }}>
-                      Warehouse Photos
-                    </Title>
-                  </Col>
-                  <Col xs={24}>
-                    <div style={{ marginBottom: '12px' }}>
-                      {(() => {
-                        const imageUrls = selectedWarehouse.photos.split(',').map(url => url.trim()).filter(url => url);
-                        return imageUrls.length > 0 ? (
-                          <Row gutter={[8, 8]}>
-                            <Image.PreviewGroup>
-                              {imageUrls.map((url, index) => (
-                                <Col key={index} xs={12} sm={8} md={6}>
-                                  <Image
-                                    src={url}
-                                    alt={`Warehouse image ${index + 1}`}
-                                    style={{ 
-                                      width: '100%', 
-                                      height: '120px', 
-                                      objectFit: 'cover',
-                                      borderRadius: '6px',
-                                      border: '1px solid #303030'
-                                    }}
-                                    fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgeHANwDrkl1AuO+pmgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
-                                  />
-                                </Col>
-                              ))}
-                            </Image.PreviewGroup>
-                          </Row>
-                        ) : (
-                          <Text style={{ color: 'rgba(255, 255, 255, 0.65)' }}>No photos available</Text>
-                        );
-                      })()}
-                    </div>
-                  </Col>
-                </>
-              )}
-
-              {/* Additional Information */}
-              <Col xs={24}>
-                <Title level={5} style={{ color: '#fff', marginTop: '16px', marginBottom: '16px' }}>
-                  Additional Information
-                </Title>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>UPLOADED BY</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.uploadedBy || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12}>
-                <div style={{ marginBottom: '12px' }}>
-                  <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>COMPLIANCES</Text>
-                  <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                    {selectedWarehouse.compliances || '-'}
-                  </div>
-                </div>
-              </Col>
-
-              {selectedWarehouse.createdAt && (
-                <Col xs={24} sm={12}>
-                  <div style={{ marginBottom: '12px' }}>
-                    <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>CREATED</Text>
-                    <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                      {new Date(selectedWarehouse.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </Col>
-              )}
-
-              {selectedWarehouse.updatedAt && (
-                <Col xs={24} sm={12}>
-                  <div style={{ marginBottom: '12px' }}>
-                    <Text style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '12px' }}>LAST UPDATED</Text>
-                    <div style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>
-                      {new Date(selectedWarehouse.updatedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </Col>
-              )}
-            </Row>
-
-            <div style={{ 
-              marginTop: '32px',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '12px'
-            }}>
-              <Button
-                onClick={() => {
-                  setViewDetailsVisible(false);
-                  handleEdit(selectedWarehouse);
-                }}
-                type="primary"
-                icon={<EditOutlined />}
-              >
-                Edit Warehouse
-              </Button>
-              <Button
-                onClick={() => setViewDetailsVisible(false)}
-              >
-                Close
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
+      <WarehouseDetailsModal
+        visible={viewDetailsVisible}
+        onClose={() => setViewDetailsVisible(false)}
+        warehouse={selectedWarehouse}
+      />
 
       {/* Context Menu */}
       <ContextMenu
@@ -1561,6 +1165,57 @@ const Dashboard = () => {
         onViewDetails={() => handleViewDetails(contextMenu.record)}
         onEdit={() => handleEdit(contextMenu.record)}
         onDelete={() => handleDelete(contextMenu.record)}
+      />
+
+      {/* Mobile Filter Drawer */}
+      <MobileFilterDrawer
+        visible={filtersVisible && isMobile}
+        onClose={() => setFiltersVisible(false)}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        selectedOwnerType={selectedOwnerType}
+        setSelectedOwnerType={setSelectedOwnerType}
+        selectedType={selectedType}
+        setSelectedType={setSelectedType}
+        selectedCity={selectedCity}
+        setSelectedCity={setSelectedCity}
+        selectedState={selectedState}
+        setSelectedState={setSelectedState}
+        selectedZone={selectedZone}
+        setSelectedZone={setSelectedZone}
+        selectedAvailability={selectedAvailability}
+        setSelectedAvailability={setSelectedAvailability}
+        selectedBroker={selectedBroker}
+        setSelectedBroker={setSelectedBroker}
+        fireNocFilter={fireNocFilter}
+        setFireNocFilter={setFireNocFilter}
+        selectedLandType={selectedLandType}
+        setSelectedLandType={setSelectedLandType}
+        selectedUploadedBy={selectedUploadedBy}
+        setSelectedUploadedBy={setSelectedUploadedBy}
+        selectedVisibility={selectedVisibility}
+        setSelectedVisibility={setSelectedVisibility}
+        areaRange={areaRange}
+        setAreaRange={setAreaRange}
+        budgetRange={budgetRange}
+        setBudgetRange={setBudgetRange}
+        clearFilters={clearFilters}
+        activeFilterCount={
+          (searchText ? 1 : 0) +
+          (selectedOwnerType ? 1 : 0) +
+          (selectedType ? 1 : 0) +
+          (selectedCity ? 1 : 0) +
+          (selectedState ? 1 : 0) +
+          (selectedZone ? 1 : 0) +
+          (selectedAvailability ? 1 : 0) +
+          (selectedBroker ? 1 : 0) +
+          (fireNocFilter ? 1 : 0) +
+          (selectedLandType ? 1 : 0) +
+          (selectedUploadedBy ? 1 : 0) +
+          (selectedVisibility ? 1 : 0) +
+          (areaRange[0] > 0 || areaRange[1] < 100000 ? 1 : 0) +
+          (budgetRange[0] > 0 || budgetRange[1] < 1000 ? 1 : 0)
+        }
       />
     </div>
   );

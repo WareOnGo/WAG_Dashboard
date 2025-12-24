@@ -1,0 +1,221 @@
+/* CardView.css - Responsive card grid styling */
+
+.card-view {
+  width: 100%;
+  padding: 0;
+}
+
+.card-view--mobile {
+  padding: 0 4px;
+}
+
+.card-view--tablet {
+  padding: 0 8px;
+}
+
+/* Loading state */
+.card-view--loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  background: rgba(31, 31, 31, 0.4);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.card-view--loading .ant-spin {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.card-view--loading .ant-spin-text {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+/* Empty state */
+.card-view--empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  background: rgba(31, 31, 31, 0.4);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.card-view--empty .ant-empty {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.card-view--empty .ant-empty-description {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Grid optimizations */
+.card-view .ant-row {
+  margin: 0;
+}
+
+.card-view .ant-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ensure cards have equal height in each row with proper spacing */
+.card-view .warehouse-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-view .warehouse-card .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: auto; /* Override any default min-height */
+}
+
+.card-view .warehouse-card__content {
+  flex: 1;
+}
+
+/* Mobile-specific optimizations */
+.card-view--mobile .ant-row {
+  margin-left: -4px;
+  margin-right: -4px;
+}
+
+.card-view--mobile .ant-col {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+/* Tablet-specific optimizations */
+.card-view--tablet .ant-row {
+  margin-left: -6px;
+  margin-right: -6px;
+}
+
+.card-view--tablet .ant-col {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Performance optimizations */
+.card-view {
+  /* Enable hardware acceleration for smooth scrolling */
+  transform: translateZ(0);
+  will-change: scroll-position;
+}
+
+/* Accessibility improvements */
+.card-view:focus-within {
+  outline: none;
+}
+
+/* Animation for card entrance */
+.card-view .ant-col {
+  animation: fadeInUp 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+.card-view .ant-col:nth-child(1) { animation-delay: 0.05s; }
+.card-view .ant-col:nth-child(2) { animation-delay: 0.1s; }
+.card-view .ant-col:nth-child(3) { animation-delay: 0.15s; }
+.card-view .ant-col:nth-child(4) { animation-delay: 0.2s; }
+.card-view .ant-col:nth-child(5) { animation-delay: 0.25s; }
+.card-view .ant-col:nth-child(6) { animation-delay: 0.3s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .card-view .ant-col {
+    animation: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .card-view {
+    display: block;
+  }
+  
+  .card-view .ant-col {
+    display: block;
+    width: 100% !important;
+    break-inside: avoid;
+    margin-bottom: 20px;
+  }
+  
+  .card-view .warehouse-card {
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .card-view--loading,
+  .card-view--empty {
+    border-color: rgba(255, 255, 255, 0.5);
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Very small screens */
+@media (max-width: 360px) {
+  .card-view--mobile {
+    padding: 0 2px;
+  }
+  
+  .card-view--mobile .ant-row {
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+  
+  .card-view--mobile .ant-col {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+}
+
+/* Large screens - optimize for more columns */
+@media (min-width: 1600px) {
+  .card-view:not(.card-view--mobile):not(.card-view--tablet) .ant-row {
+    margin-left: -12px;
+    margin-right: -12px;
+  }
+  
+  .card-view:not(.card-view--mobile):not(.card-view--tablet) .ant-col {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
+
+/* Ultra-wide screens */
+@media (min-width: 2000px) {
+  .card-view:not(.card-view--mobile):not(.card-view--tablet) .ant-row {
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+  
+  .card-view:not(.card-view--mobile):not(.card-view--tablet) .ant-col {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
