@@ -126,7 +126,7 @@ const ResponsiveModal = ({
     bottom: 0,
     background: 'rgba(0, 0, 0, 0.7)',
     display: 'flex',
-    alignItems: 'flex-start', // Always start from top
+    alignItems: isMobile ? 'flex-start' : 'flex-start', // Start from top for better positioning
     justifyContent: 'center',
     zIndex: 1000,
     padding: isMobile ? '0' : '20px',
@@ -154,9 +154,9 @@ const ResponsiveModal = ({
     overflow: 'hidden',
     // Ensure modal doesn't exceed viewport on mobile
     minHeight: isMobile ? '100vh' : 'auto',
-    // Ensure proper positioning on desktop - add top margin for centering
+    // Better visual centering - slightly above mathematical center
     position: 'relative',
-    marginTop: isMobile ? '0' : '10vh', // Center vertically with top margin
+    marginTop: isMobile ? '0' : '5vh', // 5% from top for better visual balance
     marginBottom: isMobile ? '0' : 'auto',
     // Remove focus outline
     outline: 'none'

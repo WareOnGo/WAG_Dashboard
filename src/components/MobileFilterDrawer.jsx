@@ -175,7 +175,7 @@ const MobileFilterDrawer = ({
       className="mobile-filter-drawer"
       styles={{
         body: { 
-          padding: '16px',
+          padding: '24px',
           background: 'var(--bg-primary)',
           color: '#fff'
         },
@@ -212,16 +212,18 @@ const MobileFilterDrawer = ({
           </div>
         )}
         {/* Search Section - Always visible */}
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '24px' }}>
           <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            marginBottom: '8px'
+            marginBottom: '12px'
           }}>
             <Text style={{ 
               color: 'rgba(255, 255, 255, 0.65)', 
-              fontSize: '12px'
+              fontSize: '12px',
+              fontWeight: 600,
+              letterSpacing: '0.5px'
             }}>
               SEARCH
             </Text>
@@ -240,30 +242,26 @@ const MobileFilterDrawer = ({
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             allowClear
-            style={{ 
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: '8px',
-              height: '44px'
-            }}
           />
         </div>
 
         {/* Quick Filters - Horizontal scrolling chips */}
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '24px' }}>
           <Text style={{ 
             color: 'rgba(255, 255, 255, 0.65)', 
             fontSize: '12px',
+            fontWeight: 600,
+            letterSpacing: '0.5px',
             display: 'block',
-            marginBottom: '12px'
+            marginBottom: '16px'
           }}>
             QUICK FILTERS
           </Text>
           <div style={{ 
             display: 'flex',
-            gap: '8px',
+            gap: '12px',
             overflowX: 'auto',
-            paddingBottom: '8px',
+            paddingBottom: '12px',
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
           }}>
@@ -278,9 +276,10 @@ const MobileFilterDrawer = ({
                 style={{
                   minWidth: 'auto',
                   whiteSpace: 'nowrap',
-                  height: '32px',
-                  fontSize: '12px',
-                  borderRadius: '16px',
+                  height: '36px',
+                  fontSize: '14px',
+                  borderRadius: '18px',
+                  padding: '0 20px',
                   background: selectedZone === zone ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
                   borderColor: selectedZone === zone ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
                   color: selectedZone === zone ? '#000' : '#fff'
@@ -299,9 +298,10 @@ const MobileFilterDrawer = ({
               style={{
                 minWidth: 'auto',
                 whiteSpace: 'nowrap',
-                height: '32px',
-                fontSize: '12px',
-                borderRadius: '16px',
+                height: '36px',
+                fontSize: '14px',
+                borderRadius: '18px',
+                padding: '0 20px',
                 background: fireNocFilter === 'available' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
                 borderColor: fireNocFilter === 'available' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
                 color: fireNocFilter === 'available' ? '#000' : '#fff'
@@ -319,9 +319,10 @@ const MobileFilterDrawer = ({
               style={{
                 minWidth: 'auto',
                 whiteSpace: 'nowrap',
-                height: '32px',
-                fontSize: '12px',
-                borderRadius: '16px',
+                height: '36px',
+                fontSize: '14px',
+                borderRadius: '18px',
+                padding: '0 20px',
                 background: selectedBroker === 'y' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
                 borderColor: selectedBroker === 'y' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
                 color: selectedBroker === 'y' ? '#000' : '#fff'
@@ -339,9 +340,10 @@ const MobileFilterDrawer = ({
               style={{
                 minWidth: 'auto',
                 whiteSpace: 'nowrap',
-                height: '32px',
-                fontSize: '12px',
-                borderRadius: '16px',
+                height: '36px',
+                fontSize: '14px',
+                borderRadius: '18px',
+                padding: '0 20px',
                 background: selectedVisibility === 'visible' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
                 borderColor: selectedVisibility === 'visible' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
                 color: selectedVisibility === 'visible' ? '#000' : '#fff'
@@ -393,19 +395,19 @@ const MobileFilterDrawer = ({
               style={{ 
                 background: 'rgba(255, 255, 255, 0.02)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                marginBottom: '12px'
+                borderRadius: '12px',
+                marginBottom: '16px'
               }}
             >
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 20]}>
                 <Col xs={24}>
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Owner Type
                     </Text>
                     {selectedOwnerType && (
@@ -426,12 +428,7 @@ const MobileFilterDrawer = ({
                     value={selectedOwnerType}
                     onChange={(e) => setSelectedOwnerType(e.target.value)}
                     allowClear
-                    style={{ 
-                      background: selectedOwnerType ? 'rgba(var(--accent-primary-rgb), 0.1)' : 'rgba(255, 255, 255, 0.08)',
-                      border: selectedOwnerType ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      height: '44px'
-                    }}
+                    className={selectedOwnerType ? 'active-input' : ''}
                   />
                 </Col>
                 
@@ -440,9 +437,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Warehouse Type
                     </Text>
                     {selectedType && (
@@ -463,12 +460,7 @@ const MobileFilterDrawer = ({
                     value={selectedType}
                     onChange={(e) => setSelectedType(e.target.value)}
                     allowClear
-                    style={{ 
-                      background: selectedType ? 'rgba(var(--accent-primary-rgb), 0.1)' : 'rgba(255, 255, 255, 0.08)',
-                      border: selectedType ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      height: '44px'
-                    }}
+                    className={selectedType ? 'active-input' : ''}
                   />
                 </Col>
 
@@ -477,9 +469,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Availability
                     </Text>
                     {selectedAvailability && (
@@ -500,12 +492,7 @@ const MobileFilterDrawer = ({
                     value={selectedAvailability}
                     onChange={(e) => setSelectedAvailability(e.target.value)}
                     allowClear
-                    style={{ 
-                      background: selectedAvailability ? 'rgba(var(--accent-primary-rgb), 0.1)' : 'rgba(255, 255, 255, 0.08)',
-                      border: selectedAvailability ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      height: '44px'
-                    }}
+                    className={selectedAvailability ? 'active-input' : ''}
                   />
                 </Col>
 
@@ -514,9 +501,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Broker Status
                     </Text>
                     {selectedBroker && (
@@ -539,7 +526,7 @@ const MobileFilterDrawer = ({
                     allowClear
                     style={{ 
                       width: '100%', 
-                      height: '44px'
+                      height: '48px'
                     }}
                     popupClassName="mobile-filter-select"
                   >
@@ -577,19 +564,19 @@ const MobileFilterDrawer = ({
               style={{ 
                 background: 'rgba(255, 255, 255, 0.02)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                marginBottom: '12px'
+                borderRadius: '12px',
+                marginBottom: '16px'
               }}
             >
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 20]}>
                 <Col xs={24}>
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       City
                     </Text>
                     {selectedCity && (
@@ -610,12 +597,7 @@ const MobileFilterDrawer = ({
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
                     allowClear
-                    style={{ 
-                      background: selectedCity ? 'rgba(var(--accent-primary-rgb), 0.1)' : 'rgba(255, 255, 255, 0.08)',
-                      border: selectedCity ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      height: '44px'
-                    }}
+                    className={selectedCity ? 'active-input' : ''}
                   />
                 </Col>
 
@@ -624,9 +606,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       State
                     </Text>
                     {selectedState && (
@@ -647,12 +629,7 @@ const MobileFilterDrawer = ({
                     value={selectedState}
                     onChange={(e) => setSelectedState(e.target.value)}
                     allowClear
-                    style={{ 
-                      background: selectedState ? 'rgba(var(--accent-primary-rgb), 0.1)' : 'rgba(255, 255, 255, 0.08)',
-                      border: selectedState ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      height: '44px'
-                    }}
+                    className={selectedState ? 'active-input' : ''}
                   />
                 </Col>
 
@@ -661,9 +638,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Zone
                     </Text>
                     {selectedZone && (
@@ -686,7 +663,7 @@ const MobileFilterDrawer = ({
                     allowClear
                     style={{ 
                       width: '100%', 
-                      height: '44px'
+                      height: '48px'
                     }}
                     popupClassName="mobile-filter-select"
                   >
@@ -727,19 +704,19 @@ const MobileFilterDrawer = ({
               style={{ 
                 background: 'rgba(255, 255, 255, 0.02)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                marginBottom: '12px'
+                borderRadius: '12px',
+                marginBottom: '16px'
               }}
             >
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 20]}>
                 <Col xs={24}>
                   <div style={{ 
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Fire NOC
                     </Text>
                     {fireNocFilter && (
@@ -762,7 +739,7 @@ const MobileFilterDrawer = ({
                     allowClear
                     style={{ 
                       width: '100%', 
-                      height: '44px'
+                      height: '48px'
                     }}
                     popupClassName="mobile-filter-select"
                   >
@@ -776,9 +753,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Land Type
                     </Text>
                     {selectedLandType && (
@@ -799,12 +776,7 @@ const MobileFilterDrawer = ({
                     value={selectedLandType}
                     onChange={(e) => setSelectedLandType(e.target.value)}
                     allowClear
-                    style={{ 
-                      background: selectedLandType ? 'rgba(var(--accent-primary-rgb), 0.1)' : 'rgba(255, 255, 255, 0.08)',
-                      border: selectedLandType ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      height: '44px'
-                    }}
+                    className={selectedLandType ? 'active-input' : ''}
                   />
                 </Col>
 
@@ -813,9 +785,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Uploaded By
                     </Text>
                     {selectedUploadedBy && (
@@ -836,12 +808,7 @@ const MobileFilterDrawer = ({
                     value={selectedUploadedBy}
                     onChange={(e) => setSelectedUploadedBy(e.target.value)}
                     allowClear
-                    style={{ 
-                      background: selectedUploadedBy ? 'rgba(var(--accent-primary-rgb), 0.1)' : 'rgba(255, 255, 255, 0.08)',
-                      border: selectedUploadedBy ? '1px solid var(--accent-primary)' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '6px',
-                      height: '44px'
-                    }}
+                    className={selectedUploadedBy ? 'active-input' : ''}
                   />
                 </Col>
 
@@ -850,9 +817,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Visibility
                     </Text>
                     {selectedVisibility && (
@@ -875,7 +842,7 @@ const MobileFilterDrawer = ({
                     allowClear
                     style={{ 
                       width: '100%', 
-                      height: '44px'
+                      height: '48px'
                     }}
                     popupClassName="mobile-filter-select"
                   >
@@ -889,9 +856,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Area Range (sq ft)
                     </Text>
                     {(areaRange[0] > 0 || areaRange[1] < 100000) && (
@@ -907,7 +874,7 @@ const MobileFilterDrawer = ({
                       />
                     )}
                   </div>
-                  <div style={{ padding: '12px 0' }}>
+                  <div className="mobile-filter-slider">
                     <Slider
                       range
                       min={0}
@@ -916,16 +883,20 @@ const MobileFilterDrawer = ({
                       value={areaRange}
                       onChange={setAreaRange}
                       tooltip={{
-                        formatter: (value) => `${value.toLocaleString()} sq ft`
-                      }}
-                      styles={{
-                        track: { backgroundColor: 'var(--accent-primary)' },
-                        handle: { borderColor: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary)' }
+                        formatter: (value) => `${value.toLocaleString()} sq ft`,
+                        placement: 'top'
                       }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)', marginTop: '8px' }}>
-                      <span>{areaRange[0].toLocaleString()}</span>
-                      <span>{areaRange[1].toLocaleString()}</span>
+                    <div className="slider-values">
+                      <div className={`slider-value ${areaRange[0] > 0 ? 'active' : ''}`}>
+                        {areaRange[0].toLocaleString()}
+                      </div>
+                      <div className="slider-value-unit">
+                        sq ft
+                      </div>
+                      <div className={`slider-value ${areaRange[1] < 100000 ? 'active' : ''}`}>
+                        {areaRange[1].toLocaleString()}
+                      </div>
                     </div>
                   </div>
                 </Col>
@@ -935,9 +906,9 @@ const MobileFilterDrawer = ({
                     display: 'flex', 
                     justifyContent: 'space-between', 
                     alignItems: 'center',
-                    marginBottom: '4px'
+                    marginBottom: '8px'
                   }}>
-                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                    <Text style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)', fontWeight: 600 }}>
                       Budget Range (₹/sq ft)
                     </Text>
                     {(budgetRange[0] > 0 || budgetRange[1] < 1000) && (
@@ -953,7 +924,7 @@ const MobileFilterDrawer = ({
                       />
                     )}
                   </div>
-                  <div style={{ padding: '12px 0' }}>
+                  <div className="mobile-filter-slider">
                     <Slider
                       range
                       min={0}
@@ -962,16 +933,20 @@ const MobileFilterDrawer = ({
                       value={budgetRange}
                       onChange={setBudgetRange}
                       tooltip={{
-                        formatter: (value) => `₹${value}/sq ft`
-                      }}
-                      styles={{
-                        track: { backgroundColor: 'var(--accent-primary)' },
-                        handle: { borderColor: 'var(--accent-primary)', backgroundColor: 'var(--accent-primary)' }
+                        formatter: (value) => `₹${value}/sq ft`,
+                        placement: 'top'
                       }}
                     />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)', marginTop: '8px' }}>
-                      <span>₹{budgetRange[0]}</span>
-                      <span>₹{budgetRange[1]}</span>
+                    <div className="slider-values">
+                      <div className={`slider-value ${budgetRange[0] > 0 ? 'active' : ''}`}>
+                        ₹{budgetRange[0]}
+                      </div>
+                      <div className="slider-value-unit">
+                        per sq ft
+                      </div>
+                      <div className={`slider-value ${budgetRange[1] < 1000 ? 'active' : ''}`}>
+                        ₹{budgetRange[1]}
+                      </div>
                     </div>
                   </div>
                 </Col>
@@ -983,20 +958,22 @@ const MobileFilterDrawer = ({
         {/* Action Buttons - Fixed at bottom */}
         <div style={{ 
           borderTop: '1px solid var(--border-primary)',
-          paddingTop: '16px',
-          marginTop: '16px',
+          paddingTop: '20px',
+          marginTop: '20px',
           display: 'flex',
-          gap: '12px'
+          gap: '16px'
         }}>
           <Button
             onClick={clearFilters}
             icon={<ClearOutlined />}
             style={{ 
               flex: 1,
-              height: '44px',
+              height: '48px',
               background: 'rgba(255, 255, 255, 0.08)',
               border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#fff'
+              color: '#fff',
+              borderRadius: '8px',
+              fontSize: '16px'
             }}
           >
             Clear All
@@ -1007,7 +984,9 @@ const MobileFilterDrawer = ({
             loading={isApplyingFilters}
             style={{ 
               flex: 2,
-              height: '44px'
+              height: '48px',
+              borderRadius: '8px',
+              fontSize: '16px'
             }}
           >
             {isApplyingFilters ? 'Applying...' : 'Apply Filters'}

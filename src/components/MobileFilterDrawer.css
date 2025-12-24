@@ -6,7 +6,7 @@
 .mobile-filter-drawer .ant-drawer-header {
   background: var(--bg-header);
   border-bottom: 1px solid var(--border-primary);
-  padding: 16px 20px;
+  padding: 20px 24px;
 }
 
 .mobile-filter-drawer .ant-drawer-header-title {
@@ -14,7 +14,7 @@
 }
 
 .mobile-filter-drawer .ant-drawer-body {
-  padding: 16px;
+  padding: 24px;
   background: var(--bg-primary);
 }
 
@@ -27,14 +27,14 @@
 .mobile-filter-drawer .ant-collapse-item {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  margin-bottom: 12px;
+  border-radius: 12px;
+  margin-bottom: 16px;
 }
 
 .mobile-filter-drawer .ant-collapse-header {
   background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px 8px 0 0;
-  padding: 12px 16px;
+  border-radius: 12px 12px 0 0;
+  padding: 16px 20px;
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -45,52 +45,106 @@
 }
 
 .mobile-filter-drawer .ant-collapse-content-box {
-  padding: 16px;
+  padding: 20px;
 }
 
-/* Input Styles */
+/* Input Styles - Clean, borderless design */
 .mobile-filter-drawer .ant-input {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  height: 44px;
-  color: #fff;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  height: 48px !important;
+  color: #fff !important;
+  font-size: 16px !important;
+  padding: 12px 16px !important;
+  outline: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  box-shadow: none !important;
+}
+
+/* Input wrapper styles (for inputs with allowClear) */
+.mobile-filter-drawer .ant-input-affix-wrapper {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  height: 48px !important;
+  padding: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.mobile-filter-drawer .ant-input-affix-wrapper .ant-input {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 12px 16px !important;
+}
+
+.mobile-filter-drawer .ant-input-affix-wrapper.active-input {
+  background: rgba(var(--accent-primary-rgb), 0.15) !important;
+}
+
+.mobile-filter-drawer .ant-input.active-input {
+  background: rgba(var(--accent-primary-rgb), 0.15) !important;
 }
 
 .mobile-filter-drawer .ant-input:focus,
-.mobile-filter-drawer .ant-input-focused {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2);
+.mobile-filter-drawer .ant-input-focused,
+.mobile-filter-drawer .ant-input-affix-wrapper:focus,
+.mobile-filter-drawer .ant-input-affix-wrapper-focused {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: none !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.3) !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-filter-drawer .ant-input::placeholder {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Remove webkit autofill styling - NO OVERLAYS */
+.mobile-filter-drawer .ant-input:-webkit-autofill,
+.mobile-filter-drawer .ant-input:-webkit-autofill:hover,
+.mobile-filter-drawer .ant-input:-webkit-autofill:focus {
+  -webkit-box-shadow: none !important;
+  -webkit-text-fill-color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  background: transparent !important;
 }
 
 /* Select Styles */
 .mobile-filter-drawer .ant-select {
-  height: 44px;
+  height: 48px;
 }
 
 .mobile-filter-drawer .ant-select-selector {
   background: rgba(255, 255, 255, 0.08) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 6px;
-  height: 44px !important;
+  border-radius: 8px;
+  height: 48px !important;
   color: #fff;
-  font-size: 14px;
+  font-size: 16px;
+  padding: 12px 16px !important;
+  /* Remove the ugly grey focus outline */
+  outline: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .mobile-filter-drawer .ant-select-selection-placeholder {
   color: rgba(255, 255, 255, 0.45);
-  line-height: 42px;
+  line-height: 24px;
 }
 
 .mobile-filter-drawer .ant-select-selection-item {
   color: #fff;
-  line-height: 42px;
+  line-height: 24px;
 }
 
 .mobile-filter-drawer .ant-select-arrow {
@@ -104,41 +158,212 @@
 .mobile-filter-drawer .ant-select-focused .ant-select-selector {
   border-color: var(--accent-primary) !important;
   box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2) !important;
+  /* Explicitly remove any browser default focus styling */
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Slider Styles */
+/* Simple Mobile Slider Styles */
+:root {
+  --mobile-slider-rail-bg: rgba(255, 255, 255, 0.15);
+  --mobile-slider-track-bg: var(--accent-primary);
+  --mobile-slider-handle-bg: transparent;
+  --mobile-slider-handle-border: var(--accent-primary);
+  --mobile-slider-handle-size: 20px;
+  --mobile-slider-track-height: 6px;
+}
+
+/* Mobile Filter Slider Container */
+.mobile-filter-drawer .mobile-filter-slider {
+  margin: 16px 0;
+  padding: 8px 0;
+}
+
 .mobile-filter-drawer .ant-slider {
   margin: 12px 0;
+  padding: 4px 0;
 }
 
+/* Aggressive override to remove any white backgrounds */
+.mobile-filter-drawer .ant-slider,
+.mobile-filter-drawer .ant-slider *,
+.mobile-filter-drawer .ant-slider *::before,
+.mobile-filter-drawer .ant-slider *::after {
+  background-color: transparent !important;
+  background-image: none !important;
+  background: transparent !important;
+}
+
+/* Simple Slider Rail */
 .mobile-filter-drawer .ant-slider-rail {
-  background: rgba(255, 255, 255, 0.15);
-  height: 6px;
+  background: var(--mobile-slider-rail-bg);
+  height: var(--mobile-slider-track-height);
+  border-radius: calc(var(--mobile-slider-track-height) / 2);
 }
 
+/* Simple Slider Track */
 .mobile-filter-drawer .ant-slider-track {
-  background: var(--accent-primary);
-  height: 6px;
+  background: var(--mobile-slider-track-bg);
+  height: var(--mobile-slider-track-height);
+  border-radius: calc(var(--mobile-slider-track-height) / 2);
 }
 
+/* Simple Slider Handle */
 .mobile-filter-drawer .ant-slider-handle {
-  border: 2px solid var(--accent-primary);
-  background: var(--accent-primary);
-  width: 20px;
-  height: 20px;
-  margin-top: -7px;
+  border: 2px solid var(--mobile-slider-handle-border) !important;
+  background: var(--accent-primary) !important;
+  width: var(--mobile-slider-handle-size);
+  height: var(--mobile-slider-handle-size);
+  margin-top: calc((var(--mobile-slider-handle-size) + var(--mobile-slider-track-height)) / -2);
+  cursor: grab;
+  box-shadow: none !important;
+}
+
+.mobile-filter-drawer .ant-slider-handle:active {
+  cursor: grabbing;
+}
+
+.mobile-filter-drawer .ant-slider-handle:hover {
+  background: var(--accent-primary-hover) !important;
+  border-color: var(--accent-primary-hover) !important;
 }
 
 .mobile-filter-drawer .ant-slider-handle:focus {
-  box-shadow: 0 0 0 5px rgba(var(--accent-primary-rgb), 0.2);
+  border-color: var(--accent-primary) !important;
+  background: var(--accent-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2) !important;
+  outline: none;
+}
+
+/* Remove any pseudo-elements that might create white backgrounds */
+.mobile-filter-drawer .ant-slider-handle::before,
+.mobile-filter-drawer .ant-slider-handle::after {
+  display: none !important;
+}
+
+/* Override any Ant Design default slider handle styles */
+.mobile-filter-drawer .ant-slider-handle-dragging {
+  border-color: var(--accent-primary) !important;
+  background: var(--accent-primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2) !important;
+}
+
+/* Ensure no white backgrounds on any slider elements */
+.mobile-filter-drawer .ant-slider *,
+.mobile-filter-drawer .ant-slider *::before,
+.mobile-filter-drawer .ant-slider *::after {
+  background-color: transparent !important;
+}
+
+/* Re-apply our intended backgrounds */
+.mobile-filter-drawer .ant-slider-rail {
+  background: var(--mobile-slider-rail-bg) !important;
+}
+
+.mobile-filter-drawer .ant-slider-track {
+  background: var(--mobile-slider-track-bg) !important;
+}
+
+.mobile-filter-drawer .ant-slider-handle {
+  background: var(--accent-primary) !important;
+}
+
+/* Slider tooltip styling */
+.mobile-filter-drawer .ant-tooltip {
+  z-index: 1050;
+}
+
+.mobile-filter-drawer .ant-tooltip-inner {
+  background: var(--bg-primary);
+  color: #fff;
+  border: 1px solid var(--accent-primary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.mobile-filter-drawer .ant-tooltip-arrow::before {
+  background: var(--bg-primary);
+  border: 1px solid var(--accent-primary);
+}
+
+/* Range value display styling */
+.mobile-filter-drawer .slider-values {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 0 4px;
+}
+
+.mobile-filter-drawer .slider-value {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  min-width: 60px;
+  text-align: center;
+}
+
+.mobile-filter-drawer .slider-value.active {
+  background: rgba(var(--accent-primary-rgb), 0.2);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
+.mobile-filter-drawer .slider-value-unit {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  align-self: center;
+  font-weight: 500;
+  text-align: center;
+  min-width: 50px;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 767px) {
+  :root {
+    --mobile-slider-handle-size: 24px;
+    --mobile-slider-track-height: 8px;
+  }
+  
+  .mobile-filter-drawer .mobile-filter-slider,
+  .mobile-filter-drawer .ant-slider {
+    margin: 20px 0;
+    padding: 12px 0;
+  }
+  
+  .mobile-filter-drawer .slider-values {
+    margin-top: 16px;
+    padding: 0 8px;
+  }
+  
+  .mobile-filter-drawer .slider-value {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-width: 70px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
 }
 
 /* Button Styles */
 .mobile-filter-drawer .ant-btn {
-  height: 44px;
-  border-radius: 6px;
-  font-size: 14px;
+  height: 48px;
+  border-radius: 8px;
+  font-size: 16px;
   font-weight: 500;
+  /* Remove the ugly grey focus outline */
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-filter-drawer .ant-btn:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2);
 }
 
 .mobile-filter-drawer .ant-btn-primary {
@@ -164,9 +389,9 @@
 /* Quick Filter Styles */
 .mobile-filter-drawer .quick-filters-container {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: 12px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
@@ -192,11 +417,18 @@
 .mobile-filter-drawer .quick-filter-chip {
   min-width: auto !important;
   white-space: nowrap;
-  height: 32px !important;
-  font-size: 12px !important;
-  border-radius: 16px !important;
-  padding: 0 16px !important;
+  height: 36px !important;
+  font-size: 14px !important;
+  border-radius: 18px !important;
+  padding: 0 20px !important;
   transition: all 0.2s ease;
+  /* Remove the ugly grey focus outline */
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-filter-drawer .quick-filter-chip:focus {
+  outline: none !important;
 }
 
 .mobile-filter-drawer .quick-filter-chip--active {
@@ -230,18 +462,69 @@
 /* Safe Area Support */
 @supports (padding: max(0px)) {
   .mobile-filter-drawer .ant-drawer-body {
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
+}
+
+/* Global focus outline removal for mobile filter drawer */
+.mobile-filter-drawer *:focus {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Remove any default browser focus styling */
+.mobile-filter-drawer input:focus,
+.mobile-filter-drawer select:focus,
+.mobile-filter-drawer button:focus,
+.mobile-filter-drawer textarea:focus {
+  outline: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure consistent spacing between form elements */
+.mobile-filter-drawer .ant-row {
+  margin-bottom: 0;
+}
+
+.mobile-filter-drawer .ant-col {
+  margin-bottom: 20px;
+}
+
+.mobile-filter-drawer .ant-col:last-child {
+  margin-bottom: 0;
+}
+
+/* Improve label spacing */
+.mobile-filter-drawer .ant-typography {
+  margin-bottom: 8px !important;
+}
+
+/* Better touch targets for mobile */
+.mobile-filter-drawer .ant-collapse-expand-icon {
+  padding: 12px;
+  margin: -12px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Responsive adjustments */
 @media (max-width: 480px) {
   .mobile-filter-drawer .ant-drawer-body {
-    padding: 12px;
+    padding: 20px;
   }
   
   .mobile-filter-drawer .ant-collapse-content-box {
-    padding: 12px;
+    padding: 16px;
+  }
+  
+  .mobile-filter-drawer .ant-collapse-header {
+    padding: 14px 16px;
   }
 }
 
@@ -278,4 +561,21 @@
 .ant-tooltip-arrow::before {
   background: var(--bg-primary);
   border: 1px solid var(--border-primary);
+}
+
+/* CRITICAL: Override global App.css slider styles for mobile drawer */
+.mobile-filter-drawer .ant-slider-handle,
+.mobile-filter-drawer .ant-slider-handle:hover,
+.mobile-filter-drawer .ant-slider-handle:focus,
+.mobile-filter-drawer .ant-slider-handle:active,
+.mobile-filter-drawer .ant-slider-handle-dragging {
+  background: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+  border-radius: 50% !important;
+  box-shadow: none !important;
+}
+
+.mobile-filter-drawer .ant-slider-handle:hover {
+  background: var(--accent-primary-hover) !important;
+  border-color: var(--accent-primary-hover) !important;
 }
