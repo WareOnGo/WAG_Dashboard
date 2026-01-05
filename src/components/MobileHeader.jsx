@@ -1,12 +1,15 @@
-import React from 'react';
-import { Layout, Typography, Button, Space } from 'antd';
+import React, { useState } from 'react';
+import { Layout, Typography, Button, Space, Dropdown, Avatar, message } from 'antd';
 import {
   UserOutlined,
   FileTextOutlined,
   MessageOutlined,
-  MenuOutlined
+  MenuOutlined,
+  LogoutOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
 
 const { Header } = Layout;
 const { Title } = Typography;
@@ -14,10 +17,37 @@ const { Title } = Typography;
 /**
  * Mobile-optimized header component
  * Implements responsive design with proper touch targets and mobile-first approach
- * Requirements: 2.1, 2.2, 2.4
+ * Requirements: 2.1, 2.2, 2.4, 3.5
  */
 const MobileHeader = ({ onMenuToggle }) => {
   const { isMobile, isTablet } = useViewport();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      message.success('Successfully logged out');
+    } catch (error) {
+      console.error('Logout error:', error);
+      message.error('Failed to logout. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  // User dropdown menu items
+  const userMenuItems = [
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: isLoggingOut ? 'Signing out...' : 'Sign Out',
+      onClick: handleLogout,
+      disabled: isLoggingOut,
+      danger: true,
+    },
+  ];
 
   return (
     <Header
@@ -188,38 +218,53 @@ const MobileHeader = ({ onMenuToggle }) => {
         )}
 
         {/* User profile section */}
-        <div 
-          className="user-profile"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: isMobile ? 'var(--spacing-sm)' : 'var(--spacing-xs)',
-            padding: isMobile ? 'var(--spacing-sm) var(--spacing-md)' : 'var(--spacing-xs) var(--spacing-sm)',
-            cursor: 'pointer',
-            borderRadius: 'var(--border-radius-sm)',
-            transition: 'all 0.15s ease',
-            minHeight: 'var(--touch-target-min)',
-          }}
+        <Dropdown
+          menu={{ items: userMenuItems }}
+          trigger={['click']}
+          placement="bottomRight"
+          arrow
         >
-          <UserOutlined 
-            style={{ 
-              color: 'var(--text-muted)', 
-              fontSize: isMobile ? 'var(--font-size-base)' : 'var(--font-size-sm)',
-            }} 
-          />
-          {/* Show user text on tablet and desktop, hide on small mobile */}
-          {(!isMobile || isTablet) && (
-            <span 
-              style={{ 
-                color: 'var(--text-secondary)', 
-                fontSize: isMobile ? 'var(--font-size-sm)' : 'var(--font-size-xs)',
-                whiteSpace: 'nowrap',
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--spacing-sm)',
+              padding: 'var(--spacing-xs) var(--spacing-sm)',
+              cursor: 'pointer',
+              borderRadius: 'var(--border-radius-md)',
+              transition: 'all 0.2s ease',
+              minHeight: 'var(--touch-target-min)',
+              backgroundColor: 'transparent',
+              border: '1px solid transparent',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
+              e.currentTarget.style.borderColor = 'var(--border-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'transparent';
+            }}
+          >
+            <Avatar
+              size={28}
+              src={user?.picture}
+              icon={<UserOutlined />}
+              style={{
+                backgroundColor: user?.picture ? 'transparent' : 'var(--color-primary)',
               }}
-            >
-              Admin User
-            </span>
-          )}
-        </div>
+            />
+            {!isMobile && (
+              <span style={{ 
+                color: 'var(--text-primary)', 
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 500,
+              }}>
+                {user?.name || 'User'}
+              </span>
+            )}
+          </div>
+        </Dropdown>
       </Space>
     </Header>
   );

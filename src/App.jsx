@@ -1,8 +1,11 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Layout, ConfigProvider, theme, App as AntApp } from 'antd'
-import { Dashboard, ErrorBoundary, MobileHeader, MobileNavigation } from './components'
+import { Dashboard, ErrorBoundary, MobileHeader, MobileNavigation, ProtectedRoute, SignInScreen } from './components'
 import { AboveFoldOptimizer } from './components/CriticalContentLoader'
 import { CompatibilityProvider } from './components/CompatibilityProvider'
+import AuthErrorBoundary from './components/AuthErrorBoundary'
+import AuthCallback from './components/AuthCallback'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { useViewport } from './hooks'
 import { useState, useEffect } from 'react'
 import performanceService from './services/performanceService'
@@ -11,8 +14,13 @@ import './styles/compatibility.css'
 
 const { Content } = Layout
 
-function App() {
+/**
+ * Main App Content Component
+ * Handles authenticated app routing and layout
+ */
+function AppContent() {
   const { isMobile } = useViewport();
+  const { isAuthenticated, isLoading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [appReady, setAppReady] = useState(false);
 
@@ -52,8 +60,8 @@ function App() {
     setMobileMenuOpen(false);
   };
 
-  // Show loading state while app initializes (only on mobile for performance)
-  if (!appReady && isMobile) {
+  // Show loading state while authentication is being checked or app initializes
+  if (isLoading || (!appReady && isMobile)) {
     return (
       <div style={{
         display: 'flex',
@@ -65,12 +73,76 @@ function App() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '24px', marginBottom: '16px' }}>🏢</div>
-          <div>Loading Warehouse Portal...</div>
+          <div>{isLoading ? 'Checking authentication...' : 'Loading Warehouse Portal...'}</div>
         </div>
       </div>
     );
   }
 
+  // Main app with router (includes both auth and non-auth routes)
+  return (
+    <Router>
+      <Routes>
+        {/* OAuth callback route - accessible without authentication */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        
+        {/* Sign in route */}
+        <Route path="/" element={
+          !isAuthenticated ? (
+            <AuthErrorBoundary>
+              <SignInScreen />
+            </AuthErrorBoundary>
+          ) : (
+            <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+              <MobileHeader 
+                onMenuToggle={handleMenuToggle}
+                isMenuOpen={mobileMenuOpen}
+              />
+              <MobileNavigation 
+                visible={mobileMenuOpen}
+                onClose={handleMenuClose}
+              />
+              <Content style={{
+                background: 'var(--bg-primary)',
+                minHeight: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
+                padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
+              }}>
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              </Content>
+            </Layout>
+          )
+        } />
+        
+        {/* Dashboard route */}
+        <Route path="/dashboard" element={
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+            <MobileHeader 
+              onMenuToggle={handleMenuToggle}
+              isMenuOpen={mobileMenuOpen}
+            />
+            <MobileNavigation 
+              visible={mobileMenuOpen}
+              onClose={handleMenuClose}
+            />
+            <Content style={{
+              background: 'var(--bg-primary)',
+              minHeight: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
+              padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
+            }}>
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            </Content>
+          </Layout>
+        } />
+      </Routes>
+    </Router>
+  );
+}
+
+function App() {
   return (
     <ErrorBoundary>
       <CompatibilityProvider>
@@ -102,33 +174,11 @@ function App() {
         >
           <AntApp>
             <AboveFoldOptimizer>
-              <Router>
-                <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
-                  {/* Mobile-optimized header */}
-                  <MobileHeader 
-                    onMenuToggle={handleMenuToggle}
-                    isMenuOpen={mobileMenuOpen}
-                  />
-                  
-                  {/* Mobile navigation drawer */}
-                  <MobileNavigation 
-                    visible={mobileMenuOpen}
-                    onClose={handleMenuClose}
-                  />
-                  
-                  <Content style={{
-                    background: 'var(--bg-primary)',
-                    minHeight: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
-                    padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
-                  }}>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      {/* Future routes can be added here */}
-                    </Routes>
-                  </Content>
-                </Layout>
-              </Router>
+              <AuthErrorBoundary>
+                <AuthProvider>
+                  <AppContent />
+                </AuthProvider>
+              </AuthErrorBoundary>
             </AboveFoldOptimizer>
           </AntApp>
         </ConfigProvider>

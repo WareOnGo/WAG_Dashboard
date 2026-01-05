@@ -1,0 +1,220 @@
+/* Protected Route Styling - Dark Theme */
+
+/* Loading State */
+.protected-route-loading {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.loading-container {
+  text-align: center;
+  max-width: 300px;
+  width: 100%;
+}
+
+.loading-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Mobile adjustments for loading */
+@media (max-width: 767px) {
+  .protected-route-loading {
+    padding: var(--spacing-md);
+    align-items: flex-start;
+    padding-top: 30vh;
+  }
+  
+  .loading-content {
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius-md);
+  }
+}
+
+.loading-logo {
+  margin-bottom: var(--spacing-lg);
+}
+
+.loading-logo .logo-icon {
+  font-size: 40px;
+  display: block;
+  line-height: 1;
+}
+
+@media (max-width: 767px) {
+  .loading-logo .logo-icon {
+    font-size: 32px;
+  }
+}
+
+/* Loading spinner customization */
+.protected-route-loading .ant-spin {
+  color: var(--text-secondary);
+}
+
+.protected-route-loading .ant-spin-text {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.protected-route-loading .ant-spin-dot-item {
+  background-color: var(--accent-primary);
+}
+
+/* Error State */
+.protected-route-error {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.error-container {
+  width: 100%;
+  max-width: 500px;
+}
+
+/* Mobile adjustments for error */
+@media (max-width: 767px) {
+  .protected-route-error {
+    padding: var(--spacing-md);
+    align-items: flex-start;
+    padding-top: 20vh;
+  }
+}
+
+/* Error alert styling */
+.protected-route-error .ant-alert {
+  border-radius: var(--border-radius-sm);
+  background: rgba(255, 77, 79, 0.1);
+  border-color: rgba(255, 77, 79, 0.3);
+}
+
+.protected-route-error .ant-alert-message {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.protected-route-error .ant-alert-description {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.protected-route-error .ant-alert-icon {
+  color: #ff4d4f;
+}
+
+/* Retry button */
+.retry-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: var(--touch-target-min);
+}
+
+.retry-btn:hover {
+  background: var(--glass-hover);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+.retry-btn:active {
+  background: var(--glass-active);
+}
+
+/* Mobile retry button adjustments */
+@media (max-width: 767px) {
+  .retry-btn {
+    min-height: var(--touch-target-recommended);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: var(--font-size-base);
+  }
+}
+
+/* Protected Content */
+.protected-route-content {
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
+/* Accessibility improvements */
+.protected-route-loading:focus-within,
+.protected-route-error:focus-within {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .loading-content,
+  .protected-route-error .ant-alert {
+    border-width: 2px;
+  }
+  
+  .retry-btn {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .retry-btn {
+    transition: none;
+  }
+  
+  .protected-route-loading .ant-spin-dot-item {
+    animation: none;
+  }
+}
+
+/* Loading state animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loading-content,
+.error-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-content,
+  .error-container {
+    animation: none;
+  }
+}
+
+/* Focus management for loading states */
+.protected-route-loading .loading-content,
+.protected-route-error .error-container {
+  position: relative;
+}
+
+.protected-route-loading .loading-content:focus,
+.protected-route-error .error-container:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: var(--border-radius-sm);
+}

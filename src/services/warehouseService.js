@@ -1,47 +1,5 @@
 import axios from 'axios';
-import { API_BASE_URL } from '../utils/constants';
-
-// Configure axios instance for warehouse API
-const warehouseAPI = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add response interceptor for consistent error handling
-warehouseAPI.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Enhanced error handling for different status codes
-    if (error.response) {
-      const { status, data } = error.response;
-      
-      switch (status) {
-        case 400:
-          // Validation errors with issues array
-          error.message = data.error || 'Validation failed';
-          error.issues = data.issues || [];
-          break;
-        case 404:
-          error.message = 'Warehouse not found';
-          break;
-        case 500:
-          error.message = 'Internal server error. Please try again later.';
-          break;
-        default:
-          error.message = data.error || `Server error (${status})`;
-      }
-    } else if (error.request) {
-      // Network error
-      error.message = 'Network error - please check your connection and try again';
-    } else {
-      error.message = error.message || 'Request configuration error';
-    }
-    
-    return Promise.reject(error);
-  }
-);
+import { apiClient } from './apiClient.js';
 
 export const warehouseService = {
   /**
@@ -49,8 +7,7 @@ export const warehouseService = {
    * @returns {Promise} Array of warehouse objects with nested WarehouseData
    */
   getAll: async () => {
-    const response = await warehouseAPI.get('/warehouses');
-    return response.data;
+    return apiClient.get('/warehouses');
   },
 
   /**
@@ -59,8 +16,7 @@ export const warehouseService = {
    * @returns {Promise} Created warehouse object
    */
   create: async (warehouseData) => {
-    const response = await warehouseAPI.post('/warehouses', warehouseData);
-    return response.data;
+    return apiClient.post('/warehouses', warehouseData);
   },
 
   /**
@@ -70,8 +26,7 @@ export const warehouseService = {
    * @returns {Promise} Updated warehouse object
    */
   update: async (id, warehouseData) => {
-    const response = await warehouseAPI.put(`/warehouses/${id}`, warehouseData);
-    return response.data;
+    return apiClient.put(`/warehouses/${id}`, warehouseData);
   },
 
   /**
@@ -80,8 +35,9 @@ export const warehouseService = {
    * @returns {Promise} No content (204 status)
    */
   delete: async (id) => {
-    const response = await warehouseAPI.delete(`/warehouses/${id}`);
-    // Handle 204 No Content response
+    // Use the underlying axios instance for delete to get full response
+    const axiosInstance = apiClient.getAxiosInstance();
+    const response = await axiosInstance.delete(`/warehouses/${id}`);
     return response;
   },
 
@@ -91,10 +47,9 @@ export const warehouseService = {
    * @returns {Promise} Object containing uploadUrl and imageUrl
    */
   getPresignedUrl: async (contentType) => {
-    const response = await warehouseAPI.post('/warehouses/presigned-url', {
+    return apiClient.post('/warehouses/presigned-url', {
       contentType
     });
-    return response.data;
   },
 
   /**
