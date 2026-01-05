@@ -1,0 +1,261 @@
+/* Sign-in Screen Styling - Dark Theme */
+
+.signin-screen {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background gradient effect */
+.signin-screen::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.02) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.signin-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-xl);
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+/* Mobile adjustments */
+@media (max-width: 767px) {
+  .signin-screen {
+    padding: var(--spacing-md);
+    align-items: flex-start;
+    padding-top: 20vh;
+  }
+  
+  .signin-container {
+    padding: var(--spacing-lg);
+    max-width: 100%;
+    border-radius: var(--border-radius-md);
+  }
+}
+
+/* Header Section */
+.signin-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.signin-logo {
+  margin-bottom: var(--spacing-md);
+}
+
+.logo-icon {
+  font-size: 48px;
+  display: block;
+  line-height: 1;
+}
+
+@media (max-width: 767px) {
+  .logo-icon {
+    font-size: 40px;
+  }
+}
+
+.signin-title {
+  color: var(--text-primary) !important;
+  margin-bottom: var(--spacing-sm) !important;
+  font-weight: 600;
+}
+
+.signin-subtitle {
+  color: var(--text-secondary) !important;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .signin-subtitle {
+    font-size: var(--font-size-xs);
+  }
+}
+
+/* Error Display */
+.signin-error {
+  margin-bottom: var(--spacing-lg);
+  border-radius: var(--border-radius-sm);
+}
+
+.signin-error .ant-alert-message {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.signin-error .ant-alert-description {
+  color: var(--text-secondary);
+}
+
+/* Sign-in Form */
+.signin-form {
+  margin-bottom: var(--spacing-lg);
+}
+
+.google-signin-btn {
+  height: var(--touch-target-recommended) !important;
+  border-radius: var(--border-radius-sm) !important;
+  font-weight: 500 !important;
+  font-size: var(--font-size-base) !important;
+  background: var(--bg-surface) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--spacing-sm) !important;
+}
+
+.google-signin-btn:hover:not(:disabled) {
+  background: var(--glass-hover) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.google-signin-btn:active {
+  transform: translateY(0);
+}
+
+.google-signin-btn:disabled {
+  background: var(--glass-secondary) !important;
+  border-color: var(--border-secondary) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.google-signin-btn .anticon {
+  font-size: 18px;
+}
+
+@media (max-width: 767px) {
+  .google-signin-btn {
+    height: var(--touch-target-recommended) !important;
+    font-size: var(--font-size-base) !important;
+  }
+}
+
+/* Sign-in Info */
+.signin-info {
+  margin-top: var(--spacing-md);
+  text-align: center;
+}
+
+.signin-note {
+  font-size: var(--font-size-xs) !important;
+  color: var(--text-muted) !important;
+  line-height: 1.4;
+}
+
+/* Loading State */
+.signin-loading {
+  text-align: center;
+  padding: var(--spacing-md) 0;
+}
+
+.signin-loading .ant-spin {
+  color: var(--text-secondary);
+}
+
+.signin-loading .ant-spin-text {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-sm);
+}
+
+/* Loading spinner customization */
+.signin-loading .ant-spin-dot-item {
+  background-color: var(--accent-primary);
+}
+
+/* Responsive adjustments for very small screens */
+@media (max-width: 480px) {
+  .signin-container {
+    padding: var(--spacing-md);
+  }
+  
+  .signin-header {
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  .signin-title {
+    font-size: 20px !important;
+  }
+  
+  .signin-subtitle {
+    font-size: 13px;
+  }
+}
+
+/* Focus states for accessibility */
+.google-signin-btn:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .signin-container {
+    border-width: 2px;
+  }
+  
+  .google-signin-btn {
+    border-width: 2px !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .google-signin-btn {
+    transition: none !important;
+  }
+  
+  .google-signin-btn:hover {
+    transform: none;
+  }
+}
+
+/* Dark theme specific adjustments */
+.signin-screen .ant-alert-error {
+  background: rgba(255, 77, 79, 0.1);
+  border-color: rgba(255, 77, 79, 0.3);
+}
+
+.signin-screen .ant-alert-error .ant-alert-icon {
+  color: #ff4d4f;
+}
+
+/* Loading indicator styling */
+.signin-screen .ant-spin-dot {
+  color: var(--accent-primary);
+}
+
+.signin-screen .ant-spin-text {
+  color: var(--text-secondary);
+}

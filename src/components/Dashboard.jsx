@@ -40,6 +40,7 @@ import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
 import './ResponsiveModal.css';
 import { useViewport, useViewPreference } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   showSuccessMessage, 
   withRetry,
@@ -56,6 +57,9 @@ const Dashboard = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
+  
+  // Authentication context
+  const { user } = useAuth();
   
   // Responsive and view management
   const { isMobile } = useViewport();

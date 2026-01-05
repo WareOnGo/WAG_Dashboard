@@ -4,6 +4,8 @@ export { default as WarehouseForm } from './WarehouseForm';
 export { default as FileUpload } from './FileUpload';
 export { default as ErrorHandlingDemo } from './ErrorHandlingDemo';
 export { default as ErrorBoundary } from './ErrorBoundary';
+export { default as AuthErrorBoundary } from './AuthErrorBoundary';
+export { default as AuthCallback } from './AuthCallback';
 export { default as ContextMenu } from './ContextMenu';
 export { default as MobileHeader } from './MobileHeader';
 export { default as MobileNavigation } from './MobileNavigation';
@@ -20,6 +22,8 @@ export { default as CompatibilityProvider } from './CompatibilityProvider';
 export { default as FeatureGate } from './FeatureGate';
 export { default as BrowserGate } from './BrowserGate';
 export { default as DeviceGate } from './DeviceGate';
+export { default as SignInScreen } from './SignInScreen';
+export { default as ProtectedRoute } from './ProtectedRoute';
 
 // Re-export hooks and utilities
 export { useCompatibility } from '../hooks/useCompatibility';

@@ -1,24 +1,42 @@
-import React, { useEffect } from 'react';
-import { Drawer, Menu, Button, Space, Typography } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Drawer, Menu, Button, Space, Typography, Avatar, message } from 'antd';
 import {
   HomeOutlined,
   FileTextOutlined,
   MessageOutlined,
   UserOutlined,
   CloseOutlined,
-  DashboardOutlined
+  DashboardOutlined,
+  LogoutOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
+import { useAuth } from '../contexts/AuthContext';
 
 const { Text } = Typography;
 
 /**
  * Mobile navigation drawer component
  * Implements slide-out navigation with touch-friendly interactions
- * Requirements: 2.1, 2.3, 2.5
+ * Requirements: 2.1, 2.3, 2.5, 3.5
  */
 const MobileNavigation = ({ visible, onClose }) => {
   const { isMobile } = useViewport();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      message.success('Successfully logged out');
+      onClose(); // Close the drawer
+    } catch (error) {
+      console.error('Logout error:', error);
+      message.error('Failed to logout. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   // Close drawer when screen size changes to desktop
   useEffect(() => {
@@ -203,6 +221,7 @@ const MobileNavigation = ({ visible, onClose }) => {
           background: 'var(--bg-header)',
         }}
       >
+        {/* User Info */}
         <div
           style={{
             display: 'flex',
@@ -211,42 +230,66 @@ const MobileNavigation = ({ visible, onClose }) => {
             padding: 'var(--spacing-md)',
             borderRadius: 'var(--border-radius-sm)',
             background: 'var(--glass-secondary)',
-            cursor: 'pointer',
-            transition: 'all 0.15s ease',
+            marginBottom: 'var(--spacing-md)',
             minHeight: 'var(--touch-target-min)',
           }}
-          onClick={() => {
-            // User profile functionality can be added here
-            onClose();
-          }}
         >
-          <UserOutlined
+          <Avatar
+            size={40}
+            src={user?.picture}
+            icon={<UserOutlined />}
             style={{
-              color: 'var(--text-muted)',
-              fontSize: 'var(--font-size-lg)',
+              backgroundColor: user?.picture ? 'transparent' : 'var(--color-primary)',
+              border: '1px solid var(--border-secondary)',
             }}
           />
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <Text
               style={{
                 color: 'var(--text-primary)',
                 fontSize: 'var(--font-size-base)',
                 fontWeight: 500,
                 display: 'block',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
             >
-              Admin User
+              {user?.name || 'User'}
             </Text>
             <Text
               style={{
                 color: 'var(--text-muted)',
                 fontSize: 'var(--font-size-sm)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                display: 'block',
               }}
             >
-              Administrator
+              {user?.email || 'user@wareongo.com'}
             </Text>
           </div>
         </div>
+
+        {/* Logout Button */}
+        <Button
+          type="default"
+          icon={<LogoutOutlined />}
+          onClick={handleLogout}
+          loading={isLoggingOut}
+          block
+          style={{
+            minHeight: 'var(--touch-target-min)',
+            borderRadius: 'var(--border-radius-sm)',
+            color: 'var(--text-secondary)',
+            borderColor: 'var(--border-secondary)',
+            background: 'transparent',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+        </Button>
       </div>
     </Drawer>
   );

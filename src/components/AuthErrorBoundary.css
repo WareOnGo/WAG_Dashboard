@@ -1,0 +1,121 @@
+.auth-error-boundary {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary, #141414);
+  padding: var(--spacing-lg, 24px);
+}
+
+.auth-error-boundary .ant-result {
+  background: transparent;
+  color: var(--text-primary, rgba(255, 255, 255, 0.85));
+}
+
+.auth-error-boundary .ant-result-title {
+  color: var(--text-primary, rgba(255, 255, 255, 0.85)) !important;
+}
+
+.auth-error-boundary .ant-result-subtitle {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65)) !important;
+}
+
+.auth-error-boundary .error-details {
+  text-align: left;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.auth-error-boundary .error-details ul {
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65));
+  padding-left: 20px;
+}
+
+.auth-error-boundary .error-details li {
+  margin-bottom: 8px;
+}
+
+.auth-error-boundary .ant-btn {
+  margin: 0 8px;
+}
+
+.auth-error-boundary .ant-btn-primary {
+  background: var(--primary-color, #1890ff);
+  border-color: var(--primary-color, #1890ff);
+}
+
+.auth-error-boundary .ant-btn-primary:hover {
+  background: var(--primary-color-hover, #40a9ff);
+  border-color: var(--primary-color-hover, #40a9ff);
+}
+
+.auth-error-boundary details {
+  background: var(--bg-secondary, #1f1f1f);
+  border: 1px solid var(--border-color, #303030);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.auth-error-boundary summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text-primary, rgba(255, 255, 255, 0.85));
+}
+
+.auth-error-boundary pre {
+  background: var(--bg-tertiary, #262626) !important;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65)) !important;
+  border: 1px solid var(--border-color, #303030);
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .auth-error-boundary {
+    padding: var(--spacing-md, 16px);
+  }
+  
+  .auth-error-boundary .ant-result {
+    padding: var(--spacing-lg, 24px) var(--spacing-md, 16px);
+  }
+  
+  .auth-error-boundary .ant-result-title {
+    font-size: 20px;
+  }
+  
+  .auth-error-boundary .ant-result-subtitle {
+    font-size: 14px;
+  }
+  
+  .auth-error-boundary .ant-btn {
+    margin: 4px;
+    width: 100%;
+  }
+  
+  .auth-error-boundary .error-details {
+    font-size: 14px;
+  }
+}
+
+/* Dark theme specific adjustments */
+.auth-error-boundary .ant-result-error .ant-result-icon > .anticon {
+  color: var(--error-color, #ff4d4f);
+}
+
+.auth-error-boundary .ant-result-warning .ant-result-icon > .anticon {
+  color: var(--warning-color, #faad14);
+}
+
+/* Animation for retry button */
+.auth-error-boundary .ant-btn-loading {
+  pointer-events: none;
+}
+
+.auth-error-boundary .ant-btn .anticon {
+  transition: transform 0.3s ease;
+}
+
+.auth-error-boundary .ant-btn:hover .anticon {
+  transform: rotate(180deg);
+}
