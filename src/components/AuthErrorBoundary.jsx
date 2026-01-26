@@ -20,7 +20,7 @@ class AuthErrorBoundary extends React.Component {
     };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     // Update state so the next render will show the fallback UI
     return { hasError: true };
   }
@@ -192,7 +192,7 @@ class AuthErrorBoundary extends React.Component {
                 <li>Contact support if the problem persists</li>
               </ul>
               
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <details style={{ marginTop: 16 }}>
                   <summary>Error Details (Development)</summary>
                   <pre style={{ 

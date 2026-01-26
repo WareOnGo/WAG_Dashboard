@@ -186,7 +186,7 @@ export const validateTokenStructure = (token) => {
     // Check required fields
     const requiredFields = ['id', 'email', 'exp', 'iat'];
     const hasRequiredFields = requiredFields.every(field => 
-      decoded.hasOwnProperty(field) || decoded.hasOwnProperty('sub')
+      Object.prototype.hasOwnProperty.call(decoded, field) || Object.prototype.hasOwnProperty.call(decoded, 'sub')
     );
 
     if (!hasRequiredFields) {

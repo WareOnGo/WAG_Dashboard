@@ -3,4 +3,4 @@
  */
 
 export { AuthProvider, useAuth } from './AuthContext.jsx';
-export { CompatibilityProvider } from './CompatibilityContext.js';
+export { CompatibilityContext } from './CompatibilityContext.js';

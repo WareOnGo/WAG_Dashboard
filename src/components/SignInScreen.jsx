@@ -50,6 +50,23 @@ const SignInScreen = () => {
     validateConfig();
   }, []);
 
+  /**
+   * Get user-friendly OAuth error message
+   */
+  const getOAuthErrorMessage = useCallback((error, description) => {
+    const errorMessages = {
+      'access_denied': 'You cancelled the sign-in process. Please try again to access the application.',
+      'invalid_request': 'Invalid authentication request. Please try signing in again.',
+      'unauthorized_client': 'Authentication service configuration error. Please contact support.',
+      'unsupported_response_type': 'Authentication service configuration error. Please contact support.',
+      'invalid_scope': 'Authentication service configuration error. Please contact support.',
+      'server_error': 'Google authentication service is temporarily unavailable. Please try again.',
+      'temporarily_unavailable': 'Google authentication service is temporarily unavailable. Please try again.'
+    };
+
+    return errorMessages[error] || description || 'Authentication failed. Please try again.';
+  }, []);
+
   // Handle OAuth callback errors from URL parameters
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -67,23 +84,15 @@ const SignInScreen = () => {
       // Clean up URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [getOAuthErrorMessage]);
 
   /**
-   * Get user-friendly OAuth error message
+   * Generate cryptographically secure state parameter
    */
-  const getOAuthErrorMessage = useCallback((error, description) => {
-    const errorMessages = {
-      'access_denied': 'You cancelled the sign-in process. Please try again to access the application.',
-      'invalid_request': 'Invalid authentication request. Please try signing in again.',
-      'unauthorized_client': 'Authentication service configuration error. Please contact support.',
-      'unsupported_response_type': 'Authentication service configuration error. Please contact support.',
-      'invalid_scope': 'Authentication service configuration error. Please contact support.',
-      'server_error': 'Google authentication service is temporarily unavailable. Please try again.',
-      'temporarily_unavailable': 'Google authentication service is temporarily unavailable. Please try again.'
-    };
-
-    return errorMessages[error] || description || 'Authentication failed. Please try again.';
+  const generateSecureState = useCallback(() => {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
   }, []);
 
   /**
@@ -152,16 +161,7 @@ const SignInScreen = () => {
       
       setIsLoading(false);
     }
-  }, [configValid]);
-
-  /**
-   * Generate cryptographically secure state parameter
-   */
-  const generateSecureState = useCallback(() => {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-  }, []);
+  }, [generateSecureState, configValid]);
 
   /**
    * Handle retry with exponential backoff
@@ -209,7 +209,7 @@ const SignInScreen = () => {
     } finally {
       setIsRetrying(false);
     }
-  }, [retryCount, error, handleGoogleSignIn, configValid]);
+  }, [retryCount, error, handleGoogleSignIn]);
 
   /**
    * Clear error state
