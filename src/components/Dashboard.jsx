@@ -40,7 +40,7 @@ import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
 import './ResponsiveModal.css';
 import { useViewport, useViewPreference } from '../hooks';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts';
 import { 
   showSuccessMessage, 
   withRetry,
@@ -59,7 +59,7 @@ const Dashboard = () => {
   const [formLoading, setFormLoading] = useState(false);
   
   // Authentication context
-  const { user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   
   // Responsive and view management
   const { isMobile } = useViewport();
@@ -108,6 +108,11 @@ const Dashboard = () => {
   const { modal } = App.useApp();
 
   const fetchWarehouses = useCallback(async () => {
+    // Don't fetch if not authenticated
+    if (!isAuthenticated) {
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     
@@ -124,12 +129,14 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, []); // Empty dependency array to prevent infinite loops
+  }, [isAuthenticated]); // Depend on authentication status
 
-  // Fetch warehouses on component mount
+  // Fetch warehouses when authenticated
   useEffect(() => {
-    fetchWarehouses();
-  }, [fetchWarehouses]);
+    if (!authLoading && isAuthenticated) {
+      fetchWarehouses();
+    }
+  }, [authLoading, isAuthenticated, fetchWarehouses]);
 
   // Filter and search functionality
   useEffect(() => {

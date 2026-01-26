@@ -192,13 +192,10 @@ export const AuthProvider = ({ children }) => {
 
         // Check if token is expired
         if (isTokenExpired(storedToken)) {
-          // Try to refresh token
-          const refreshed = await refreshToken();
-          if (!refreshed) {
-            removeStoredAuth();
-            dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
-            return;
-          }
+          // Token is expired, clear auth and let user log in again
+          removeStoredAuth();
+          dispatch({ type: AUTH_ACTIONS.SET_UNAUTHENTICATED });
+          return;
         } else {
           // Token is valid, set authenticated state
           dispatch({
@@ -217,7 +214,8 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
-  }, [handleAuthError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Set authenticated user and token
@@ -526,6 +524,7 @@ export const AuthProvider = ({ children }) => {
 /**
  * Hook to use authentication context
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
 

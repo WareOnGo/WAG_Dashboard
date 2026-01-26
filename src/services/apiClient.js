@@ -81,7 +81,7 @@ class ApiClient {
           return Promise.reject(error);
         }
 
-        const { status, data } = error.response;
+        const { status } = error.response;
 
         // Handle 401 Unauthorized responses
         if (status === 401 && !originalRequest._retry) {
@@ -147,10 +147,9 @@ class ApiClient {
 
   /**
    * Refresh authentication token
-   * @param {string} currentToken - Current JWT token
    * @returns {Promise<string|null>} New token or null if refresh failed
    */
-  async refreshToken(currentToken) {
+  async refreshToken() {
     try {
       // Import authService dynamically to avoid circular dependency
       const { authService } = await import('./authService.js');

@@ -57,7 +57,7 @@ const ResponsiveModal = ({
         if (modalRef.current) {
           modalRef.current.scrollTop = 0;
           // For desktop, ensure the modal is properly centered
-          if (!isMobile) {
+          if (!isMobile && typeof modalRef.current.scrollTo === 'function') {
             modalRef.current.scrollTo({
               top: 0,
               behavior: 'instant'

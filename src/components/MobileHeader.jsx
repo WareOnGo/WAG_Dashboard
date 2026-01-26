@@ -20,7 +20,7 @@ const { Title } = Typography;
  * Requirements: 2.1, 2.2, 2.4, 3.5
  */
 const MobileHeader = ({ onMenuToggle }) => {
-  const { isMobile, isTablet } = useViewport();
+  const { isMobile } = useViewport();
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
