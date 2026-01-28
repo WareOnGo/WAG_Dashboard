@@ -540,7 +540,15 @@ const Dashboard = () => {
       dataIndex: 'contactNumber',
       key: 'contactNumber',
       width: 130,
-      render: (text) => <span>{text}</span>,
+      render: (text) => (
+        <a 
+          href={`tel:${text}`}
+          style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {text}
+        </a>
+      ),
     },
     {
       title: 'Total Space',
