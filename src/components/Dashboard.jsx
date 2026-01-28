@@ -105,7 +105,7 @@ const Dashboard = () => {
   const [pageSize, setPageSize] = useState(10);
   
   // Get modal instance from App context
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
 
   const fetchWarehouses = useCallback(async () => {
     // Don't fetch if not authenticated
@@ -448,6 +448,40 @@ const Dashboard = () => {
   const handleViewDetails = (warehouse) => {
     setSelectedWarehouse(warehouse);
     setViewDetailsVisible(true);
+  };
+
+  // Handle toggle visibility
+  const handleToggleVisibility = async (warehouse, newVisibility) => {
+    try {
+      const visibilityBoolean = newVisibility === 'visible';
+      
+      // Optimistically update the UI
+      setWarehouses(prev => 
+        prev.map(w => w.id === warehouse.id ? { ...w, visibility: visibilityBoolean } : w)
+      );
+      
+      // Update on the server
+      await withRetry(
+        () => warehouseService.update(warehouse.id, { 
+          ...warehouse, 
+          visibility: visibilityBoolean 
+        }),
+        { 
+          operationType: 'update',
+          maxRetries: 1
+        }
+      );
+      
+      // Show success message
+      message.success(`Warehouse ${newVisibility === 'visible' ? 'shown' : 'hidden'} successfully`);
+      
+    } catch {
+      // Revert the optimistic update on error
+      setWarehouses(prev => 
+        prev.map(w => w.id === warehouse.id ? warehouse : w)
+      );
+      // Error already handled by withRetry
+    }
   };
 
   // Right-click context menu
@@ -1117,6 +1151,7 @@ const Dashboard = () => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onViewDetails={handleViewDetails}
+                onToggleVisibility={handleToggleVisibility}
               />
             </div>
           )}

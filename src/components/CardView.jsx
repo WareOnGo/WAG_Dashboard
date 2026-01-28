@@ -11,7 +11,8 @@ const CardView = ({
   loading = false, 
   onEdit, 
   onDelete, 
-  onViewDetails
+  onViewDetails,
+  onToggleVisibility
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
@@ -71,6 +72,7 @@ const CardView = ({
               onEdit={onEdit}
               onDelete={onDelete}
               onViewDetails={onViewDetails}
+              onToggleVisibility={onToggleVisibility}
             />
           </Col>
         ))}
