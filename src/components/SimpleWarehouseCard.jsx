@@ -149,7 +149,13 @@ const SimpleWarehouseCard = ({
             <UserOutlined className="simple-warehouse-card__icon" />
             <span>{warehouse.contactPerson}</span>
             <PhoneOutlined className="simple-warehouse-card__icon simple-warehouse-card__icon--secondary" />
-            <span>{warehouse.contactNumber}</span>
+            <a 
+              href={`tel:${warehouse.contactNumber}`}
+              style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {warehouse.contactNumber}
+            </a>
           </div>
         </div>
 

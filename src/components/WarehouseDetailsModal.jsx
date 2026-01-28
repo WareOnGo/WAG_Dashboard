@@ -149,7 +149,14 @@ const WarehouseDetailsModal = ({
         {renderField('Contact Person', warehouse.contactPerson, <UserOutlined />)}
       </Col>
       <Col xs={24} sm={12}>
-        {renderField('Contact Number', warehouse.contactNumber, <PhoneOutlined />)}
+        {renderField('Contact Number', (
+          <a 
+            href={`tel:${warehouse.contactNumber}`}
+            style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
+          >
+            {warehouse.contactNumber}
+          </a>
+        ), <PhoneOutlined />)}
       </Col>
     </Row>
   );
