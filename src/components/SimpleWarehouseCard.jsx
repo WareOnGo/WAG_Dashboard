@@ -16,7 +16,8 @@ const SimpleWarehouseCard = ({
   warehouse, 
   onEdit, 
   onDelete, 
-  onViewDetails 
+  onViewDetails,
+  onToggleVisibility 
 }) => {
   // Get first image
   const getFirstImage = () => {
@@ -105,6 +106,15 @@ const SimpleWarehouseCard = ({
 
   const firstImage = getFirstImage();
 
+  const handleToggleVisibility = (e) => {
+    e.stopPropagation();
+    if (onToggleVisibility) {
+      const currentVisibility = getVisibilityStatus();
+      const newVisibility = currentVisibility === 'visible' ? 'hidden' : 'visible';
+      onToggleVisibility(warehouse, newVisibility);
+    }
+  };
+
   return (
     <div className="simple-warehouse-card">
       {/* Header */}
@@ -112,7 +122,12 @@ const SimpleWarehouseCard = ({
         <div className="simple-warehouse-card__id">
           <span>#{warehouse.id}</span>
         </div>
-        <div className={`simple-warehouse-card__status ${getVisibilityClass()}`}>
+        <div 
+          className={`simple-warehouse-card__status ${getVisibilityClass()}`}
+          onClick={handleToggleVisibility}
+          style={{ cursor: onToggleVisibility ? 'pointer' : 'default' }}
+          title={onToggleVisibility ? 'Click to toggle visibility' : ''}
+        >
           {getVisibilityStatus()}
         </div>
       </div>
