@@ -232,8 +232,6 @@ const FileUpload = forwardRef(({
     disabled: disabled || uploading,
     showUploadList: false,
     multiple: true, // Enable multiple file selection
-    // Mobile-specific props
-    capture: isMobile ? 'environment' : undefined, // Enable camera on mobile
   };
 
   return (
