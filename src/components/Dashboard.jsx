@@ -343,6 +343,10 @@ const Dashboard = () => {
     const operationType = editingWarehouse ? 'update' : 'create';
     const actionText = editingWarehouse ? 'update' : 'create';
     
+    // Extract the fileUploadRef from formData
+    const fileUploadRef = formData._fileUploadRef;
+    delete formData._fileUploadRef; // Remove it from the payload
+    
     // Show confirmation before saving
     return new Promise((resolve, reject) => {
       modal.confirm({
@@ -366,43 +370,77 @@ const Dashboard = () => {
           setFormLoading(true);
           
           try {
+            // Upload pending images first if any
+            let uploadedImageUrls = formData.photos;
+            if (fileUploadRef?.current) {
+              try {
+                const urls = await fileUploadRef.current.uploadAllFiles();
+                if (urls && urls.length > 0) {
+                  uploadedImageUrls = urls.join(', ');
+                }
+              } catch (uploadError) {
+                console.error('Image upload failed:', uploadError);
+                setFormLoading(false);
+                
+                // Show user-friendly error message
+                modal.error({
+                  title: 'Image Upload Failed',
+                  content: (
+                    <div>
+                      <p>Failed to upload images. This could be due to:</p>
+                      <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                        <li>Poor network connection</li>
+                        <li>File size too large</li>
+                        <li>Server timeout</li>
+                      </ul>
+                      <p style={{ marginTop: '8px' }}>Please check your connection and try again.</p>
+                    </div>
+                  ),
+                  okText: 'OK'
+                });
+                
+                reject(new Error('Image upload failed'));
+                return;
+              }
+            }
+            
+            // Update formData with uploaded image URLs
+            const finalFormData = {
+              ...formData,
+              photos: uploadedImageUrls || null
+            };
+            
             let result;
             
             if (editingWarehouse) {
               // Update existing warehouse
               result = await withRetry(
-                () => warehouseService.update(editingWarehouse.id, formData),
+                () => warehouseService.update(editingWarehouse.id, finalFormData),
                 { 
                   operationType,
-                  maxRetries: 1 // Don't retry validation errors
+                  maxRetries: 1
                 }
               );
               
-              // Update local state with updated warehouse
-              // Ensure the updated warehouse has all necessary fields
               const updatedWarehouse = {
-                ...editingWarehouse, // Keep original data as fallback
-                ...result, // Override with API response
-                // Ensure visibility is properly set - use the value we sent if API doesn't return it
-                visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(formData.visibility)
+                ...editingWarehouse,
+                ...result,
+                visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(finalFormData.visibility)
               };
               
-              // Update the warehouses array - the filtering effect will handle filteredWarehouses
               setWarehouses(prev => 
                 prev.map(w => w.id === editingWarehouse.id ? updatedWarehouse : w)
               );
             } else {
               // Create new warehouse
               result = await withRetry(
-                () => warehouseService.create(formData),
+                () => warehouseService.create(finalFormData),
                 { 
                   operationType,
-                  maxRetries: 1 // Don't retry validation errors
+                  maxRetries: 1
                 }
               );
               
-              // Add new warehouse to local state
-              // The filtering effect will automatically update filteredWarehouses
               setWarehouses(prev => [...prev, result]);
             }
             
@@ -410,16 +448,15 @@ const Dashboard = () => {
             setFormVisible(false);
             setEditingWarehouse(null);
             
-            // Show success message with the new warehouse info
+            // Show success message
             showSuccessMessage(operationType, {
               details: operationType === 'create' 
                 ? `${result.warehouseType} in ${result.city}` 
-                : `${result.warehouseType || formData.warehouseType} in ${result.city || formData.city}`
+                : `${result.warehouseType || finalFormData.warehouseType} in ${result.city || finalFormData.city}`
             });
             resolve(result);
             
           } catch (error) {
-            // Error already handled by withRetry
             setFormLoading(false);
             reject(error);
           } finally {
