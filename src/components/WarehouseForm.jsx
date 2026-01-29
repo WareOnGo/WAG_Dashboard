@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Form,
   Input,
@@ -39,6 +39,7 @@ const WarehouseForm = ({
   const [submitting, setSubmitting] = useState(false);
   const [_focusedField, setFocusedField] = useState(null);
   const { isMobile } = useViewport();
+  const fileUploadRef = useRef(null);
 
   // Reset form when modal opens/closes or initial data changes
   useEffect(() => {
@@ -115,6 +116,9 @@ const WarehouseForm = ({
         }
       }
 
+      // Don't upload images here - just pass the form data
+      // Images will be uploaded after user confirms in the Dashboard dialog
+      
       // Format payload with nested warehouseData structure
       const payload = {
         // Main warehouse fields
@@ -142,6 +146,9 @@ const WarehouseForm = ({
         visibility: Boolean(values.visibility),
         isBroker: values.isBroker || null,
         photos: values.photos || null,
+        
+        // Pass the fileUploadRef so Dashboard can upload after confirmation
+        _fileUploadRef: fileUploadRef,
 
         // Nested warehouseData (lowercase key as per API requirement)
         warehouseData: {
@@ -808,7 +815,7 @@ const WarehouseForm = ({
             name="photos"
             label={<span style={{ color: 'var(--text-secondary)' }}>Upload Image</span>}
           >
-            <FileUpload />
+            <FileUpload ref={fileUploadRef} />
           </Form.Item>
         </Col>
       </Row>
