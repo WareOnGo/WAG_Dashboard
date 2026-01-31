@@ -532,14 +532,10 @@ const WarehouseForm = ({
             name="availability"
             label={<span style={{ color: 'var(--text-secondary)' }}>Availability</span>}
           >
-            <Select
-              placeholder="Select availability"
+            <Input
+              placeholder="Enter availability (e.g., Available, Occupied, etc.)"
               size={isMobileLayout ? 'large' : 'middle'}
-            >
-              <Option value="Available">Available</Option>
-              <Option value="Occupied">Occupied</Option>
-              <Option value="Under Maintenance">Under Maintenance</Option>
-            </Select>
+            />
           </Form.Item>
         </Col>
       </Row>
