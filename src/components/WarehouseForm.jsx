@@ -212,15 +212,10 @@ const WarehouseForm = ({
             name="warehouseOwnerType"
             label={<span style={{ color: 'var(--text-secondary)' }}>Warehouse Owner Type</span>}
           >
-            <Select
-              placeholder="Select owner type"
+            <Input
+              placeholder="Enter owner type (e.g., Owner, Tenant, Broker, etc.)"
               size={isMobileLayout ? 'large' : 'middle'}
-            >
-              <Option value="Owner">Owner</Option>
-              <Option value="Tenant">Tenant</Option>
-              <Option value="Broker">Broker</Option>
-              <Option value="Agent">Agent</Option>
-            </Select>
+            />
           </Form.Item>
         </Col>
 
