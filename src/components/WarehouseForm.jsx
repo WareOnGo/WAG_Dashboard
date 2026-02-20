@@ -119,6 +119,17 @@ const WarehouseForm = ({
       // Don't upload images here - just pass the form data
       // Images will be uploaded after user confirms in the Dashboard dialog
       
+      // Handle photos: preserve existing photos if no new photos are uploaded
+      // Only include photos in payload if it has changed or if creating new warehouse
+      let photosValue;
+      if (initialData) {
+        // Edit mode: preserve existing photos if no new value
+        photosValue = values.photos !== undefined ? values.photos : initialData.photos;
+      } else {
+        // Create mode: use the value from form or null
+        photosValue = values.photos || null;
+      }
+      
       // Format payload with nested warehouseData structure
       const payload = {
         // Main warehouse fields
@@ -145,7 +156,7 @@ const WarehouseForm = ({
         uploadedBy: values.uploadedBy,
         visibility: Boolean(values.visibility),
         isBroker: values.isBroker || null,
-        photos: values.photos || null,
+        photos: photosValue,
         
         // Pass the fileUploadRef so Dashboard can upload after confirmation
         _fileUploadRef: fileUploadRef,

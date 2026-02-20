@@ -376,7 +376,8 @@ const Dashboard = () => {
               try {
                 const urls = await fileUploadRef.current.uploadAllFiles();
                 if (urls && urls.length > 0) {
-                  uploadedImageUrls = urls.join(', ');
+                  // uploadAllFiles returns an array of URLs
+                  uploadedImageUrls = Array.isArray(urls) ? urls.join(', ') : urls;
                 }
               } catch (uploadError) {
                 console.error('Image upload failed:', uploadError);
@@ -405,9 +406,10 @@ const Dashboard = () => {
             }
             
             // Update formData with uploaded image URLs
+            // Preserve existing photos if uploadedImageUrls is undefined or null
             const finalFormData = {
               ...formData,
-              photos: uploadedImageUrls || null
+              photos: uploadedImageUrls !== undefined ? uploadedImageUrls : formData.photos
             };
             
             let result;
