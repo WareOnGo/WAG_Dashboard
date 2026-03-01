@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Row, Col, Typography, Tag, Image, Collapse, Space, Button } from 'antd';
 import { 
   EnvironmentOutlined, 
@@ -11,10 +11,13 @@ import {
   ZoomOutOutlined,
   RotateLeftOutlined,
   RotateRightOutlined,
-  UndoOutlined
+  UndoOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
 import ResponsiveModal from './ResponsiveModal';
 import { useViewport } from '../hooks/useViewport';
+import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
+import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
 import './ResponsiveModal.css';
 
 const { Title, Text } = Typography;
@@ -33,8 +36,112 @@ const WarehouseDetailsModal = ({
   warehouse = null
 }) => {
   const { isMobile } = useViewport();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   if (!warehouse) return null;
+
+  // Download handler function
+  const handleDownloadAllImages = async () => {
+    const imageUrls = getImageUrls();
+    
+    if (imageUrls.length === 0) {
+      showErrorNotification(
+        { message: ERROR_MESSAGES.NO_IMAGES },
+        { title: 'Download Failed', duration: 4 }
+      );
+      return;
+    }
+
+    // Show mobile-specific info message if on mobile with many images
+    const isMobile = isMobileBrowser();
+    if (isMobile && imageUrls.length > 3) {
+      showSuccessMessage('info', {
+        details: ERROR_MESSAGES.MOBILE_FALLBACK,
+        duration: 6
+      });
+    }
+
+    setIsDownloading(true);
+
+    try {
+      const results = await downloadAllImages(imageUrls, warehouse.id);
+      
+      // Reset state
+      setIsDownloading(false);
+      
+      // Display appropriate notification based on results
+      if (results.successful === results.total) {
+        // All downloads successful
+        const message = results.usedFallback
+          ? `Successfully processed ${results.successful} image${results.successful > 1 ? 's' : ''}. Some images opened in new tabs.`
+          : `Successfully downloaded ${results.successful} image${results.successful > 1 ? 's' : ''}`;
+        
+        showSuccessMessage('download', {
+          details: message,
+          duration: 4
+        });
+      } else if (results.successful > 0) {
+        // Partial success
+        const hasCorsError = results.errors.some(err => 
+          err.error.toLowerCase().includes('cors')
+        );
+        
+        let description = ERROR_MESSAGES.PARTIAL_FAILURE(results.successful, results.total, results.failed);
+        
+        if (results.usedFallback) {
+          description += '\n\nSome images were opened in new tabs due to mobile browser limitations.';
+        }
+        
+        if (hasCorsError) {
+          description += `\n\n${ERROR_MESSAGES.CORS_ERROR}`;
+        }
+        
+        showErrorNotification(
+          { message: description },
+          { 
+            title: 'Partial Download Success', 
+            duration: 8,
+            showDetails: true
+          }
+        );
+      } else {
+        // Complete failure
+        const hasCorsError = results.errors.some(err => 
+          err.error.toLowerCase().includes('cors')
+        );
+        const hasNetworkError = results.errors.some(err => 
+          err.error.toLowerCase().includes('network')
+        );
+        
+        let errorMessage = ERROR_MESSAGES.COMPLETE_FAILURE;
+        if (hasCorsError) {
+          errorMessage = ERROR_MESSAGES.CORS_ERROR;
+        } else if (hasNetworkError) {
+          errorMessage = ERROR_MESSAGES.NETWORK_ERROR;
+        }
+        
+        showErrorNotification(
+          { message: errorMessage },
+          { 
+            title: 'Download Failed', 
+            duration: 8,
+            showDetails: true
+          }
+        );
+      }
+    } catch (error) {
+      setIsDownloading(false);
+      
+      // Handle unexpected errors
+      showErrorNotification(
+        { message: error.message || ERROR_MESSAGES.COMPLETE_FAILURE },
+        { 
+          title: 'Download Error', 
+          duration: 8
+        }
+      );
+    }
+  };
 
   // Helper function to render field with label
   const renderField = (label, value, icon = null) => {
@@ -223,8 +330,38 @@ const WarehouseDetailsModal = ({
 
   const imageUrls = getImageUrls();
   
+  const downloadButton = imageUrls.length > 0 && (
+    <Button
+      type="primary"
+      icon={<DownloadOutlined />}
+      onClick={handleDownloadAllImages}
+      loading={isDownloading}
+      disabled={imageUrls.length === 0}
+      size={isMobile ? 'large' : 'middle'}
+      style={{
+        minHeight: isMobile ? '44px' : 'auto',
+        minWidth: isMobile ? '44px' : 'auto',
+        marginBottom: isMobile ? '20px' : '16px',
+        marginTop: isMobile ? '8px' : '0',
+        width: isMobile ? '100%' : 'auto',
+        padding: isMobile ? '8px 16px' : undefined,
+        fontSize: isMobile ? '16px' : '14px',
+        fontWeight: 500,
+        touchAction: 'manipulation', // Optimize for touch
+        WebkitTapHighlightColor: 'transparent' // Remove tap highlight on mobile
+      }}
+    >
+      {isDownloading ? 'Downloading...' : 'Download All Images'}
+    </Button>
+  );
+  
   const imagesContent = imageUrls.length > 0 ? (
-    <Row gutter={[16, 16]}>
+    <div style={{ 
+      marginTop: isMobile ? '8px' : '0',
+      paddingTop: isMobile ? '8px' : '0'
+    }}>
+      {downloadButton}
+      <Row gutter={[16, 16]}>
       <Image.PreviewGroup>
         {imageUrls.map((image, index) => (
           <Col xs={12} sm={8} md={6} key={index}>
@@ -294,6 +431,7 @@ const WarehouseDetailsModal = ({
         ))}
       </Image.PreviewGroup>
     </Row>
+    </div>
   ) : (
     <Text style={{ color: 'rgba(255, 255, 255, 0.65)' }}>
       No images available

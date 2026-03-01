@@ -214,7 +214,8 @@ export const showSuccessMessage = (operation, options = {}) => {
     create: 'Warehouse created successfully',
     update: 'Warehouse updated successfully',
     delete: 'Warehouse deleted successfully',
-    upload: 'File uploaded successfully'
+    upload: 'File uploaded successfully',
+    download: 'Download completed successfully'
   };
 
   const baseMessage = successMessages[operation] || `${operation} completed successfully`;
