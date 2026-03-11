@@ -188,9 +188,10 @@ class ApiClient {
       // Clean up stored authentication data
       removeStoredAuth();
       
-      // Redirect to sign-in page if we're not already there
-      if (window.location.pathname !== '/signin' && window.location.pathname !== '/') {
-        window.location.href = '/signin';
+      // Redirect to session-expired page so the user knows what happened
+      const safePaths = ['/', '/signin', '/session-expired', '/auth/callback'];
+      if (!safePaths.includes(window.location.pathname)) {
+        window.location.href = '/session-expired';
       }
     } catch (error) {
       console.error('Error handling authentication failure:', error);

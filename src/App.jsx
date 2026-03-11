@@ -5,8 +5,10 @@ import { AboveFoldOptimizer } from './components/CriticalContentLoader'
 import { CompatibilityProvider } from './components/CompatibilityProvider'
 import AuthErrorBoundary from './components/AuthErrorBoundary'
 import AuthCallback from './components/AuthCallback'
+import SessionExpired from './components/SessionExpired'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { useViewport } from './hooks'
+import { useTokenExpiryWatcher } from './hooks/useTokenExpiryWatcher'
 import { useState, useEffect } from 'react'
 import performanceService from './services/performanceService'
 import './App.css'
@@ -20,9 +22,12 @@ const { Content } = Layout
  */
 function AppContent() {
   const { isMobile } = useViewport();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [appReady, setAppReady] = useState(false);
+
+  // Proactively watch for token expiry and redirect when session ends
+  useTokenExpiryWatcher({ isAuthenticated, logout });
 
   // Initialize performance optimizations
   useEffect(() => {
@@ -85,6 +90,9 @@ function AppContent() {
       <Routes>
         {/* OAuth callback route - accessible without authentication */}
         <Route path="/auth/callback" element={<AuthCallback />} />
+
+        {/* Session expired route - shown after automatic sign-out */}
+        <Route path="/session-expired" element={<SessionExpired />} />
         
         {/* Sign in route */}
         <Route path="/" element={
