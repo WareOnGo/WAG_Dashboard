@@ -24,6 +24,7 @@ export { default as BrowserGate } from './BrowserGate';
 export { default as DeviceGate } from './DeviceGate';
 export { default as SignInScreen } from './SignInScreen';
 export { default as ProtectedRoute } from './ProtectedRoute';
+export { default as SessionExpired } from './SessionExpired';
 
 // Re-export hooks and utilities
 export { useCompatibility } from '../hooks/useCompatibility';
