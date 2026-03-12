@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Button, Card } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { useViewport } from '../hooks/useViewport';
@@ -50,7 +51,7 @@ const ResponsiveModal = ({
       document.addEventListener('keydown', handleEscapeKey);
       // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
-      
+
       // Reset modal scroll position to ensure proper centering
       // Use setTimeout to ensure DOM is ready
       setTimeout(() => {
@@ -126,16 +127,14 @@ const ResponsiveModal = ({
     bottom: 0,
     background: 'rgba(0, 0, 0, 0.7)',
     display: 'flex',
-    alignItems: isMobile ? 'flex-start' : 'flex-start', // Start from top for better positioning
     justifyContent: 'center',
+    alignItems: 'flex-start',
     zIndex: 1000,
-    padding: isMobile ? '0' : '20px',
     overflowY: 'auto',
     // Handle safe areas on mobile devices
-    paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '20px',
-    paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0)' : '20px',
-    // Ensure modal starts from top of viewport, not document
-    scrollBehavior: 'smooth',
+    padding: isMobile ? '0' : '40px 20px',
+    paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '40px',
+    paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0)' : '40px',
     ...style
   };
 
@@ -148,16 +147,13 @@ const ResponsiveModal = ({
     background: 'var(--bg-secondary)',
     border: isMobile ? 'none' : '1px solid var(--border-primary)',
     borderRadius: isMobile ? '0' : '8px',
-    margin: isMobile ? '0' : 'auto',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
     // Ensure modal doesn't exceed viewport on mobile
     minHeight: isMobile ? '100vh' : 'auto',
-    // Better visual centering - slightly above mathematical center
-    position: 'relative',
-    marginTop: isMobile ? '0' : '5vh', // 5% from top for better visual balance
-    marginBottom: isMobile ? '0' : 'auto',
+    // Flex-shrink 0 prevents the flex child from shrinking below its content size
+    flexShrink: 0,
     // Remove focus outline
     outline: 'none'
   };
@@ -211,7 +207,7 @@ const ResponsiveModal = ({
     event.stopPropagation();
   };
 
-  return (
+  return createPortal(
     <div
       ref={modalRef}
       style={overlayStyles}
@@ -262,7 +258,8 @@ const ResponsiveModal = ({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
