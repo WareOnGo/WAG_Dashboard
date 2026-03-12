@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { notification } from 'antd';
 import { getStoredToken } from '../utils/tokenStorage.js';
 import { isTokenExpired, isTokenExpiringSoon, getTokenTimeRemaining } from '../utils/jwtUtils.js';
@@ -10,6 +9,7 @@ import { isTokenExpired, isTokenExpiringSoon, getTokenTimeRemaining } from '../u
  * - When the token is about to expire (within the warning threshold), shows a warning notification.
  * - When the token has expired, triggers logout and redirects to /session-expired.
  * - Runs on a polling interval so users are never surprised by a stale session.
+ * - Uses window.location for redirect (works outside Router context and gives a clean slate).
  *
  * @param {object} options
  * @param {boolean} options.isAuthenticated - Whether the user is currently authenticated
@@ -23,7 +23,6 @@ export const useTokenExpiryWatcher = ({
   checkIntervalMs = 30_000,
   warningThresholdMs = 5 * 60 * 1000,
 }) => {
-  const navigate = useNavigate();
   const warningShownRef = useRef(false);
   const intervalRef = useRef(null);
 
@@ -40,8 +39,9 @@ export const useTokenExpiryWatcher = ({
       // logout is best-effort
     }
 
-    navigate('/session-expired', { replace: true });
-  }, [logout, navigate]);
+    // Hard redirect — clears all stale React state
+    window.location.href = '/session-expired';
+  }, [logout]);
 
   const checkToken = useCallback(() => {
     const token = getStoredToken();
