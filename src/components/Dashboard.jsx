@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Table, 
-  Button, 
-  Typography, 
-  Card, 
+import {
+  Table,
+  Button,
+  Typography,
+  Card,
   Tooltip,
   App,
   Input,
@@ -17,10 +17,10 @@ import {
 
 const { Option } = Select;
 
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
   ExclamationCircleOutlined,
   SearchOutlined,
   FilterOutlined,
@@ -28,11 +28,11 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
-import { 
-  WarehouseForm, 
-  ContextMenu, 
-  ResponsiveTable, 
-  CardView, 
+import {
+  WarehouseForm,
+  ContextMenu,
+  ResponsiveTable,
+  CardView,
   ViewSwitcher,
   MobileFilterDrawer
 } from './index';
@@ -41,10 +41,10 @@ import WarehouseDetailsModal from './WarehouseDetailsModal';
 import './ResponsiveModal.css';
 import { useViewport, useViewPreference } from '../hooks';
 import { useAuth } from '../contexts';
-import { 
-  showSuccessMessage, 
+import {
+  showSuccessMessage,
   withRetry,
-  clearErrors 
+  clearErrors
 } from '../utils/errorHandler';
 
 const { Title, Text } = Typography;
@@ -57,18 +57,18 @@ const Dashboard = () => {
   const [formVisible, setFormVisible] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
-  
+
   // Authentication context
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  
+
   // Responsive and view management
   const { isMobile } = useViewport();
-  const { 
-    currentView, 
-    changeView, 
-    isTransitioning 
+  const {
+    currentView,
+    changeView,
+    isTransitioning
   } = useViewPreference();
-  
+
   // Filter and search states
   const [searchText, setSearchText] = useState('');
   const [selectedOwnerType, setSelectedOwnerType] = useState('');
@@ -84,14 +84,14 @@ const Dashboard = () => {
   const [selectedVisibility, setSelectedVisibility] = useState('');
   const [areaRange, setAreaRange] = useState([0, 100000]);
   const [budgetRange, setBudgetRange] = useState([0, 1000]);
-  
+
   // View details modal state
   const [viewDetailsVisible, setViewDetailsVisible] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
-  
+
   // Filter panel visibility
   const [filtersVisible, setFiltersVisible] = useState(false);
-  
+
   // Context menu state
   const [contextMenu, setContextMenu] = useState({
     visible: false,
@@ -99,11 +99,11 @@ const Dashboard = () => {
     y: 0,
     record: null
   });
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  
+
   // Get modal instance from App context
   const { modal, message } = App.useApp();
 
@@ -112,14 +112,14 @@ const Dashboard = () => {
     if (!isAuthenticated) {
       return;
     }
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       // Simple API call without complex caching/monitoring to avoid infinite loops
       const data = await warehouseService.getAll();
-      
+
       // Ensure data is always an array
       const warehouseData = Array.isArray(data) ? data : [];
       setWarehouses(warehouseData);
@@ -156,49 +156,49 @@ const Dashboard = () => {
 
     // Apply owner type filter
     if (selectedOwnerType) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.warehouseOwnerType?.toLowerCase().includes(selectedOwnerType.toLowerCase())
       );
     }
 
     // Apply type filter
     if (selectedType) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.warehouseType?.toLowerCase().includes(selectedType.toLowerCase())
       );
     }
 
     // Apply city filter
     if (selectedCity) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.city?.toLowerCase().includes(selectedCity.toLowerCase())
       );
     }
 
     // Apply state filter
     if (selectedState) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.state?.toLowerCase().includes(selectedState.toLowerCase())
       );
     }
 
     // Apply zone filter
     if (selectedZone) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.zone?.toLowerCase().includes(selectedZone.toLowerCase())
       );
     }
 
     // Apply availability filter
     if (selectedAvailability) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.availability?.toLowerCase().includes(selectedAvailability.toLowerCase())
       );
     }
 
     // Apply broker filter
     if (selectedBroker) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.isBroker?.toLowerCase().includes(selectedBroker.toLowerCase())
       );
     }
@@ -218,7 +218,7 @@ const Dashboard = () => {
 
     // Apply land type filter
     if (selectedLandType) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         (warehouse.WarehouseData?.landType || warehouse.warehouseData?.landType || '')
           .toLowerCase().includes(selectedLandType.toLowerCase())
       );
@@ -226,7 +226,7 @@ const Dashboard = () => {
 
     // Apply uploaded by filter
     if (selectedUploadedBy) {
-      filtered = filtered.filter(warehouse => 
+      filtered = filtered.filter(warehouse =>
         warehouse.uploadedBy?.toLowerCase().includes(selectedUploadedBy.toLowerCase())
       );
     }
@@ -236,7 +236,7 @@ const Dashboard = () => {
       filtered = filtered.filter(warehouse => {
         // Handle different data types for visibility
         const isVisible = warehouse.visibility === true || warehouse.visibility === 'true' || warehouse.visibility === 1;
-        
+
         if (selectedVisibility === 'visible') {
           return isVisible;
         } else if (selectedVisibility === 'hidden') {
@@ -249,8 +249,8 @@ const Dashboard = () => {
     // Apply area range filter
     if (areaRange[0] > 0 || areaRange[1] < 100000) {
       filtered = filtered.filter(warehouse => {
-        const totalSpace = Array.isArray(warehouse.totalSpaceSqft) 
-          ? warehouse.totalSpaceSqft[0] 
+        const totalSpace = Array.isArray(warehouse.totalSpaceSqft)
+          ? warehouse.totalSpaceSqft[0]
           : warehouse.totalSpaceSqft;
         return totalSpace >= areaRange[0] && totalSpace <= areaRange[1];
       });
@@ -307,12 +307,12 @@ const Dashboard = () => {
         try {
           await withRetry(
             () => warehouseService.delete(warehouse.id),
-            { 
+            {
               operationType: 'delete',
               maxRetries: 1 // Don't retry delete operations multiple times
             }
           );
-          
+
           // Update local state after successful deletion
           setWarehouses(prev => prev.filter(w => w.id !== warehouse.id));
           showSuccessMessage('delete');
@@ -342,11 +342,11 @@ const Dashboard = () => {
   const handleFormSubmit = async (formData) => {
     const operationType = editingWarehouse ? 'update' : 'create';
     const actionText = editingWarehouse ? 'update' : 'create';
-    
+
     // Extract the fileUploadRef from formData
     const fileUploadRef = formData._fileUploadRef;
     delete formData._fileUploadRef; // Remove it from the payload
-    
+
     // Show confirmation before saving
     return new Promise((resolve, reject) => {
       modal.confirm({
@@ -368,7 +368,7 @@ const Dashboard = () => {
         width: 500,
         onOk: async () => {
           setFormLoading(true);
-          
+
           try {
             // Upload pending images first if any
             let uploadedImageUrls = formData.photos;
@@ -382,7 +382,7 @@ const Dashboard = () => {
               } catch (uploadError) {
                 console.error('Image upload failed:', uploadError);
                 setFormLoading(false);
-                
+
                 // Show user-friendly error message
                 modal.error({
                   title: 'Image Upload Failed',
@@ -399,65 +399,65 @@ const Dashboard = () => {
                   ),
                   okText: 'OK'
                 });
-                
+
                 reject(new Error('Image upload failed'));
                 return;
               }
             }
-            
+
             // Update formData with uploaded image URLs
             // Preserve existing photos if uploadedImageUrls is undefined or null
             const finalFormData = {
               ...formData,
               photos: uploadedImageUrls !== undefined ? uploadedImageUrls : formData.photos
             };
-            
+
             let result;
-            
+
             if (editingWarehouse) {
               // Update existing warehouse
               result = await withRetry(
                 () => warehouseService.update(editingWarehouse.id, finalFormData),
-                { 
+                {
                   operationType,
                   maxRetries: 1
                 }
               );
-              
+
               const updatedWarehouse = {
                 ...editingWarehouse,
                 ...result,
                 visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(finalFormData.visibility)
               };
-              
-              setWarehouses(prev => 
+
+              setWarehouses(prev =>
                 prev.map(w => w.id === editingWarehouse.id ? updatedWarehouse : w)
               );
             } else {
               // Create new warehouse
               result = await withRetry(
                 () => warehouseService.create(finalFormData),
-                { 
+                {
                   operationType,
                   maxRetries: 1
                 }
               );
-              
+
               setWarehouses(prev => [...prev, result]);
             }
-            
+
             // Close form and reset state
             setFormVisible(false);
             setEditingWarehouse(null);
-            
+
             // Show success message
             showSuccessMessage(operationType, {
-              details: operationType === 'create' 
-                ? `${result.warehouseType} in ${result.city}` 
+              details: operationType === 'create'
+                ? `${result.warehouseType} in ${result.city}`
                 : `${result.warehouseType || finalFormData.warehouseType} in ${result.city || finalFormData.city}`
             });
             resolve(result);
-            
+
           } catch (error) {
             setFormLoading(false);
             reject(error);
@@ -475,11 +475,11 @@ const Dashboard = () => {
   // Helper function to show photo count (not actual images to keep rows short)
   const renderPhotoCount = (photos) => {
     if (!photos) return '-';
-    
+
     const imageUrls = photos.split(',').map(url => url.trim()).filter(url => url);
-    
+
     if (imageUrls.length === 0) return '-';
-    
+
     return `${imageUrls.length} photo${imageUrls.length > 1 ? 's' : ''}`;
   };
 
@@ -493,30 +493,30 @@ const Dashboard = () => {
   const handleToggleVisibility = async (warehouse, newVisibility) => {
     try {
       const visibilityBoolean = newVisibility === 'visible';
-      
+
       // Optimistically update the UI
-      setWarehouses(prev => 
+      setWarehouses(prev =>
         prev.map(w => w.id === warehouse.id ? { ...w, visibility: visibilityBoolean } : w)
       );
-      
+
       // Update on the server
       await withRetry(
-        () => warehouseService.update(warehouse.id, { 
-          ...warehouse, 
-          visibility: visibilityBoolean 
+        () => warehouseService.update(warehouse.id, {
+          ...warehouse,
+          visibility: visibilityBoolean
         }),
-        { 
+        {
           operationType: 'update',
           maxRetries: 1
         }
       );
-      
+
       // Show success message
       message.success(`Warehouse ${newVisibility === 'visible' ? 'shown' : 'hidden'} successfully`);
-      
+
     } catch {
       // Revert the optimistic update on error
-      setWarehouses(prev => 
+      setWarehouses(prev =>
         prev.map(w => w.id === warehouse.id ? warehouse : w)
       );
       // Error already handled by withRetry
@@ -614,7 +614,7 @@ const Dashboard = () => {
       key: 'contactNumber',
       width: 130,
       render: (text) => (
-        <a 
+        <a
           href={`tel:${text}`}
           style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
           onClick={(e) => e.stopPropagation()}
@@ -649,8 +649,8 @@ const Dashboard = () => {
       render: (space) => {
         if (!space) return '-';
         // Handle both string format like "10000 sft" and number format
-        const numericValue = typeof space === 'string' 
-          ? parseInt(space.replace(/[^\d]/g, '')) 
+        const numericValue = typeof space === 'string'
+          ? parseInt(space.replace(/[^\d]/g, ''))
           : parseInt(space);
         return numericValue ? `${numericValue.toLocaleString()} sq ft` : space;
       },
@@ -677,8 +677,8 @@ const Dashboard = () => {
       render: (rate) => {
         if (!rate) return '-';
         // Handle both string format like "Rs. 22/sft" and number format
-        const numericValue = typeof rate === 'string' 
-          ? rate.replace(/[^\d.]/g, '') 
+        const numericValue = typeof rate === 'string'
+          ? rate.replace(/[^\d.]/g, '')
           : rate;
         return numericValue ? `₹${numericValue}/sq ft` : rate;
       },
@@ -805,7 +805,7 @@ const Dashboard = () => {
       render: (visible) => {
         // Handle different data types for visibility
         const isVisible = visible === true || visible === 'true' || visible === 1;
-        
+
         return (
           <span>{isVisible ? 'Visible' : 'Hidden'}</span>
         );
@@ -821,28 +821,29 @@ const Dashboard = () => {
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: isMobile ? '8px' : '24px' }}>
       <Card
         style={{
-          background: 'rgba(31, 31, 31, 0.6)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: isMobile ? 'rgba(31, 31, 31, 0.85)' : 'rgba(31, 31, 31, 0.6)',
+          backdropFilter: isMobile ? 'none' : 'blur(20px)',
+          WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
+          border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
         }}
+        bodyStyle={isMobile ? { padding: '12px' } : undefined}
       >
         {/* Search Bar and Actions */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '12px', 
+        <div style={{
+          display: 'flex',
+          gap: '12px',
           marginBottom: '16px',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap'
         }}>
-          <div style={{ 
-            display: 'flex', 
-            gap: '12px', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
             flex: 1,
             minWidth: isMobile ? '100%' : 'auto'
           }}>
@@ -862,18 +863,18 @@ const Dashboard = () => {
             >
               {isMobile ? '' : 'Filters'}
             </Button>
-            <div style={{ 
-              color: 'rgba(255, 255, 255, 0.65)', 
+            <div style={{
+              color: 'rgba(255, 255, 255, 0.65)',
               fontSize: isMobile ? '12px' : '14px',
               whiteSpace: 'nowrap'
             }}>
               {filteredWarehouses.length} of {warehouses.length} results
             </div>
           </div>
-          
-          <div style={{ 
-            display: 'flex', 
-            gap: '12px', 
+
+          <div style={{
+            display: 'flex',
+            gap: '12px',
             alignItems: 'center',
             flexWrap: 'wrap'
           }}>
@@ -884,7 +885,7 @@ const Dashboard = () => {
               disabled={loading}
               showLabels={!isMobile}
             />
-            
+
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -920,7 +921,7 @@ const Dashboard = () => {
                   allowClear
                 />
               </Col>
-              
+
               <Col xs={24} sm={12} md={8} lg={6}>
                 <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
                   Warehouse Type
@@ -1115,7 +1116,7 @@ const Dashboard = () => {
         )}
 
         {error && (
-          <div style={{ 
+          <div style={{
             marginBottom: '16px',
             padding: '12px',
             background: '#ff4d4f20',
@@ -1127,12 +1128,12 @@ const Dashboard = () => {
           </div>
         )}
 
-        <div style={{ 
-          background: 'rgba(31, 31, 31, 0.4)',
-          backdropFilter: 'blur(15px)',
-          WebkitBackdropFilter: 'blur(15px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '8px',
+        <div style={{
+          background: isMobile ? 'rgba(31, 31, 31, 0.7)' : 'rgba(31, 31, 31, 0.4)',
+          backdropFilter: isMobile ? 'none' : 'blur(15px)',
+          WebkitBackdropFilter: isMobile ? 'none' : 'blur(15px)',
+          border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: isMobile ? '0' : '8px',
           overflow: 'hidden',
           transition: 'all 0.3s ease',
           opacity: isTransitioning ? 0.7 : 1
@@ -1152,7 +1153,7 @@ const Dashboard = () => {
                 showSizeChanger: !isMobile,
                 showQuickJumper: !isMobile,
                 pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: (total, range) => 
+                showTotal: (total, range) =>
                   `${range[0]}-${range[1]} of ${total} warehouses`,
                 position: ['bottomCenter'],
                 onChange: (page, size) => {
@@ -1174,8 +1175,8 @@ const Dashboard = () => {
                   margin: 0
                 }
               }}
-              scroll={{ 
-                x: isMobile ? 1200 : 2400, 
+              scroll={{
+                x: isMobile ? 1200 : 2400,
                 y: isMobile ? 'calc(100vh - 300px)' : 'calc(100vh - 400px)',
                 scrollToFirstRowOnChange: true
               }}
@@ -1183,7 +1184,7 @@ const Dashboard = () => {
               className="dark-table"
             />
           ) : (
-            <div style={{ padding: isMobile ? '12px' : '16px' }}>
+            <div style={{ padding: isMobile ? '4px' : '16px' }}>
               <CardView
                 warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
                 loading={loading}

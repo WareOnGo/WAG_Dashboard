@@ -1,7 +1,7 @@
 import React from 'react';
-import { 
-  EditOutlined, 
-  DeleteOutlined, 
+import {
+  EditOutlined,
+  DeleteOutlined,
   EyeOutlined,
   EnvironmentOutlined,
   PhoneOutlined,
@@ -12,12 +12,12 @@ import './SimpleWarehouseCard.css';
 /**
  * Simple Warehouse Card - Matching site's design system
  */
-const SimpleWarehouseCard = ({ 
-  warehouse, 
-  onEdit, 
-  onDelete, 
+const SimpleWarehouseCard = ({
+  warehouse,
+  onEdit,
+  onDelete,
   onViewDetails,
-  onToggleVisibility 
+  onToggleVisibility
 }) => {
   // Get first image
   const getFirstImage = () => {
@@ -40,17 +40,17 @@ const SimpleWarehouseCard = ({
         return String(warehouse.visibility).toLowerCase();
       }
     }
-    
+
     // Check if warehouse has a hidden flag
     if (warehouse.hidden === true || warehouse.isHidden === true) {
       return 'hidden';
     }
-    
+
     // Check if warehouse is inactive or disabled
     if (warehouse.active === false || warehouse.enabled === false || warehouse.isActive === false) {
       return 'hidden';
     }
-    
+
     // Check status field for hidden indicators
     if (warehouse.status) {
       const status = warehouse.status.toLowerCase();
@@ -58,22 +58,7 @@ const SimpleWarehouseCard = ({
         return 'hidden';
       }
     }
-    
-    // For debugging - let's also check if there's a pattern in the data
-    // You can remove this console.log once we figure out the right property
-    console.log('Warehouse data for visibility check:', {
-      id: warehouse.id,
-      visibility: warehouse.visibility,
-      visibilityType: typeof warehouse.visibility,
-      hidden: warehouse.hidden,
-      isHidden: warehouse.isHidden,
-      active: warehouse.active,
-      enabled: warehouse.enabled,
-      isActive: warehouse.isActive,
-      status: warehouse.status,
-      availability: warehouse.availability
-    });
-    
+
     // Default to visible
     return 'visible';
   };
@@ -98,8 +83,8 @@ const SimpleWarehouseCard = ({
   // Format rate
   const formatRate = (rate) => {
     if (!rate) return '-';
-    const numericValue = typeof rate === 'string' 
-      ? rate.replace(/[^\d.]/g, '') 
+    const numericValue = typeof rate === 'string'
+      ? rate.replace(/[^\d.]/g, '')
       : rate;
     return numericValue ? `₹${numericValue}/sq ft` : rate;
   };
@@ -122,7 +107,7 @@ const SimpleWarehouseCard = ({
         <div className="simple-warehouse-card__id">
           <span>#{warehouse.id}</span>
         </div>
-        <div 
+        <div
           className={`simple-warehouse-card__status ${getVisibilityClass()}`}
           onClick={handleToggleVisibility}
           style={{ cursor: onToggleVisibility ? 'pointer' : 'default' }}
@@ -134,8 +119,8 @@ const SimpleWarehouseCard = ({
 
       {/* Image */}
       {firstImage ? (
-        <img 
-          src={firstImage} 
+        <img
+          src={firstImage}
           alt={`Warehouse ${warehouse.id}`}
           className="simple-warehouse-card__image"
           loading="lazy"
@@ -153,18 +138,18 @@ const SimpleWarehouseCard = ({
           {warehouse.warehouseOwnerType && (
             <div className="simple-warehouse-card__owner-type">{warehouse.warehouseOwnerType}</div>
           )}
-          
+
           <div className="simple-warehouse-card__location">
             <EnvironmentOutlined className="simple-warehouse-card__icon" />
             <span>{warehouse.city}, {warehouse.state}</span>
             <span className="simple-warehouse-card__zone-tag">{warehouse.zone}</span>
           </div>
-          
+
           <div className="simple-warehouse-card__contact">
             <UserOutlined className="simple-warehouse-card__icon" />
             <span>{warehouse.contactPerson}</span>
             <PhoneOutlined className="simple-warehouse-card__icon simple-warehouse-card__icon--secondary" />
-            <a 
+            <a
               href={`tel:${warehouse.contactNumber}`}
               style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
               onClick={(e) => e.stopPropagation()}
@@ -183,14 +168,14 @@ const SimpleWarehouseCard = ({
                 {formatSpace(warehouse.totalSpaceSqft)} sq ft
               </span>
             </div>
-            
+
             <div className="simple-warehouse-card__metric">
               <span className="simple-warehouse-card__metric-label">Rate</span>
               <span className="simple-warehouse-card__metric-value">
                 {formatRate(warehouse.ratePerSqft)}
               </span>
             </div>
-            
+
             {warehouse.numberOfDocks && (
               <div className="simple-warehouse-card__metric">
                 <span className="simple-warehouse-card__metric-label">Docks</span>
@@ -203,20 +188,20 @@ const SimpleWarehouseCard = ({
 
           {/* Actions */}
           <div className="simple-warehouse-card__actions">
-            <button 
-              className="simple-warehouse-card__action-btn" 
+            <button
+              className="simple-warehouse-card__action-btn"
               onClick={(e) => { e.stopPropagation(); onViewDetails?.(warehouse); }}
             >
               <EyeOutlined /> View
             </button>
-            <button 
-              className="simple-warehouse-card__action-btn" 
+            <button
+              className="simple-warehouse-card__action-btn"
               onClick={(e) => { e.stopPropagation(); onEdit?.(warehouse); }}
             >
               <EditOutlined /> Edit
             </button>
-            <button 
-              className="simple-warehouse-card__action-btn simple-warehouse-card__action-btn--danger" 
+            <button
+              className="simple-warehouse-card__action-btn simple-warehouse-card__action-btn--danger"
               onClick={(e) => { e.stopPropagation(); onDelete?.(warehouse); }}
             >
               <DeleteOutlined /> Delete
@@ -228,4 +213,4 @@ const SimpleWarehouseCard = ({
   );
 };
 
-export default SimpleWarehouseCard;
+export default React.memo(SimpleWarehouseCard);
