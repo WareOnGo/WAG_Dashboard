@@ -264,6 +264,14 @@
   .simple-warehouse-card {
     border-radius: 8px;
     padding: 12px;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(31, 31, 31, 0.85);
+  }
+
+  .simple-warehouse-card__header {
+    border-bottom: none;
+    padding-bottom: 4px;
   }
 
   .simple-warehouse-card__image,
@@ -301,6 +309,7 @@
 
   .simple-warehouse-card__actions {
     padding-top: 8px;
+    border-top: none;
     gap: 2px;
   }
 

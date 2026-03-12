@@ -177,7 +177,7 @@ const ResponsiveModal = ({
   const bodyStyles = {
     flex: 1,
     overflow: 'auto',
-    padding: isMobile ? '16px' : '24px',
+    padding: isMobile ? '20px' : '24px',
     // Smooth scrolling on mobile
     WebkitOverflowScrolling: 'touch',
     ...bodyStyle

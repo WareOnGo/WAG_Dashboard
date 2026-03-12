@@ -1,21 +1,23 @@
 import React, { useState } from 'react';
 import { Row, Col, Empty, Pagination } from 'antd';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
+import { useViewport } from '../hooks/useViewport';
 import './CardView.css';
 
 /**
  * Fixed CardView Component with stable pagination
  */
-const CardView = ({ 
-  warehouses = [], 
-  loading = false, 
-  onEdit, 
-  onDelete, 
+const CardView = ({
+  warehouses = [],
+  loading = false,
+  onEdit,
+  onDelete,
   onViewDetails,
   onToggleVisibility
 }) => {
+  const { isMobile } = useViewport();
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(isMobile ? 6 : 12);
 
   // Simple pagination handler - no complex logic
   const handlePageChange = (page) => {
@@ -35,7 +37,7 @@ const CardView = ({
   if (loading) {
     return (
       <div className="card-view card-view--loading">
-        <div style={{ 
+        <div style={{
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -53,7 +55,7 @@ const CardView = ({
       <div className="card-view card-view--empty">
         <Empty
           description="No warehouses found"
-          style={{ 
+          style={{
             color: 'rgba(255, 255, 255, 0.65)',
             padding: '40px 20px'
           }}
@@ -77,12 +79,12 @@ const CardView = ({
           </Col>
         ))}
       </Row>
-      
+
       {/* Simple Pagination - separate handlers to avoid conflicts */}
       {warehouses.length > pageSize && (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
           marginTop: '24px',
           padding: '16px'
         }}>
@@ -92,7 +94,7 @@ const CardView = ({
             pageSize={pageSize}
             showSizeChanger={true}
             showQuickJumper={false}
-            showTotal={(total, range) => 
+            showTotal={(total, range) =>
               `${range[0]}-${range[1]} of ${total} warehouses`
             }
             pageSizeOptions={['6', '12', '24', '48']}
