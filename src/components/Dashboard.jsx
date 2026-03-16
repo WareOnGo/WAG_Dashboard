@@ -25,7 +25,8 @@ import {
   SearchOutlined,
   FilterOutlined,
   EyeOutlined,
-  CloseOutlined
+  CloseOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
 import {
@@ -34,7 +35,8 @@ import {
   ResponsiveTable,
   CardView,
   ViewSwitcher,
-  MobileFilterDrawer
+  MobileFilterDrawer,
+  MapView
 } from './index';
 import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
@@ -103,6 +105,9 @@ const Dashboard = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Split view state
+  const [splitViewEnabled, setSplitViewEnabled] = useState(false);
 
   // Get modal instance from App context
   const { modal, message } = App.useApp();
@@ -886,6 +891,20 @@ const Dashboard = () => {
               showLabels={!isMobile}
             />
 
+            {/* Split View Toggle - only show for cards view */}
+            {currentView === 'cards' && (
+              <Tooltip title={splitViewEnabled ? "Close map" : "Show map"}>
+                <Button
+                  icon={<EnvironmentOutlined />}
+                  onClick={() => setSplitViewEnabled(!splitViewEnabled)}
+                  type={splitViewEnabled ? 'primary' : 'default'}
+                  size={isMobile ? 'small' : 'large'}
+                >
+                  {isMobile ? '' : splitViewEnabled ? 'Hide Map' : 'Show Map'}
+                </Button>
+              </Tooltip>
+            )}
+
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -1138,7 +1157,49 @@ const Dashboard = () => {
           transition: 'all 0.3s ease',
           opacity: isTransitioning ? 0.7 : 1
         }}>
-          {currentView === 'table' ? (
+          {/* Split View Layout - only for cards view */}
+          {splitViewEnabled && currentView === 'cards' ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: '16px',
+              padding: '16px',
+              height: isMobile ? 'auto' : 'calc(100vh - 300px)'
+            }}>
+              {/* Cards View */}
+              <div style={{
+                flex: 1,
+                overflow: 'auto',
+                minHeight: isMobile ? '400px' : 'auto'
+              }}>
+                <CardView
+                  warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                  loading={loading}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onViewDetails={handleViewDetails}
+                  onToggleVisibility={handleToggleVisibility}
+                  columnsPerRow={2}
+                />
+              </div>
+
+              {/* Map View */}
+              <div style={{
+                flex: 1,
+                minHeight: isMobile ? '400px' : 'auto',
+                background: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '8px',
+                overflow: 'hidden'
+              }}>
+                <MapView
+                  warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onViewDetails={handleViewDetails}
+                />
+              </div>
+            </div>
+          ) : currentView === 'table' ? (
             <ResponsiveTable
               columns={columns}
               dataSource={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
