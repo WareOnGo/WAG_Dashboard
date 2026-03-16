@@ -13,11 +13,24 @@ const CardView = ({
   onEdit,
   onDelete,
   onViewDetails,
-  onToggleVisibility
+  onToggleVisibility,
+  columnsPerRow = null // null means auto-detect based on screen size
 }) => {
   const { isMobile } = useViewport();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(isMobile ? 6 : 12);
+
+  // Determine column span based on columnsPerRow prop or default behavior
+  const getColSpan = () => {
+    if (columnsPerRow === 2) {
+      // 2 cards per row: 12 span each (24/2 = 12)
+      return { xs: 24, sm: 12, md: 12, lg: 12, xl: 12 };
+    }
+    // Default: 4 cards per row on large screens
+    return { xs: 24, sm: 12, md: 8, lg: 6 };
+  };
+
+  const colSpan = getColSpan();
 
   // Simple pagination handler - no complex logic
   const handlePageChange = (page) => {
@@ -68,7 +81,7 @@ const CardView = ({
     <div className="card-view">
       <Row gutter={[16, 16]}>
         {paginatedData.map((warehouse) => (
-          <Col key={warehouse.id} xs={24} sm={12} md={8} lg={6}>
+          <Col key={warehouse.id} {...colSpan}>
             <SimpleWarehouseCard
               warehouse={warehouse}
               onEdit={onEdit}
