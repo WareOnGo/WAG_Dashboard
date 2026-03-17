@@ -21,7 +21,7 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
 
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
-            style: 'mapbox://styles/mapbox/dark-v11',
+            style: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2', // Custom dark streets style
             center: [77.5946, 12.9716], // India center
             zoom: 5,
         });
