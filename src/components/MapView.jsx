@@ -19,6 +19,10 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
     useEffect(() => {
         if (map.current) return;
 
+        // Copy refs to local variables for cleanup
+        const markersRef = markers.current;
+        const poolRef = markersPool.current;
+
         map.current = new mapboxgl.Map({
             container: mapContainer.current,
             style: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2', // Custom dark streets style
@@ -33,9 +37,9 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
 
         return () => {
             // Clean up markers when map is destroyed
-            markers.current.forEach(marker => marker.remove());
-            markers.current.clear();
-            markersPool.current = [];
+            markersRef.forEach(marker => marker.remove());
+            markersRef.clear();
+            poolRef.length = 0;
 
             observer.disconnect();
             if (map.current) {
