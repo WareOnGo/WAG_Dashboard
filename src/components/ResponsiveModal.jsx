@@ -38,32 +38,25 @@ const ResponsiveModal = ({
   const { isMobile, isTablet } = useViewport();
   const modalRef = useRef(null);
   const contentRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
 
-  // Handle escape key press and scroll reset
+  // Handle escape key and body scroll lock — only re-run when visible changes
   useEffect(() => {
     const handleEscapeKey = (event) => {
-      if (event.key === 'Escape' && visible && onClose) {
-        onClose();
+      if (event.key === 'Escape' && onCloseRef.current) {
+        onCloseRef.current();
       }
     };
 
     if (visible) {
       document.addEventListener('keydown', handleEscapeKey);
-      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden';
 
-      // Reset modal scroll position to ensure proper centering
-      // Use setTimeout to ensure DOM is ready
+      // Reset scroll once on open
       setTimeout(() => {
         if (modalRef.current) {
           modalRef.current.scrollTop = 0;
-          // For desktop, ensure the modal is properly centered
-          if (!isMobile && typeof modalRef.current.scrollTo === 'function') {
-            modalRef.current.scrollTo({
-              top: 0,
-              behavior: 'instant'
-            });
-          }
         }
       }, 0);
     }
@@ -72,7 +65,7 @@ const ResponsiveModal = ({
       document.removeEventListener('keydown', handleEscapeKey);
       document.body.style.overflow = 'unset';
     };
-  }, [visible, onClose, isMobile]);
+  }, [visible]);
 
   // Focus management for accessibility
   useEffect(() => {
