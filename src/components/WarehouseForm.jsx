@@ -116,18 +116,29 @@ const WarehouseForm = ({
         }
       }
 
-      // Don't upload images here - just pass the form data
-      // Images will be uploaded after user confirms in the Dashboard dialog
-      
-      // Handle photos: preserve existing photos if no new photos are uploaded
-      // Only include photos in payload if it has changed or if creating new warehouse
+      // Upload pending images NOW, before handing off to the confirmation dialog.
+      // Previously images were uploaded inside Dashboard's modal.confirm onOk callback
+      // via a ref, but that caused stale closure issues on mobile where the ref's
+      // uploadAllFiles would see an empty pendingFiles snapshot.
       let photosValue;
-      if (initialData) {
-        // Edit mode: preserve existing photos if no new value
-        photosValue = values.photos !== undefined ? values.photos : initialData.photos;
-      } else {
-        // Create mode: use the value from form or null
-        photosValue = values.photos || null;
+      if (fileUploadRef.current) {
+        try {
+          const urls = await fileUploadRef.current.uploadAllFiles();
+          photosValue = urls && urls.length > 0 ? urls.join(', ') : null;
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError);
+          setSubmitting(false);
+          return; // Abort submit — FileUpload already shows an error toast
+        }
+      }
+
+      // If no new uploads, preserve existing photos
+      if (!photosValue) {
+        if (initialData) {
+          photosValue = values.photos !== undefined ? values.photos : initialData.photos;
+        } else {
+          photosValue = values.photos || null;
+        }
       }
       
       // Format payload with nested warehouseData structure
@@ -157,9 +168,6 @@ const WarehouseForm = ({
         visibility: Boolean(values.visibility),
         isBroker: values.isBroker || null,
         photos: photosValue,
-        
-        // Pass the fileUploadRef so Dashboard can upload after confirmation
-        _fileUploadRef: fileUploadRef,
 
         // Nested warehouseData (lowercase key as per API requirement)
         warehouseData: {
