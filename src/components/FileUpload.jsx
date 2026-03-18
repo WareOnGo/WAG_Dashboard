@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef, useRef, useCallback } from 'react';
 import { Upload, Button, Progress, Typography, Image, Card, Row, Col } from 'antd';
 import { DeleteOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
@@ -7,12 +7,11 @@ import { useViewport } from '../hooks/useViewport';
 
 const { Text } = Typography;
 
-const FileUpload = forwardRef(({ 
-  value, 
-  onChange, 
+const FileUpload = forwardRef(({
+  value,
+  onChange,
   disabled = false,
   maxSize = 5, // Max size in MB
-  accept = 'image/*'
 }, ref) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -20,8 +19,18 @@ const FileUpload = forwardRef(({
   const [pendingFiles, setPendingFiles] = useState([]); // Files waiting to be uploaded
   const [currentUploadIndex, setCurrentUploadIndex] = useState(-1);
   const { isMobile } = useViewport();
-  
+
   const { handleUploadError, showSuccessMessage, showErrorMessage } = useErrorHandler();
+
+  // Refs to hold latest state — prevents stale closures when uploadAllFiles
+  // is called from the parent via ref (e.g. after a confirmation modal on mobile)
+  const pendingFilesRef = useRef(pendingFiles);
+  const imageUrlsRef = useRef(imageUrls);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => { pendingFilesRef.current = pendingFiles; }, [pendingFiles]);
+  useEffect(() => { imageUrlsRef.current = imageUrls; }, [imageUrls]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   // Parse existing value into array of URLs
   useEffect(() => {
@@ -35,7 +44,16 @@ const FileUpload = forwardRef(({
 
   // File validation
   const validateFile = (file) => {
-    const isImage = file.type.startsWith('image/');
+    // Check if file exists
+    if (!file) {
+      return false;
+    }
+
+    // On mobile, HEIC files might not have the correct MIME type
+    const isImage = file.type.startsWith('image/') || 
+                    file.type === '' || // Some mobile browsers don't set type for HEIC
+                    file.name.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp|heic|heif)$/);
+    
     if (!isImage) {
       showErrorMessage({
         type: 'validation',
@@ -65,7 +83,25 @@ const FileUpload = forwardRef(({
       try {
         // Step 1: Get presigned URL
         setUploadProgress(10);
-        const { uploadUrl, imageUrl } = await warehouseService.getPresignedUrl(file.type);
+        
+        // Handle MIME type for mobile - Android sometimes sends application/octet-stream
+        let contentType = file.type;
+        if (!contentType || contentType === 'application/octet-stream') {
+          // Infer type from extension
+          const ext = file.name.toLowerCase().split('.').pop();
+          const mimeTypes = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'heic': 'image/heic',
+            'heif': 'image/heif'
+          };
+          contentType = mimeTypes[ext] || 'image/jpeg';
+        }
+        
+        const { uploadUrl, imageUrl } = await warehouseService.getPresignedUrl(contentType);
         
         // Step 2: Upload directly to R2
         setUploadProgress(30);
@@ -102,7 +138,8 @@ const FileUpload = forwardRef(({
           });
           
           xhr.open('PUT', uploadUrl);
-          xhr.setRequestHeader('Content-Type', file.type);
+          // Use the corrected content type
+          xhr.setRequestHeader('Content-Type', contentType);
           xhr.send(file);
         });
         
@@ -126,43 +163,49 @@ const FileUpload = forwardRef(({
   };
 
   // Upload all pending files (called when form is submitted)
-  const uploadAllFiles = async () => {
-    if (pendingFiles.length === 0) {
-      return imageUrls; // Return existing URLs if no pending files
+  // Reads from refs to avoid stale closures — this function may be called
+  // from a parent component via ref after arbitrary re-renders (e.g. mobile
+  // confirmation modal flow), so it must always see the latest state.
+  const uploadAllFiles = useCallback(async () => {
+    const currentPending = pendingFilesRef.current;
+    const currentImageUrls = imageUrlsRef.current;
+
+    if (currentPending.length === 0) {
+      return currentImageUrls; // Return existing URLs if no pending files
     }
 
     setUploading(true);
-    const uploadedUrls = [...imageUrls];
-    
+    const uploadedUrls = [...currentImageUrls];
+
     try {
-      for (let i = 0; i < pendingFiles.length; i++) {
-        const item = pendingFiles[i];
+      for (let i = 0; i < currentPending.length; i++) {
+        const item = currentPending[i];
         const result = await uploadSingleFile(item.file, i);
-        
+
         if (result.success && result.imageUrl) {
           uploadedUrls.push(result.imageUrl);
         } else {
           throw new Error(result.error || 'Upload failed');
         }
       }
-      
+
       // Update state with all uploaded URLs
       setImageUrls(uploadedUrls);
       setPendingFiles([]);
-      
-      if (onChange) {
-        onChange(uploadedUrls.join(', '));
+
+      if (onChangeRef.current) {
+        onChangeRef.current(uploadedUrls.join(', '));
       }
-      
+
       showSuccessMessage('upload');
       return uploadedUrls;
-      
+
     } finally {
       setUploading(false);
       setCurrentUploadIndex(-1);
       setUploadProgress(0);
     }
-  };
+  }, [uploadSingleFile, showSuccessMessage]);
 
   // Expose uploadAllFiles method to parent via ref
   useImperativeHandle(ref, () => ({
@@ -170,25 +213,31 @@ const FileUpload = forwardRef(({
   }));
 
   // Handle file selection (just preview, don't upload yet)
-  const beforeUpload = (file, fileList) => {
+  const beforeUpload = (file) => {
     // Validate file
     if (!validateFile(file)) {
       return false;
     }
-    
-    // If this is the last file in the selection, add all valid files to pending
-    if (fileList[fileList.length - 1] === file) {
-      const validFiles = fileList.filter(f => validateFile(f));
-      const newPendingFiles = validFiles.map(f => ({
-        file: f,
-        name: f.name,
-        size: f.size,
-        preview: URL.createObjectURL(f)
-      }));
-      
-      setPendingFiles(prev => [...prev, ...newPendingFiles]);
+
+    // Add each valid file to pending individually
+    // Note: avoid batching via fileList reference equality check —
+    // on Android Chrome, fileList entries may not be the same reference as file,
+    // causing files to silently never get added to pendingFiles.
+    let previewUrl;
+    try {
+      previewUrl = URL.createObjectURL(file);
+    } catch (error) {
+      console.error('Failed to create preview URL:', error);
+      previewUrl = null;
     }
-    
+
+    setPendingFiles(prev => [...prev, {
+      file,
+      name: file.name,
+      size: file.size,
+      preview: previewUrl
+    }]);
+
     return false; // Prevent default upload
   };
 
@@ -228,10 +277,12 @@ const FileUpload = forwardRef(({
   const uploadProps = {
     beforeUpload,
     fileList: [],
-    accept,
+    accept: 'image/*,image/heic,image/heif', // Include HEIC/HEIF for iOS
     disabled: disabled || uploading,
     showUploadList: false,
     multiple: true, // Enable multiple file selection
+    capture: false, // Don't force camera on mobile, allow gallery selection
+    openFileDialogOnClick: true, // Ensure file dialog opens on click
   };
 
   return (
@@ -259,16 +310,35 @@ const FileUpload = forwardRef(({
                   styles={{ body: { padding: '8px' } }}
                 >
                   <div style={{ position: 'relative' }}>
-                    <img 
-                      src={item.preview} 
-                      alt={item.name}
-                      style={{ 
-                        width: '100%', 
-                        height: '80px', 
-                        objectFit: 'cover',
-                        borderRadius: '4px'
-                      }}
-                    />
+                    {item.preview ? (
+                      <img 
+                        src={item.preview} 
+                        alt={item.name}
+                        style={{ 
+                          width: '100%', 
+                          height: '80px', 
+                          objectFit: 'cover',
+                          borderRadius: '4px'
+                        }}
+                        onError={(e) => {
+                          // Fallback if preview fails to load
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: '80px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: '#1f1f1f',
+                        borderRadius: '4px',
+                        color: 'rgba(255, 255, 255, 0.45)'
+                      }}>
+                        📷 {item.name.split('.').pop().toUpperCase()}
+                      </div>
+                    )}
                     {!uploading && (
                       <Button
                         type="primary"
@@ -389,8 +459,10 @@ const FileUpload = forwardRef(({
             disabled={disabled || uploading}
             style={{ 
               width: '100%',
-              minHeight: isMobile ? '44px' : 'auto',
-              fontSize: isMobile ? '16px' : '14px'
+              minHeight: isMobile ? '48px' : 'auto',
+              fontSize: isMobile ? '16px' : '14px',
+              touchAction: 'manipulation', // Prevent double-tap zoom on mobile
+              WebkitTapHighlightColor: 'transparent', // Remove tap highlight on iOS
             }}
             size={isMobile ? 'large' : 'middle'}
             type="dashed"

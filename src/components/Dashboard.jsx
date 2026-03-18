@@ -348,10 +348,6 @@ const Dashboard = () => {
     const operationType = editingWarehouse ? 'update' : 'create';
     const actionText = editingWarehouse ? 'update' : 'create';
 
-    // Extract the fileUploadRef from formData
-    const fileUploadRef = formData._fileUploadRef;
-    delete formData._fileUploadRef; // Remove it from the payload
-
     // Show confirmation before saving
     return new Promise((resolve, reject) => {
       modal.confirm({
@@ -375,54 +371,15 @@ const Dashboard = () => {
           setFormLoading(true);
 
           try {
-            // Upload pending images first if any
-            let uploadedImageUrls = formData.photos;
-            if (fileUploadRef?.current) {
-              try {
-                const urls = await fileUploadRef.current.uploadAllFiles();
-                if (urls && urls.length > 0) {
-                  // uploadAllFiles returns an array of URLs
-                  uploadedImageUrls = Array.isArray(urls) ? urls.join(', ') : urls;
-                }
-              } catch (uploadError) {
-                console.error('Image upload failed:', uploadError);
-                setFormLoading(false);
-
-                // Show user-friendly error message
-                modal.error({
-                  title: 'Image Upload Failed',
-                  content: (
-                    <div>
-                      <p>Failed to upload images. This could be due to:</p>
-                      <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
-                        <li>Poor network connection</li>
-                        <li>File size too large</li>
-                        <li>Server timeout</li>
-                      </ul>
-                      <p style={{ marginTop: '8px' }}>Please check your connection and try again.</p>
-                    </div>
-                  ),
-                  okText: 'OK'
-                });
-
-                reject(new Error('Image upload failed'));
-                return;
-              }
-            }
-
-            // Update formData with uploaded image URLs
-            // Preserve existing photos if uploadedImageUrls is undefined or null
-            const finalFormData = {
-              ...formData,
-              photos: uploadedImageUrls !== undefined ? uploadedImageUrls : formData.photos
-            };
+            // Photos are already uploaded by WarehouseForm before reaching here —
+            // formData.photos already contains the final URL string.
 
             let result;
 
             if (editingWarehouse) {
               // Update existing warehouse
               result = await withRetry(
-                () => warehouseService.update(editingWarehouse.id, finalFormData),
+                () => warehouseService.update(editingWarehouse.id, formData),
                 {
                   operationType,
                   maxRetries: 1
@@ -432,7 +389,7 @@ const Dashboard = () => {
               const updatedWarehouse = {
                 ...editingWarehouse,
                 ...result,
-                visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(finalFormData.visibility)
+                visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(formData.visibility)
               };
 
               setWarehouses(prev =>
@@ -441,7 +398,7 @@ const Dashboard = () => {
             } else {
               // Create new warehouse
               result = await withRetry(
-                () => warehouseService.create(finalFormData),
+                () => warehouseService.create(formData),
                 {
                   operationType,
                   maxRetries: 1
@@ -459,7 +416,7 @@ const Dashboard = () => {
             showSuccessMessage(operationType, {
               details: operationType === 'create'
                 ? `${result.warehouseType} in ${result.city}`
-                : `${result.warehouseType || finalFormData.warehouseType} in ${result.city || finalFormData.city}`
+                : `${result.warehouseType || formData.warehouseType} in ${result.city || formData.city}`
             });
             resolve(result);
 
