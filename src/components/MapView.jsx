@@ -159,7 +159,6 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
           <div style="display:flex;gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.15);">
             <button onclick="window.warehouseMapActions.view(${warehouse.id})" style="flex:1;padding:6px;font-size:11px;font-weight:500;background:#1890ff;color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#40a9ff'" onmouseout="this.style.background='#1890ff'">View</button>
             <button onclick="window.warehouseMapActions.edit(${warehouse.id})" style="flex:1;padding:6px;font-size:11px;font-weight:500;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Edit</button>
-            <button onclick="window.warehouseMapActions.delete(${warehouse.id})" style="flex:1;padding:6px;font-size:11px;font-weight:500;background:#ff4d4f;color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#ff7875'" onmouseout="this.style.background='#ff4d4f'">Delete</button>
           </div>
         </div>
       `;
