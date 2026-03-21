@@ -1,28 +1,30 @@
 import React, { useState } from 'react';
-import { Layout, Typography, Button, Space, Dropdown, Avatar, message } from 'antd';
+import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, message } from 'antd';
 import {
   UserOutlined,
   FileTextOutlined,
-  MessageOutlined,
   MenuOutlined,
   LogoutOutlined,
-  DownOutlined
+  ScheduleOutlined,
+  CopyOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
+import { warehouseService } from '../services/warehouseService';
 
 const { Header } = Layout;
-const { Title } = Typography;
+const { Text } = Typography;
+const { TextArea } = Input;
 
-/**
- * Mobile-optimized header component
- * Implements responsive design with proper touch targets and mobile-first approach
- * Requirements: 2.1, 2.2, 2.4, 3.5
- */
 const MobileHeader = ({ onMenuToggle }) => {
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [itineraryOpen, setItineraryOpen] = useState(false);
+  const [warehouseIds, setWarehouseIds] = useState('');
+  const [generatedItinerary, setGeneratedItinerary] = useState('');
+  const [warehouses, setWarehouses] = useState(null);
+  const [generatingItinerary, setGeneratingItinerary] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -37,7 +39,136 @@ const MobileHeader = ({ onMenuToggle }) => {
     }
   };
 
-  // User dropdown menu items
+  // Fetch warehouses when modal opens (lazy load)
+  const handleItineraryOpen = async () => {
+    setItineraryOpen(true);
+
+    // Only fetch if we haven't already - fetch silently in background
+    if (!warehouses) {
+      try {
+        const data = await warehouseService.getAll();
+        setWarehouses(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to fetch warehouses:', error);
+        message.error('Failed to load warehouse data');
+      }
+    }
+  };
+
+  // Generate itinerary from comma-separated IDs
+  const handleGenerateItinerary = () => {
+    if (!warehouseIds.trim()) {
+      message.warning('Please enter warehouse IDs');
+      return;
+    }
+
+    if (!warehouses || warehouses.length === 0) {
+      message.error('Warehouse data not loaded');
+      return;
+    }
+
+    setGeneratingItinerary(true);
+
+    try {
+      // Parse IDs from input
+      const ids = warehouseIds
+        .split(',')
+        .map(id => id.trim())
+        .filter(id => id)
+        .map(id => parseInt(id, 10))
+        .filter(id => !isNaN(id));
+
+      if (ids.length === 0) {
+        message.warning('No valid warehouse IDs found');
+        setGeneratingItinerary(false);
+        return;
+      }
+
+      // Find warehouses by IDs
+      const foundWarehouses = ids
+        .map(id => warehouses.find(w => w.id === id))
+        .filter(w => w !== undefined);
+
+      if (foundWarehouses.length === 0) {
+        message.warning('No warehouses found for the given IDs');
+        setGeneratingItinerary(false);
+        return;
+      }
+
+      // Generate formatted itinerary
+      const itineraryLines = foundWarehouses.map((wh, index) => {
+        // Handle totalSpaceSqft (can be array or single value)
+        const totalSpace = Array.isArray(wh.totalSpaceSqft)
+          ? wh.totalSpaceSqft.join(' + ')
+          : wh.totalSpaceSqft || 'N/A';
+
+        // Get compliances from nested WarehouseData or warehouseData
+        const compliances = wh.WarehouseData?.compliances || wh.warehouseData?.compliances || 'N/A';
+
+        // Format rate per sqft
+        const rate = wh.ratePerSqft || 'N/A';
+        const rateFormatted = typeof rate === 'string'
+          ? rate.replace(/[^\d.]/g, '')
+          : rate;
+
+        // Format address
+        const addressParts = [
+          wh.address,
+          wh.city,
+          wh.state,
+          wh.postalCode
+        ].filter(part => part); // Remove empty/null values
+        const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'N/A';
+
+        return `${index + 1}. WH-${wh.id} - ${wh.contactPerson || 'N/A'} (${wh.contactNumber || 'N/A'})
+   Address: ${fullAddress}
+   Total Space: ${totalSpace} sq ft
+   Docks: ${wh.numberOfDocks || 0}
+   Compliances: ${compliances}
+   Rate: ₹${rateFormatted}/sq ft
+   Location: ${wh.googleLocation || 'No location available'}`;
+      });
+
+      const itinerary = itineraryLines.join('\n\n');
+      setGeneratedItinerary(itinerary);
+      message.success(`Generated itinerary for ${foundWarehouses.length} warehouse(s)`);
+
+      // Show warning for missing IDs
+      const missingCount = ids.length - foundWarehouses.length;
+      if (missingCount > 0) {
+        message.warning(`${missingCount} warehouse ID(s) not found`);
+      }
+    } catch (error) {
+      console.error('Error generating itinerary:', error);
+      message.error('Failed to generate itinerary');
+    } finally {
+      setGeneratingItinerary(false);
+    }
+  };
+
+  // Copy itinerary to clipboard
+  const handleCopyItinerary = async () => {
+    if (!generatedItinerary) {
+      message.warning('No itinerary to copy');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(generatedItinerary);
+      message.success('Copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      message.error('Failed to copy to clipboard');
+    }
+  };
+
+  // Reset modal state when closing
+  const handleItineraryClose = () => {
+    setItineraryOpen(false);
+    setWarehouseIds('');
+    setGeneratedItinerary('');
+  };
+
   const userMenuItems = [
     {
       key: 'logout',
@@ -49,224 +180,312 @@ const MobileHeader = ({ onMenuToggle }) => {
     },
   ];
 
+  const linkItems = [
+    { key: 'ppt-generator', icon: <FileTextOutlined />, label: 'PPT Generator', href: 'https://radiant-phoenix-e19499.netlify.app/', external: true },
+  ];
+
   return (
-    <Header
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: `0 ${isMobile ? 'var(--spacing-md)' : 'var(--spacing-2xl)'}`,
-        height: isMobile ? '64px' : '56px',
-        background: 'var(--bg-header)',
-        borderBottom: '1px solid var(--border-secondary)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 'var(--z-sticky)',
-        // Ensure proper safe area handling on mobile devices
-        paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '0',
-      }}
-      className="mobile-header"
-    >
-      {/* Left section - Menu button (mobile) + Brand */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: isMobile ? 'var(--spacing-sm)' : 'var(--spacing-md)' 
-      }}>
-        {/* Hamburger menu button - only visible on mobile */}
-        {isMobile && (
-          <Button
-            type="text"
-            icon={<MenuOutlined />}
-            onClick={onMenuToggle}
-            className="hamburger-menu-btn"
-            style={{
-              minHeight: 'var(--touch-target-min)',
-              minWidth: 'var(--touch-target-min)',
-              padding: 'var(--spacing-sm)',
-              borderRadius: 'var(--border-radius-sm)',
-              color: 'var(--text-secondary)',
-              fontSize: 'var(--font-size-lg)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s ease',
-            }}
-            aria-label="Toggle navigation menu"
-          />
-        )}
-
-        {/* Company Brand */}
-        <a
-          href="https://wareongo.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ 
-            textDecoration: 'none',
-            transition: 'all 0.15s ease',
-          }}
-          className="brand-link"
-        >
-          <Title 
-            level={5} 
-            style={{
-              color: 'var(--text-primary)',
-              margin: 0,
-              fontWeight: 500,
-              cursor: 'pointer',
-              fontSize: isMobile ? 'var(--font-size-lg)' : 'var(--font-size-xl)',
-              transition: 'color 0.15s ease',
-            }}
-          >
-            WareOnGo
-          </Title>
-        </a>
-      </div>
-
-      {/* Right section - Action buttons + User profile */}
-      <Space size={isMobile ? "small" : "medium"}>
-        {/* Action buttons - responsive display */}
-        {!isMobile && (
-          <>
+    <>
+      <Header
+        className="modern-header"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: `0 ${isMobile ? '16px' : '32px'}`,
+          height: isMobile ? '64px' : '60px',
+          background: 'rgba(18, 18, 18, 0.8)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 'var(--z-sticky)',
+          paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '0',
+        }}
+      >
+        {/* Left section */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isMobile && (
             <Button
               type="text"
-              icon={<FileTextOutlined />}
-              className="navbar-btn action-btn"
-              size="small"
+              icon={<MenuOutlined />}
+              onClick={onMenuToggle}
+              className="hamburger-menu-btn"
               style={{
-                minHeight: 'var(--touch-target-min)',
-                padding: 'var(--spacing-xs) var(--spacing-sm)',
-                borderRadius: 'var(--border-radius-sm)',
-                color: 'var(--text-muted)',
-                fontSize: 'var(--font-size-xs)',
-                fontWeight: 400,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-xs)',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              PPT Generator
-            </Button>
-
-            <Button
-              type="text"
-              icon={<MessageOutlined />}
-              className="navbar-btn action-btn"
-              size="small"
-              style={{
-                minHeight: 'var(--touch-target-min)',
-                padding: 'var(--spacing-xs) var(--spacing-sm)',
-                borderRadius: 'var(--border-radius-sm)',
-                color: 'var(--text-muted)',
-                fontSize: 'var(--font-size-xs)',
-                fontWeight: 400,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--spacing-xs)',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              Chat Agent
-            </Button>
-          </>
-        )}
-
-        {/* Mobile action buttons - icon only */}
-        {isMobile && (
-          <>
-            <Button
-              type="text"
-              icon={<FileTextOutlined />}
-              className="navbar-btn mobile-action-btn"
-              size="small"
-              style={{
-                minHeight: 'var(--touch-target-min)',
-                minWidth: 'var(--touch-target-min)',
-                padding: 'var(--spacing-sm)',
-                borderRadius: 'var(--border-radius-sm)',
-                color: 'var(--text-muted)',
-                fontSize: 'var(--font-size-base)',
+                width: '36px',
+                height: '36px',
+                padding: 0,
+                borderRadius: '10px',
+                color: 'rgba(255,255,255,0.7)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.15s ease',
+                fontSize: '16px',
               }}
-              aria-label="PPT Generator"
+              aria-label="Toggle navigation menu"
             />
+          )}
 
-            <Button
-              type="text"
-              icon={<MessageOutlined />}
-              className="navbar-btn mobile-action-btn"
-              size="small"
+          <a
+            href="https://wareongo.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}
+            className="brand-link"
+          >
+            <Text
+              strong
               style={{
-                minHeight: 'var(--touch-target-min)',
-                minWidth: 'var(--touch-target-min)',
-                padding: 'var(--spacing-sm)',
-                borderRadius: 'var(--border-radius-sm)',
-                color: 'var(--text-muted)',
-                fontSize: 'var(--font-size-base)',
+                color: '#fff',
+                margin: 0,
+                fontSize: isMobile ? '17px' : '18px',
+                fontWeight: 600,
+                letterSpacing: '-0.3px',
+              }}
+            >
+              WareOnGo
+            </Text>
+          </a>
+
+          {/* Desktop nav links */}
+          {!isMobile && (
+            <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '28px' }}>
+              {linkItems.map((item) => (
+                <a
+                  key={item.key}
+                  href={item.href}
+                  {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  className="nav-link-btn"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    transition: 'color 0.15s ease',
+                  }}
+                >
+                  <span style={{ fontSize: '13px', display: 'flex' }}>{item.icon}</span>
+                  {item.label}
+                </a>
+              ))}
+              <a
+                href="#"
+                className="nav-link-btn"
+                onClick={(e) => { e.preventDefault(); handleItineraryOpen(); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  transition: 'color 0.15s ease',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '13px', display: 'flex' }}><ScheduleOutlined /></span>
+                Itinerary
+              </a>
+            </nav>
+          )}
+        </div>
+
+        {/* Right section */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px' }}>
+          {/* Mobile icon links */}
+          {isMobile && (
+            <>
+              {linkItems.map((item) => (
+                <Tooltip key={item.key} title={item.label} placement="bottom">
+                  <a
+                    href={item.href}
+                    {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                    className="nav-link-btn"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '15px',
+                      transition: 'all 0.2s ease',
+                      color: 'rgba(255, 255, 255, 0.45)',
+                      background: 'transparent',
+                      textDecoration: 'none',
+                    }}
+                    aria-label={item.label}
+                  >
+                    {item.icon}
+                  </a>
+                </Tooltip>
+              ))}
+              <Tooltip title="Itinerary" placement="bottom">
+                <a
+                  href="#"
+                  className="nav-link-btn"
+                  onClick={(e) => { e.preventDefault(); handleItineraryOpen(); }}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    transition: 'all 0.2s ease',
+                    color: 'rgba(255, 255, 255, 0.45)',
+                    background: 'transparent',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Itinerary"
+                >
+                  <ScheduleOutlined />
+                </a>
+              </Tooltip>
+            </>
+          )}
+
+          {/* Separator */}
+          {!isMobile && (
+            <div style={{
+              width: '1px',
+              height: '24px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              marginLeft: '4px',
+              marginRight: '4px',
+            }} />
+          )}
+
+          {/* User profile */}
+          <Dropdown
+            menu={{ items: userMenuItems }}
+            trigger={['click']}
+            placement="bottomRight"
+            arrow
+          >
+            <div
+              className="user-profile-btn"
+              style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.15s ease',
+                gap: '10px',
+                padding: isMobile ? '4px' : '4px 12px 4px 4px',
+                cursor: 'pointer',
+                borderRadius: '12px',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                minHeight: '40px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
               }}
-              aria-label="Chat Agent"
-            />
-          </>
-        )}
+            >
+              <Avatar
+                size={32}
+                src={user?.picture}
+                icon={<UserOutlined />}
+                style={{
+                  backgroundColor: user?.picture ? 'transparent' : '#4f46e5',
+                  boxShadow: '0 0 0 2px rgba(255, 255, 255, 0.08)',
+                }}
+              />
+              {!isMobile && (
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
+                  <span style={{
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                  }}>
+                    {user?.name || 'User'}
+                  </span>
+                </div>
+              )}
+            </div>
+          </Dropdown>
+        </div>
+      </Header>
 
-        {/* User profile section */}
-        <Dropdown
-          menu={{ items: userMenuItems }}
-          trigger={['click']}
-          placement="bottomRight"
-          arrow
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--spacing-sm)',
-              padding: 'var(--spacing-xs) var(--spacing-sm)',
-              cursor: 'pointer',
-              borderRadius: 'var(--border-radius-md)',
-              transition: 'all 0.2s ease',
-              minHeight: 'var(--touch-target-min)',
-              backgroundColor: 'transparent',
-              border: '1px solid transparent',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--bg-hover)';
-              e.currentTarget.style.borderColor = 'var(--border-primary)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.borderColor = 'transparent';
-            }}
-          >
-            <Avatar
-              size={28}
-              src={user?.picture}
-              icon={<UserOutlined />}
-              style={{
-                backgroundColor: user?.picture ? 'transparent' : 'var(--color-primary)',
-              }}
+      {/* Itinerary Modal */}
+      <Modal
+        title="Visit Itinerary Generator"
+        open={itineraryOpen}
+        onCancel={handleItineraryClose}
+        footer={null}
+        width={isMobile ? '90vw' : 600}
+        centered
+        destroyOnClose
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Input Section */}
+          <div>
+            <div style={{ marginBottom: '8px', fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)' }}>
+              Enter warehouse IDs (comma-separated)
+            </div>
+            <Input
+              value={warehouseIds}
+              onChange={(e) => setWarehouseIds(e.target.value)}
+              placeholder="e.g. 1, 5, 12"
+              size="large"
+              onPressEnter={handleGenerateItinerary}
+              disabled={generatingItinerary}
             />
-            {!isMobile && (
-              <span style={{ 
-                color: 'var(--text-primary)', 
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: 500,
-              }}>
-                {user?.name || 'User'}
-              </span>
-            )}
           </div>
-        </Dropdown>
-      </Space>
-    </Header>
+
+          {/* Generate Button */}
+          <Button
+            type="primary"
+            size="large"
+            onClick={handleGenerateItinerary}
+            loading={generatingItinerary}
+            block
+          >
+            Generate Itinerary
+          </Button>
+
+          {/* Output Section */}
+          {generatedItinerary && (
+            <div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px'
+              }}>
+                <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                  Generated Itinerary (editable)
+                </div>
+                <Button
+                  icon={<CopyOutlined />}
+                  onClick={handleCopyItinerary}
+                  size="small"
+                >
+                  Copy
+                </Button>
+              </div>
+              <TextArea
+                value={generatedItinerary}
+                onChange={(e) => setGeneratedItinerary(e.target.value)}
+                autoSize={{ minRows: 10, maxRows: 20 }}
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  lineHeight: '1.6',
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </Modal>
+    </>
   );
 };
 

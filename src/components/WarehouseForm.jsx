@@ -222,14 +222,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     if (!values.uploadedBy || values.uploadedBy.length < 2) e.uploadedBy = 'Uploaded by is required';
     if (!values.compliances) e.compliances = 'Compliance info is required';
 
-    if (values.latitude !== '' && values.latitude != null) {
-      const lat = Number(values.latitude);
-      if (isNaN(lat) || lat < -90 || lat > 90) e.latitude = 'Must be between -90 and 90';
-    }
-    if (values.longitude !== '' && values.longitude != null) {
-      const lng = Number(values.longitude);
-      if (isNaN(lng) || lng < -180 || lng > 180) e.longitude = 'Must be between -180 and 180';
-    }
+    // Latitude and longitude validation removed to support high precision formats
 
     setErrors(e);
 
@@ -522,12 +515,12 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Latitude" error={errors.latitude}>
-                  <NumberInput mobile={m} value={values.latitude} onChange={set('latitude')} placeholder="-90 to 90" min={-90} max={90} step={0.000001} />
+                  <TextInput mobile={m} value={values.latitude} onChange={set('latitude')} placeholder="Enter latitude" />
                 </Field>,
               true)}
               {col(
                 <Field label="Longitude" error={errors.longitude}>
-                  <NumberInput mobile={m} value={values.longitude} onChange={set('longitude')} placeholder="-180 to 180" min={-180} max={180} step={0.000001} />
+                  <TextInput mobile={m} value={values.longitude} onChange={set('longitude')} placeholder="Enter longitude" />
                 </Field>,
               true)}
             </>)}

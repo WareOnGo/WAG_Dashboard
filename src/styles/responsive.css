@@ -380,71 +380,43 @@
   }
 }
 
-/* ===== MOBILE HEADER STYLES ===== */
+/* ===== MODERN HEADER STYLES ===== */
 /* Requirements: 2.1, 2.2, 2.4 */
 
-.mobile-header {
-  /* Ensure header stays on top with proper z-index */
+.modern-header {
   position: sticky !important;
   top: 0 !important;
   z-index: var(--z-sticky) !important;
-  
-  /* Smooth transitions for responsive changes */
-  transition: height 0.3s ease, padding 0.3s ease !important;
 }
 
 /* Hamburger menu button styling */
 .hamburger-menu-btn {
-  color: var(--text-secondary) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
   border: none !important;
   background: transparent !important;
-  transition: all 0.15s ease !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .hamburger-menu-btn:hover,
 .hamburger-menu-btn:focus {
-  color: var(--text-primary) !important;
-  background: var(--glass-hover) !important;
-  transform: scale(1.05);
+  color: #fff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .hamburger-menu-btn:active {
-  background: var(--glass-active) !important;
-  transform: scale(0.98);
+  background: rgba(255, 255, 255, 0.12) !important;
+  transform: scale(0.95);
 }
 
 /* Brand link hover effects */
 .brand-link:hover .ant-typography {
-  color: var(--text-primary) !important;
-  transform: translateY(-1px);
+  opacity: 0.8;
 }
 
-/* Action button styling */
-.action-btn:hover,
-.mobile-action-btn:hover {
-  color: var(--text-primary) !important;
-  background: var(--glass-hover) !important;
-  transform: translateY(-1px);
-}
-
-.action-btn:active,
-.mobile-action-btn:active {
-  background: var(--glass-active) !important;
-  transform: translateY(0);
-}
-
-/* User profile hover effects */
-.user-profile:hover {
-  background: var(--glass-hover) !important;
-  transform: translateY(-1px);
-}
-
-.user-profile:hover span {
-  color: var(--text-primary) !important;
-}
-
-.user-profile:hover .anticon {
-  color: var(--text-secondary) !important;
+/* User profile hover */
+.user-profile-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* ===== MOBILE NAVIGATION DRAWER STYLES ===== */
@@ -502,10 +474,10 @@
     -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
     tap-highlight-color: rgba(255, 255, 255, 0.1);
   }
-  
+
   .hamburger-menu-btn,
-  .mobile-action-btn,
-  .user-profile {
+  .modern-header .nav-link-btn,
+  .user-profile-btn {
     -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
     tap-highlight-color: rgba(255, 255, 255, 0.1);
   }
@@ -514,16 +486,15 @@
 /* ===== TOUCH TARGET COMPLIANCE ===== */
 /* Requirements: 2.2, 2.5 */
 
-/* Ensure all interactive elements meet 44px minimum touch target */
 @media (max-width: 767px) {
-  .mobile-header .ant-btn,
-  .mobile-header .user-profile,
+  .modern-header .ant-btn,
+  .modern-header .nav-link-btn,
+  .modern-header .user-profile-btn,
   .mobile-nav-menu .ant-menu-item {
     min-height: var(--touch-target-min) !important;
     min-width: var(--touch-target-min) !important;
   }
-  
-  /* Recommended 48px touch targets for primary actions */
+
   .hamburger-menu-btn,
   .mobile-nav-menu .ant-menu-item {
     min-height: var(--touch-target-recommended) !important;
@@ -531,26 +502,27 @@
 }
 
 /* ===== VISUAL FEEDBACK FOR TOUCH INTERACTIONS ===== */
-/* Requirements: 2.5 - 100ms response time */
+/* Requirements: 2.5 */
 
-.mobile-header .ant-btn,
-.mobile-header .user-profile,
+.modern-header .ant-btn,
+.modern-header .nav-link-btn,
+.modern-header .user-profile-btn,
 .mobile-nav-menu .ant-menu-item {
-  transition: all 0.1s ease !important; /* 100ms response time */
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
-/* Active state feedback */
-.mobile-header .ant-btn:active,
-.mobile-header .user-profile:active,
+.modern-header .ant-btn:active,
+.modern-header .nav-link-btn:active,
+.modern-header .user-profile-btn:active,
 .mobile-nav-menu .ant-menu-item:active {
-  transform: scale(0.98) !important;
-  background: var(--glass-active) !important;
+  transform: scale(0.97) !important;
 }
 
 /* Focus states for accessibility */
-.mobile-header .ant-btn:focus-visible,
+.modern-header .ant-btn:focus-visible,
+.modern-header .nav-link-btn:focus-visible,
 .mobile-nav-menu .ant-menu-item:focus-visible {
-  outline: 2px solid var(--accent-primary) !important;
+  outline: 2px solid rgba(255, 255, 255, 0.5) !important;
   outline-offset: 2px !important;
 }
 
@@ -558,23 +530,19 @@
 /* Requirements: 2.4 */
 
 @media (max-width: 767px) {
-  .mobile-header {
+  .modern-header {
     height: 64px !important;
-    padding-left: var(--spacing-md) !important;
-    padding-right: var(--spacing-md) !important;
-  }
-  
-  /* Handle safe areas on mobile devices */
-  .mobile-header {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
     padding-top: env(safe-area-inset-top, 0) !important;
   }
 }
 
 @media (min-width: 768px) {
-  .mobile-header {
-    height: 56px !important;
-    padding-left: var(--spacing-2xl) !important;
-    padding-right: var(--spacing-2xl) !important;
+  .modern-header {
+    height: 60px !important;
+    padding-left: 32px !important;
+    padding-right: 32px !important;
   }
 }
 
@@ -582,12 +550,12 @@
 /* Requirements: 2.4 */
 
 @media (max-width: 767px) and (orientation: landscape) {
-  .mobile-header {
-    height: 56px !important; /* Reduce height in landscape mode */
+  .modern-header {
+    height: 56px !important;
   }
-  
+
   .mobile-navigation-drawer {
-    width: 320px !important; /* Wider drawer in landscape */
+    width: 320px !important;
   }
 }
 
@@ -596,10 +564,10 @@
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-  .mobile-header {
+  .modern-header {
     border-bottom: 2px solid var(--border-primary) !important;
   }
-  
+
   .mobile-nav-menu .ant-menu-item {
     border: 1px solid var(--border-secondary) !important;
   }
@@ -607,8 +575,9 @@
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-  .mobile-header,
-  .mobile-header .ant-btn,
+  .modern-header,
+  .modern-header .ant-btn,
+  .modern-header .nav-link-btn,
   .mobile-nav-menu .ant-menu-item,
   .brand-link {
     transition: none !important;

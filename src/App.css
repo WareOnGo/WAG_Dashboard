@@ -738,217 +738,55 @@ body {
   box-shadow: none;
 }
 
-/* Glass-like navbar menu styling */
-.ant-menu-horizontal {
-  background: transparent !important;
-  border-bottom: none !important;
+/* ===== MODERN HEADER STYLES ===== */
+
+/* Glass-morphism header */
+.modern-header.ant-layout-header {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 24px rgba(0, 0, 0, 0.2) !important;
+  height: 60px !important;
 }
 
-.ant-menu-horizontal .ant-menu-item {
-  color: var(--text-secondary) !important;
-  border-bottom: 2px solid transparent !important;
-  margin: 0 8px !important;
-  padding: 0 16px !important;
-  height: 40px !important;
-  line-height: 40px !important;
-}
-
-.ant-menu-horizontal .ant-menu-item:hover {
-  color: var(--text-primary) !important;
-  background: var(--glass-secondary) !important;
-  border-radius: 6px !important;
-}
-
-.ant-menu-horizontal .ant-menu-item-selected {
-  color: var(--text-primary) !important;
-  border-bottom: 2px solid var(--border-primary) !important;
-  background: var(--glass-primary) !important;
-  border-radius: 6px 6px 0 0 !important;
-}
-
-.ant-menu-horizontal .ant-menu-item-disabled {
-  color: var(--text-muted) !important;
-}
-
-.ant-menu-horizontal .ant-menu-item-disabled:hover {
-  color: var(--text-muted) !important;
-  background: transparent !important;
-}
-
-/* Header button styling */
-.ant-btn-text {
-  color: var(--text-secondary) !important;
-  border: none !important;
-  background: transparent !important;
-}
-
-.ant-btn-text:hover:not(:disabled) {
-  color: var(--text-primary) !important;
-  background: transparent !important;
-}
-
-.ant-btn-text:disabled {
-  color: var(--text-muted) !important;
-  background: transparent !important;
-}
-
-/* Clean navbar button styling */
-.ant-btn-text {
-  color: var(--text-secondary) !important;
-  border: none !important;
-  background: transparent !important;
-  height: auto !important;
-  padding: 8px 12px !important;
-  border-radius: 6px !important;
-  transition: color 0.15s ease !important;
-}
-
-.ant-btn-text:hover {
-  color: var(--text-primary) !important;
-  background: transparent !important;
-}
-
-.ant-btn-text:active {
-  background: transparent !important;
-}
-
-/* Company name link styling */
-a:hover .ant-typography {
-  color: var(--text-primary) !important;
-}
-
-/* Responsive header layout styling */
-.ant-layout-header {
-  box-shadow: none !important;
-  padding: 0 var(--container-padding) !important;
-  height: 56px !important;
-}
-
-/* Mobile header adjustments */
 @media (max-width: 767px) {
-  .ant-layout-header {
+  .modern-header.ant-layout-header {
     height: 64px !important;
-    padding: 0 var(--spacing-md) !important;
   }
 }
 
-.ant-layout-header .ant-btn-text {
-  color: var(--text-muted) !important;
+/* Nav link hover effect */
+.modern-header .nav-link-btn:hover {
+  color: #fff !important;
+}
+
+/* Brand link hover */
+.modern-header .brand-link:hover .ant-typography {
+  opacity: 0.8;
+}
+
+/* User profile button hover */
+.modern-header .user-profile-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Hamburger button styling */
+.modern-header .hamburger-menu-btn {
   border: none !important;
   background: transparent !important;
-  height: 32px !important;
-  padding: var(--spacing-xs) var(--spacing-sm) !important;
-  border-radius: var(--border-radius-sm) !important;
-  transition: all 0.15s ease !important;
-  font-weight: 400 !important;
-  font-size: var(--font-size-xs) !important;
 }
 
-/* Mobile header button adjustments */
-@media (max-width: 767px) {
-  .ant-layout-header .ant-btn-text {
-    height: var(--touch-target-min) !important;
-    padding: var(--spacing-sm) var(--spacing-md) !important;
-    font-size: var(--font-size-sm) !important;
-  }
+.modern-header .hamburger-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #fff !important;
 }
 
-.ant-layout-header .ant-btn-text:hover {
-  color: var(--text-primary) !important;
-  background: transparent !important;
-}
-
-.ant-layout-header .ant-btn-text:active {
-  background: transparent !important;
-}
-
-/* Company name styling */
-.ant-layout-header a {
-  transition: all 0.15s ease;
-}
-
-.ant-layout-header a:hover .ant-typography {
-  color: var(--text-primary) !important;
-}
-
-/* Responsive navbar button styling */
-.navbar-btn {
-  color: var(--text-muted) !important;
+/* Header text buttons general override */
+.modern-header .ant-btn-text {
   border: none !important;
   background: transparent !important;
-  height: 32px !important;
-  padding: var(--spacing-xs) var(--spacing-sm) !important;
-  border-radius: var(--border-radius-sm) !important;
-  transition: color 0.15s ease !important;
-  font-weight: 400 !important;
-  font-size: var(--font-size-xs) !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: var(--spacing-xs) !important;
 }
 
-/* Mobile navbar button adjustments */
-@media (max-width: 767px) {
-  .navbar-btn {
-    height: var(--touch-target-min) !important;
-    padding: var(--spacing-sm) var(--spacing-md) !important;
-    font-size: var(--font-size-sm) !important;
-    gap: var(--spacing-sm) !important;
-  }
-  
-  /* Hide text on very small screens, keep icons */
-  @media (max-width: 480px) {
-    .navbar-btn span:not(.anticon) {
-      display: none;
-    }
-  }
-}
-
-.navbar-btn:hover {
-  color: var(--text-primary) !important;
-  background: transparent !important;
-}
-
-.navbar-btn:active {
-  background: transparent !important;
-}
-
-/* Responsive user profile styling */
-.user-profile {
-  transition: color 0.15s ease !important;
-  border-radius: var(--border-radius-sm) !important;
-  padding: var(--spacing-xs) var(--spacing-sm) !important;
-  min-height: var(--touch-target-min);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
-/* Mobile user profile adjustments */
-@media (max-width: 767px) {
-  .user-profile {
-    padding: var(--spacing-sm) var(--spacing-md) !important;
-    gap: var(--spacing-sm);
-  }
-  
-  /* Hide user text on very small screens */
-  @media (max-width: 480px) {
-    .user-profile span {
-      display: none;
-    }
-  }
-}
-
-.user-profile:hover {
-  background: transparent !important;
-}
-
-.user-profile:hover span {
-  color: var(--text-primary) !important;
-}
-
-.user-profile:hover .anticon {
-  color: var(--text-secondary) !important;
+.modern-header .ant-btn-text:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
 }/* Pe
 rformance optimizations for mobile devices */
 .critical-content {
@@ -973,7 +811,7 @@ rformance optimizations for mobile devices */
 .ant-card,
 .ant-table-wrapper,
 .warehouse-card,
-.mobile-header {
+.modern-header {
   transform: translateZ(0);
   backface-visibility: hidden;
 }
