@@ -3,7 +3,6 @@ import { Drawer, Menu, Button, Space, Typography, Avatar, message } from 'antd';
 import {
   HomeOutlined,
   FileTextOutlined,
-  MessageOutlined,
   UserOutlined,
   CloseOutlined,
   DashboardOutlined,
@@ -70,34 +69,26 @@ const MobileNavigation = ({ visible, onClose }) => {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: 'Dashboard',
-      path: '/dashboard'
+      href: '/dashboard'
     },
     {
       key: 'ppt-generator',
       icon: <FileTextOutlined />,
       label: 'PPT Generator',
-      action: 'ppt-generator'
-    },
-    {
-      key: 'chat-agent',
-      icon: <MessageOutlined />,
-      label: 'Chat Agent',
-      action: 'chat-agent'
+      href: 'https://radiant-phoenix-e19499.netlify.app/',
+      external: true
     }
   ];
 
   const handleMenuClick = ({ key }) => {
-    const item = menuItems.find(item => item.key === key);
-    
-    if (item?.path) {
-      // Handle navigation
-      window.location.href = item.path;
-    } else if (item?.action) {
-      // Handle action buttons
-      // Action handlers can be added here
+    const item = menuItems.find(i => i.key === key);
+    if (item?.href) {
+      if (item.external) {
+        window.open(item.href, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = item.href;
+      }
     }
-    
-    // Close drawer after selection
     onClose();
   };
 
