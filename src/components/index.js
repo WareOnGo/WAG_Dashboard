@@ -14,6 +14,7 @@ export { default as WarehouseCard } from './WarehouseCard';
 export { default as CardView } from './CardView';
 export { default as ViewSwitcher } from './ViewSwitcher';
 export { default as MobileFilterDrawer } from './MobileFilterDrawer';
+export { default as MapView } from './MapView';
 export { default as ResponsiveModal } from './ResponsiveModal';
 export { default as WarehouseDetailsModal } from './WarehouseDetailsModal';
 export { default as LazyImage } from './LazyImage';
@@ -25,8 +26,6 @@ export { default as DeviceGate } from './DeviceGate';
 export { default as SignInScreen } from './SignInScreen';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as SessionExpired } from './SessionExpired';
-export { default as MapView } from './MapView';
-
 
 // Re-export hooks and utilities
 export { useCompatibility } from '../hooks/useCompatibility';

@@ -5,7 +5,7 @@ import {
   FileTextOutlined,
   MenuOutlined,
   LogoutOutlined,
-  ScheduleOutlined,
+  EnvironmentOutlined,
   CopyOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
@@ -102,14 +102,14 @@ const MobileHeader = ({ onMenuToggle }) => {
           ? wh.totalSpaceSqft.join(' + ')
           : wh.totalSpaceSqft || 'N/A';
 
-        // Get compliances from nested WarehouseData or warehouseData
-        const compliances = wh.WarehouseData?.compliances || wh.warehouseData?.compliances || 'N/A';
+        // Read fields from both root and nested shapes for backward compatibility.
+        const complianceValue = wh.compliances || wh.WarehouseData?.compliances || wh.warehouseData?.compliances;
+        const otherSpecsValue = wh.otherSpecifications || wh.WarehouseData?.otherSpecifications || wh.warehouseData?.otherSpecifications;
+        const compliances = typeof complianceValue === 'string' ? complianceValue.trim() : complianceValue;
+        const otherSpecifications = typeof otherSpecsValue === 'string' ? otherSpecsValue.trim() : otherSpecsValue;
 
-        // Format rate per sqft
-        const rate = wh.ratePerSqft || 'N/A';
-        const rateFormatted = typeof rate === 'string'
-          ? rate.replace(/[^\d.]/g, '')
-          : rate;
+        // Render rate as-is from DB for now.
+        const rate = wh.ratePerSqft;
 
         // Format address
         const addressParts = [
@@ -124,8 +124,9 @@ const MobileHeader = ({ onMenuToggle }) => {
    Address: ${fullAddress}
    Total Space: ${totalSpace} sq ft
    Docks: ${wh.numberOfDocks || 0}
-   Compliances: ${compliances}
-   Rate: ₹${rateFormatted}/sq ft
+  Compliances: ${compliances || 'N/A'}
+  Other Specs: ${otherSpecifications || 'N/A'}
+  Rate: ${rate ?? ''}
    Location: ${wh.googleLocation || 'No location available'}`;
       });
 
@@ -292,7 +293,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   cursor: 'pointer',
                 }}
               >
-                <span style={{ fontSize: '13px', display: 'flex' }}><ScheduleOutlined /></span>
+                <span style={{ fontSize: '13px', display: 'flex' }}><EnvironmentOutlined /></span>
                 Itinerary
               </a>
             </nav>
@@ -350,7 +351,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   }}
                   aria-label="Itinerary"
                 >
-                  <ScheduleOutlined />
+                  <EnvironmentOutlined />
                 </a>
               </Tooltip>
             </>
