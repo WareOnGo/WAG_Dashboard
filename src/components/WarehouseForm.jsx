@@ -209,17 +209,17 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
   const validate = () => {
     const e = {};
-    if (!values.warehouseType || values.warehouseType.length < 2) e.warehouseType = 'Warehouse type is required (min 2 chars)';
+    if (!values.warehouseType?.trim()) e.warehouseType = 'Warehouse type is required';
     if (!values.zone) e.zone = 'Zone is required';
-    if (!values.address || values.address.length < 10) e.address = 'Address is required (min 10 chars)';
-    if (!values.city || values.city.length < 2) e.city = 'City is required';
-    if (!values.state || values.state.length < 2) e.state = 'State is required';
-    if (!values.contactPerson || values.contactPerson.length < 2) e.contactPerson = 'Contact person is required';
-    if (!values.contactNumber || !/^[+]?[0-9\s\-()]{10,15}$/.test(values.contactNumber)) e.contactNumber = 'Valid phone number required (10-15 digits)';
+    if (!values.address?.trim()) e.address = 'Address is required';
+    if (!values.city?.trim()) e.city = 'City is required';
+    if (!values.state?.trim()) e.state = 'State is required';
+    if (!values.contactPerson?.trim()) e.contactPerson = 'Contact person is required';
+    if (!values.contactNumber?.trim()) e.contactNumber = 'Contact number is required';
     const spaces = (values.totalSpaceSqft || []).filter(v => v != null && v > 0);
     if (spaces.length === 0) e.totalSpaceSqft = 'At least one space value is required';
     if (!values.ratePerSqft && values.ratePerSqft !== 0) e.ratePerSqft = 'Rate per sq ft is required';
-    if (!values.uploadedBy || values.uploadedBy.length < 2) e.uploadedBy = 'Uploaded by is required';
+    if (!values.uploadedBy?.trim()) e.uploadedBy = 'Uploaded by is required';
     if (!values.compliances) e.compliances = 'Compliance info is required';
 
     // Latitude and longitude validation removed to support high precision formats
