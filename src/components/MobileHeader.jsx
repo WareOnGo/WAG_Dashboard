@@ -58,7 +58,7 @@ const MobileHeader = ({ onMenuToggle }) => {
   };
 
   // Generate itinerary from comma-separated IDs
-  const handleGenerateItinerary = () => {
+  const handleGenerateItinerary = async () => {
     if (!warehouseIds.trim()) {
       message.warning('Please enter warehouse IDs');
       return;
@@ -97,6 +97,17 @@ const MobileHeader = ({ onMenuToggle }) => {
         return;
       }
 
+      // Fetch unmasked phone numbers for all warehouses in parallel
+      const contactResults = await Promise.allSettled(
+        foundWarehouses.map(wh => warehouseService.getContactNumber(wh.id))
+      );
+      const contactMap = {};
+      foundWarehouses.forEach((wh, i) => {
+        if (contactResults[i].status === 'fulfilled') {
+          contactMap[wh.id] = contactResults[i].value.contactNumber;
+        }
+      });
+
       // Generate formatted itinerary
       const itineraryLines = foundWarehouses.map((wh, index) => {
         // Handle totalSpaceSqft (can be array or single value)
@@ -113,6 +124,9 @@ const MobileHeader = ({ onMenuToggle }) => {
         // Render rate as-is from DB for now.
         const rate = wh.ratePerSqft;
 
+        // Use unmasked phone number if available, fall back to masked
+        const phone = contactMap[wh.id] || wh.contactNumber || 'N/A';
+
         // Format address
         const addressParts = [
           wh.address,
@@ -122,7 +136,7 @@ const MobileHeader = ({ onMenuToggle }) => {
         ].filter(part => part); // Remove empty/null values
         const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'N/A';
 
-        return `${index + 1}. WH-${wh.id} - ${wh.contactPerson || 'N/A'} (${wh.contactNumber || 'N/A'})
+        return `${index + 1}. WH-${wh.id} - ${wh.contactPerson || 'N/A'} (${phone})
    Address: ${fullAddress}
    Total Space: ${totalSpace} sq ft
    Docks: ${wh.numberOfDocks || 0}
