@@ -20,7 +20,8 @@ const MobileHeader = ({ onMenuToggle }) => {
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [itineraryOpen, setItineraryOpen] = useState(false);
+  const [itineraryExpanded, setItineraryExpanded] = useState(false);
+  const [itineraryResultOpen, setItineraryResultOpen] = useState(false);
   const [warehouseIds, setWarehouseIds] = useState('');
   const [generatedItinerary, setGeneratedItinerary] = useState('');
   const [warehouses, setWarehouses] = useState(null);
@@ -39,12 +40,13 @@ const MobileHeader = ({ onMenuToggle }) => {
     }
   };
 
-  // Fetch warehouses when modal opens (lazy load)
-  const handleItineraryOpen = async () => {
-    setItineraryOpen(true);
+  // Toggle the inline itinerary input in the navbar
+  const handleItineraryToggle = async () => {
+    const opening = !itineraryExpanded;
+    setItineraryExpanded(opening);
 
-    // Only fetch if we haven't already - fetch silently in background
-    if (!warehouses) {
+    // Fetch warehouses on first expand (lazy load)
+    if (opening && !warehouses) {
       try {
         const data = await warehouseService.getAll();
         setWarehouses(Array.isArray(data) ? data : []);
@@ -132,6 +134,7 @@ const MobileHeader = ({ onMenuToggle }) => {
 
       const itinerary = itineraryLines.join('\n\n');
       setGeneratedItinerary(itinerary);
+      setItineraryResultOpen(true);
       message.success(`Generated itinerary for ${foundWarehouses.length} warehouse(s)`);
 
       // Show warning for missing IDs
@@ -163,11 +166,9 @@ const MobileHeader = ({ onMenuToggle }) => {
     }
   };
 
-  // Reset modal state when closing
-  const handleItineraryClose = () => {
-    setItineraryOpen(false);
-    setWarehouseIds('');
-    setGeneratedItinerary('');
+  // Close only the result modal — don't reset input so context is preserved
+  const handleResultClose = () => {
+    setItineraryResultOpen(false);
   };
 
   const userMenuItems = [
@@ -182,8 +183,10 @@ const MobileHeader = ({ onMenuToggle }) => {
   ];
 
   const linkItems = [
-    { key: 'ppt-generator', icon: <FileTextOutlined />, label: 'PPT Generator', href: 'https://radiant-phoenix-e19499.netlify.app/', external: true },
+    { key: 'ppt-generator', icon: <FileTextOutlined />, label: 'PPT Generator', href: 'https://radiant-phoenix-e19499.netlify.app/', external: true, tooltip: 'Open internal PPT generator tool' },
   ];
+
+  const itineraryTooltip = 'Generate copy-pastable itinerary details for on-ground teams';
 
   return (
     <>
@@ -253,49 +256,89 @@ const MobileHeader = ({ onMenuToggle }) => {
           {!isMobile && (
             <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '28px' }}>
               {linkItems.map((item) => (
-                <a
-                  key={item.key}
-                  href={item.href}
-                  {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                  className="nav-link-btn"
-                  style={{
+                <Tooltip key={item.key} title={item.tooltip} placement="bottom">
+                  <a
+                    href={item.href}
+                    {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                    className="nav-link-btn"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      transition: 'color 0.15s ease',
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', display: 'flex' }}>{item.icon}</span>
+                    {item.label}
+                  </a>
+                </Tooltip>
+              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0px' }}>
+                <Tooltip title={itineraryTooltip} placement="bottom">
+                  <a
+                    href="#"
+                    className="nav-link-btn"
+                    onClick={(e) => { e.preventDefault(); handleItineraryToggle(); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: itineraryExpanded ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.5)',
+                      transition: 'color 0.15s ease',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', display: 'flex' }}><EnvironmentOutlined /></span>
+                    Itinerary
+                  </a>
+                </Tooltip>
+                {itineraryExpanded && (
+                  <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    transition: 'color 0.15s ease',
-                  }}
-                >
-                  <span style={{ fontSize: '13px', display: 'flex' }}>{item.icon}</span>
-                  {item.label}
-                </a>
-              ))}
-              <a
-                href="#"
-                className="nav-link-btn"
-                onClick={(e) => { e.preventDefault(); handleItineraryOpen(); }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  transition: 'color 0.15s ease',
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ fontSize: '13px', display: 'flex' }}><EnvironmentOutlined /></span>
-                Itinerary
-              </a>
+                    marginLeft: '6px',
+                    animation: 'itinerary-expand 0.2s ease-out',
+                  }}>
+                    <Input
+                      value={warehouseIds}
+                      onChange={(e) => setWarehouseIds(e.target.value)}
+                      placeholder="Warehouse IDs (e.g. 1, 5, 12)"
+                      size="small"
+                      onPressEnter={handleGenerateItinerary}
+                      disabled={generatingItinerary}
+                      style={{
+                        width: '220px',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={handleGenerateItinerary}
+                      loading={generatingItinerary}
+                      style={{ borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      Generate
+                    </Button>
+                  </div>
+                )}
+              </div>
             </nav>
           )}
         </div>
@@ -306,7 +349,7 @@ const MobileHeader = ({ onMenuToggle }) => {
           {isMobile && (
             <>
               {linkItems.map((item) => (
-                <Tooltip key={item.key} title={item.label} placement="bottom">
+                <Tooltip key={item.key} title={item.tooltip} placement="bottom">
                   <a
                     href={item.href}
                     {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
@@ -330,11 +373,11 @@ const MobileHeader = ({ onMenuToggle }) => {
                   </a>
                 </Tooltip>
               ))}
-              <Tooltip title="Itinerary" placement="bottom">
+              <Tooltip title={itineraryTooltip} placement="bottom">
                 <a
                   href="#"
                   className="nav-link-btn"
-                  onClick={(e) => { e.preventDefault(); handleItineraryOpen(); }}
+                  onClick={(e) => { e.preventDefault(); handleItineraryToggle(); }}
                   style={{
                     width: '36px',
                     height: '36px',
@@ -344,8 +387,8 @@ const MobileHeader = ({ onMenuToggle }) => {
                     justifyContent: 'center',
                     fontSize: '15px',
                     transition: 'all 0.2s ease',
-                    color: 'rgba(255, 255, 255, 0.45)',
-                    background: 'transparent',
+                    color: itineraryExpanded ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.45)',
+                    background: itineraryExpanded ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
                     textDecoration: 'none',
                     cursor: 'pointer',
                   }}
@@ -415,76 +458,85 @@ const MobileHeader = ({ onMenuToggle }) => {
         </div>
       </Header>
 
-      {/* Itinerary Modal */}
+      {/* Mobile inline itinerary input bar */}
+      {isMobile && itineraryExpanded && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 16px',
+          background: 'rgba(18, 18, 18, 0.95)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          animation: 'itinerary-expand 0.2s ease-out',
+        }}>
+          <Input
+            value={warehouseIds}
+            onChange={(e) => setWarehouseIds(e.target.value)}
+            placeholder="Warehouse IDs (e.g. 1, 5, 12)"
+            size="small"
+            onPressEnter={handleGenerateItinerary}
+            disabled={generatingItinerary}
+            style={{
+              flex: 1,
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '6px',
+              color: '#fff',
+              fontSize: '12px',
+            }}
+          />
+          <Button
+            type="primary"
+            size="small"
+            onClick={handleGenerateItinerary}
+            loading={generatingItinerary}
+            style={{ borderRadius: '6px', fontSize: '12px', flexShrink: 0 }}
+          >
+            Generate
+          </Button>
+        </div>
+      )}
+
+      {/* Itinerary Result Modal — output only */}
       <Modal
-        title="Visit Itinerary Generator"
-        open={itineraryOpen}
-        onCancel={handleItineraryClose}
+        title="Visit Itinerary"
+        open={itineraryResultOpen}
+        onCancel={handleResultClose}
         footer={null}
         width={isMobile ? '90vw' : 600}
         centered
-        destroyOnClose
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Input Section */}
+        {generatedItinerary && (
           <div>
-            <div style={{ marginBottom: '8px', fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)' }}>
-              Enter warehouse IDs (comma-separated)
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '8px'
+            }}>
+              <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)' }}>
+                Generated Itinerary (editable)
+              </div>
+              <Button
+                icon={<CopyOutlined />}
+                onClick={handleCopyItinerary}
+                size="small"
+              >
+                Copy
+              </Button>
             </div>
-            <Input
-              value={warehouseIds}
-              onChange={(e) => setWarehouseIds(e.target.value)}
-              placeholder="e.g. 1, 5, 12"
-              size="large"
-              onPressEnter={handleGenerateItinerary}
-              disabled={generatingItinerary}
+            <TextArea
+              value={generatedItinerary}
+              onChange={(e) => setGeneratedItinerary(e.target.value)}
+              autoSize={{ minRows: 10, maxRows: 20 }}
+              style={{
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                lineHeight: '1.6',
+              }}
             />
           </div>
-
-          {/* Generate Button */}
-          <Button
-            type="primary"
-            size="large"
-            onClick={handleGenerateItinerary}
-            loading={generatingItinerary}
-            block
-          >
-            Generate Itinerary
-          </Button>
-
-          {/* Output Section */}
-          {generatedItinerary && (
-            <div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px'
-              }}>
-                <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Generated Itinerary (editable)
-                </div>
-                <Button
-                  icon={<CopyOutlined />}
-                  onClick={handleCopyItinerary}
-                  size="small"
-                >
-                  Copy
-                </Button>
-              </div>
-              <TextArea
-                value={generatedItinerary}
-                onChange={(e) => setGeneratedItinerary(e.target.value)}
-                autoSize={{ minRows: 10, maxRows: 20 }}
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: '13px',
-                  lineHeight: '1.6',
-                }}
-              />
-            </div>
-          )}
-        </div>
+        )}
       </Modal>
     </>
   );
