@@ -7,6 +7,7 @@ import {
   PhoneOutlined,
   UserOutlined
 } from '@ant-design/icons';
+import RedactedPhone from './RedactedPhone';
 import './SimpleWarehouseCard.css';
 
 /**
@@ -149,13 +150,7 @@ const SimpleWarehouseCard = ({
             <UserOutlined className="simple-warehouse-card__icon" />
             <span>{warehouse.contactPerson}</span>
             <PhoneOutlined className="simple-warehouse-card__icon simple-warehouse-card__icon--secondary" />
-            <a
-              href={`tel:${warehouse.contactNumber}`}
-              style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {warehouse.contactNumber}
-            </a>
+            <RedactedPhone warehouseId={warehouse.id} />
           </div>
         </div>
 

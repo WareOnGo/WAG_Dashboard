@@ -40,6 +40,7 @@ import {
 } from './index';
 import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
+import RedactedPhone from './RedactedPhone';
 import './ResponsiveModal.css';
 import { useViewport, useViewPreference } from '../hooks';
 import { useAuth } from '../contexts';
@@ -328,8 +329,13 @@ const Dashboard = () => {
     });
   };
 
-  const handleEdit = (warehouse) => {
-    setEditingWarehouse(warehouse);
+  const handleEdit = async (warehouse) => {
+    try {
+      const contactInfo = await warehouseService.getContactNumber(warehouse.id);
+      setEditingWarehouse({ ...warehouse, contactNumber: contactInfo.contactNumber });
+    } catch {
+      setEditingWarehouse(warehouse);
+    }
     setFormVisible(true);
   };
 
@@ -572,18 +578,9 @@ const Dashboard = () => {
     },
     {
       title: 'Contact Number',
-      dataIndex: 'contactNumber',
       key: 'contactNumber',
-      width: 130,
-      render: (text) => (
-        <a
-          href={`tel:${text}`}
-          style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {text}
-        </a>
-      ),
+      width: 150,
+      render: (_, record) => <RedactedPhone warehouseId={record.id} />,
     },
     {
       title: 'Total Space',
