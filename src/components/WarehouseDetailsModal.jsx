@@ -15,6 +15,7 @@ import {
   DownloadOutlined
 } from '@ant-design/icons';
 import ResponsiveModal from './ResponsiveModal';
+import RedactedPhone from './RedactedPhone';
 import { useViewport } from '../hooks/useViewport';
 import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
@@ -257,12 +258,7 @@ const WarehouseDetailsModal = ({
       </Col>
       <Col xs={24} sm={12}>
         {renderField('Contact Number', (
-          <a 
-            href={`tel:${warehouse.contactNumber}`}
-            style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
-          >
-            {warehouse.contactNumber}
-          </a>
+          <RedactedPhone warehouseId={warehouse.id} />
         ), <PhoneOutlined />)}
       </Col>
     </Row>

@@ -42,6 +42,15 @@ export const warehouseService = {
   },
 
   /**
+   * Get contact number for a specific warehouse (triggers audit log)
+   * @param {number} warehouseId - Warehouse ID
+   * @returns {Promise} Object containing contactNumber and contactPerson
+   */
+  getContactNumber: async (warehouseId) => {
+    return apiClient.get(`/warehouses/${warehouseId}/contact-number`);
+  },
+
+  /**
    * Get presigned URL for file upload
    * @param {string} contentType - MIME type of the file to upload
    * @returns {Promise} Object containing uploadUrl and imageUrl
