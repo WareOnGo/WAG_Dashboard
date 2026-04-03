@@ -141,13 +141,13 @@ const NumberInput = ({ value, onChange, mobile, placeholder, min, max, step }) =
     inputMode="decimal"
     value={value ?? ''}
     onChange={e => {
-      const v = e.target.value;
-      onChange(v === '' ? '' : Number(v));
+      // Keep raw input text to support partial decimals like "25." while typing.
+      onChange(e.target.value);
     }}
     placeholder={placeholder}
     min={min}
     max={max}
-    step={step}
+    step={step ?? 'any'}
     style={inputBase(mobile)}
   />
 );
