@@ -25,7 +25,7 @@ const INITIAL_VALUES = {
   latitude: '', longitude: '', fireNocAvailable: false,
   fireSafetyMeasures: '', landType: '', approachRoadWidth: '',
   powerKva: '', pollutionZone: '', vaastuCompliance: false,
-  dimensions: '', parkingDockingSpace: '', photos: '',
+  dimensions: '', parkingDockingSpace: '', photos: '', media: null,
 };
 
 /** Flatten initialData (including nested WarehouseData) into form shape */
@@ -248,6 +248,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     try {
       const photosValue = values.photos || (initialData ? initialData.photos : null);
 
+      // Compute media from photos for double-write
+      const urls = photosValue ? photosValue.split(',').map(u => u.trim()).filter(Boolean) : [];
+      const media = urls.length > 0 ? { images: urls, videos: [], docs: [] } : null;
+
       const payload = {
         warehouseOwnerType: values.warehouseOwnerType || null,
         warehouseType: values.warehouseType,
@@ -271,6 +275,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         visibility: Boolean(values.visibility),
         isBroker: values.isBroker || null,
         photos: photosValue,
+        media,
         warehouseData: {
           latitude: values.latitude || null,
           longitude: values.longitude || null,

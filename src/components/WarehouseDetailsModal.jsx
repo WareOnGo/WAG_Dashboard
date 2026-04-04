@@ -19,6 +19,7 @@ import RedactedPhone from './RedactedPhone';
 import { useViewport } from '../hooks/useViewport';
 import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
+import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import './ResponsiveModal.css';
 
 const { Title, Text } = Typography;
@@ -308,20 +309,8 @@ const WarehouseDetailsModal = ({
 
   // Images Section with enhanced mobile viewing
   const getImageUrls = () => {
-    const imageUrls = [];
-    
-    // Handle images array
-    if (warehouse.images && Array.isArray(warehouse.images)) {
-      imageUrls.push(...warehouse.images);
-    }
-    
-    // Handle photos string (comma-separated URLs)
-    if (warehouse.photos && typeof warehouse.photos === 'string') {
-      const photoUrls = warehouse.photos.split(',').map(url => url.trim()).filter(url => url);
-      imageUrls.push(...photoUrls);
-    }
-    
-    return imageUrls;
+    const media = getMediaFromWarehouse(warehouse);
+    return media.images || [];
   };
 
   const imageUrls = getImageUrls();

@@ -26,6 +26,7 @@ export const mockWarehouse = {
   visibility: true,
   isBroker: 'No',
   photos: 'https://example.com/photo1.jpg,https://example.com/photo2.jpg',
+  media: { images: ['https://example.com/photo1.jpg', 'https://example.com/photo2.jpg'], videos: [], docs: [] },
   WarehouseData: {
     latitude: 12.9716,
     longitude: 77.5946,
@@ -67,6 +68,7 @@ export const mockWarehouses = [
     visibility: true,
     isBroker: 'Yes',
     photos: 'https://example.com/photo3.jpg',
+    media: { images: ['https://example.com/photo3.jpg'], videos: [], docs: [] },
     WarehouseData: {
       latitude: 13.0827,
       longitude: 80.2707,
@@ -106,6 +108,7 @@ export const mockWarehouseFormData = {
   visibility: true,
   isBroker: 'No',
   photos: null,
+  media: null,
   warehouseData: {
     latitude: 19.076,
     longitude: 72.8777,
