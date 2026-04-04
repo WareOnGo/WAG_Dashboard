@@ -8,6 +8,7 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import RedactedPhone from './RedactedPhone';
+import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import './SimpleWarehouseCard.css';
 
 /**
@@ -20,11 +21,10 @@ const SimpleWarehouseCard = ({
   onViewDetails,
   onToggleVisibility
 }) => {
-  // Get first image
+  // Get first image from media (with fallback to photos CSV)
   const getFirstImage = () => {
-    if (!warehouse.photos) return null;
-    const imageUrls = warehouse.photos.split(',').map(url => url.trim()).filter(url => url && url.length > 0);
-    return imageUrls.length > 0 ? imageUrls[0] : null;
+    const media = getMediaFromWarehouse(warehouse);
+    return media.images?.[0] || null;
   };
 
   // Get visibility status and class

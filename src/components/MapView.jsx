@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import './MapView.css';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -118,14 +119,10 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
                         return '#0d5a9e'; // Darker blue
                     };
 
-                    // Get first image
+                    // Get first image from media (with fallback to photos CSV)
                     const getFirstImage = () => {
-                        if (!warehouse.photos) return null;
-                        const imageUrls = warehouse.photos
-                            .split(',')
-                            .map((url) => url.trim())
-                            .filter((url) => url && url.length > 0);
-                        return imageUrls.length > 0 ? imageUrls[0] : null;
+                        const media = getMediaFromWarehouse(warehouse);
+                        return media.images?.[0] || null;
                     };
 
                     const firstImage = getFirstImage();

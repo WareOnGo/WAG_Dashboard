@@ -49,6 +49,7 @@ import {
   withRetry,
   clearErrors
 } from '../utils/errorHandler';
+import { getMediaFromWarehouse } from '../utils/mediaUtils';
 
 const { Title, Text } = Typography;
 
@@ -440,15 +441,11 @@ const Dashboard = () => {
     });
   };
 
-  // Helper function to show photo count (not actual images to keep rows short)
-  const renderPhotoCount = (photos) => {
-    if (!photos) return '-';
-
-    const imageUrls = photos.split(',').map(url => url.trim()).filter(url => url);
-
-    if (imageUrls.length === 0) return '-';
-
-    return `${imageUrls.length} photo${imageUrls.length > 1 ? 's' : ''}`;
+  // Helper function to show media file count
+  const renderPhotoCount = (record) => {
+    const media = getMediaFromWarehouse(record);
+    const count = (media.images?.length || 0) + (media.videos?.length || 0) + (media.docs?.length || 0);
+    return count === 0 ? '-' : `${count} file${count > 1 ? 's' : ''}`;
   };
 
   // Handle view details
@@ -753,7 +750,7 @@ const Dashboard = () => {
       title: 'Photos',
       key: 'photos',
       width: 80,
-      render: (_, record) => renderPhotoCount(record.photos),
+      render: (_, record) => renderPhotoCount(record),
     },
     {
       title: 'Visibility',
