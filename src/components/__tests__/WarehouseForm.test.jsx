@@ -59,7 +59,7 @@ describe('WarehouseForm Component', () => {
       expect(screen.getByText('Contact Information')).toBeInTheDocument();
       expect(screen.getByText('Warehouse Details')).toBeInTheDocument();
       expect(screen.getByText('Location Data')).toBeInTheDocument();
-      expect(screen.getByText('Warehouse Photos')).toBeInTheDocument();
+      expect(screen.getByText('Warehouse Media')).toBeInTheDocument();
     });
   });
 

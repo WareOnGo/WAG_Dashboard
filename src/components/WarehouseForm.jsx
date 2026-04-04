@@ -7,6 +7,7 @@ import './ResponsiveModal.css';
 import './WarehouseForm.css';
 import { clearErrors } from '../utils/errorHandler';
 import { useViewport } from '../hooks/useViewport';
+import { getMediaFromWarehouse } from '../utils/mediaUtils';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ const toFormValues = (d) => {
     dimensions: wd.dimensions || '',
     parkingDockingSpace: wd.parkingDockingSpace || '',
     photos: d.photos || '',
+    media: getMediaFromWarehouse(d),
   };
 };
 
@@ -192,15 +194,31 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   const [submitting, setSubmitting] = useState(false);
 
   // Reset form when modal opens
+  const [initialSnapshot, setInitialSnapshot] = useState(null);
+  const [contactTouched, setContactTouched] = useState(false);
   useEffect(() => {
     if (visible) {
       setValues(toFormValues(initialData));
       setErrors({});
+      setInitialSnapshot(initialData);
+      setContactTouched(false);
     }
-  }, [visible, initialData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  // Patch in background-fetched contact number without resetting the form
+  useEffect(() => {
+    if (visible && !contactTouched && initialData && initialSnapshot &&
+        initialData.id === initialSnapshot.id &&
+        initialData.contactNumber !== initialSnapshot.contactNumber) {
+      setValues(prev => ({ ...prev, contactNumber: initialData.contactNumber || prev.contactNumber }));
+      setInitialSnapshot(initialData);
+    }
+  }, [visible, initialData, initialSnapshot, contactTouched]);
 
   const set = (field) => (val) => {
     setValues(prev => ({ ...prev, [field]: val }));
+    if (field === 'contactNumber') setContactTouched(true);
     // Clear error on change
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
   };
@@ -246,11 +264,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
     setSubmitting(true);
     try {
-      const photosValue = values.photos || (initialData ? initialData.photos : null);
+      // Build media from form state (the FileUpload now manages a media object)
+      const media = values.media || { images: [], videos: [], docs: [] };
+      const hasMedia = (media.images?.length || 0) + (media.videos?.length || 0) + (media.docs?.length || 0) > 0;
 
-      // Compute media from photos for double-write
-      const urls = photosValue ? photosValue.split(',').map(u => u.trim()).filter(Boolean) : [];
-      const media = urls.length > 0 ? { images: urls, videos: [], docs: [] } : null;
+      // Double-write: flatten media back to photos CSV for legacy column
+      const allUrls = [...(media.images || []), ...(media.videos || []), ...(media.docs || [])];
+      const photosValue = allUrls.length > 0 ? allUrls.join(',') : null;
 
       const payload = {
         warehouseOwnerType: values.warehouseOwnerType || null,
@@ -275,7 +295,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         visibility: Boolean(values.visibility),
         isBroker: values.isBroker || null,
         photos: photosValue,
-        media,
+        media: hasMedia ? media : null,
         warehouseData: {
           latitude: values.latitude || null,
           longitude: values.longitude || null,
@@ -587,10 +607,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             </Field>
           </Section>
 
-          {/* ── Photos ──────────────────────────────────────────── */}
-          <Section title="Warehouse Photos">
-            <Field label="Upload Image">
-              <FileUpload value={values.photos} onChange={set('photos')} />
+          {/* ── Media ───────────────────────────────────────────── */}
+          <Section title="Warehouse Media">
+            <Field label="Upload Files">
+              <FileUpload value={values.media} onChange={set('media')} />
             </Field>
           </Section>
 

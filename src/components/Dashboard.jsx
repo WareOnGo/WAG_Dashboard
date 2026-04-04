@@ -330,14 +330,20 @@ const Dashboard = () => {
     });
   };
 
-  const handleEdit = async (warehouse) => {
-    try {
-      const contactInfo = await warehouseService.getContactNumber(warehouse.id);
-      setEditingWarehouse({ ...warehouse, contactNumber: contactInfo.contactNumber });
-    } catch {
-      setEditingWarehouse(warehouse);
-    }
+  const handleEdit = (warehouse) => {
+    setEditingWarehouse(warehouse);
     setFormVisible(true);
+
+    // Fetch the real contact number in the background
+    warehouseService.getContactNumber(warehouse.id)
+      .then(contactInfo => {
+        setEditingWarehouse(prev =>
+          prev && prev.id === warehouse.id
+            ? { ...prev, contactNumber: contactInfo.contactNumber }
+            : prev
+        );
+      })
+      .catch(() => {});
   };
 
   const handleCreate = () => {
@@ -747,8 +753,8 @@ const Dashboard = () => {
       },
     },
     {
-      title: 'Photos',
-      key: 'photos',
+      title: 'Media',
+      key: 'media',
       width: 80,
       render: (_, record) => renderPhotoCount(record),
     },

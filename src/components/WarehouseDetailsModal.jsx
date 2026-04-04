@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { Row, Col, Typography, Tag, Image, Collapse, Space, Button } from 'antd';
-import { 
-  EnvironmentOutlined, 
-  PhoneOutlined, 
-  UserOutlined,
+import { Tag, Image, Space, Button } from 'antd';
+import {
+  EnvironmentOutlined,
   HomeOutlined,
-  ExpandOutlined,
-  DollarOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
   RotateLeftOutlined,
   RotateRightOutlined,
   UndoOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  ThunderboltOutlined,
+  FileTextOutlined,
+  PlayCircleOutlined,
+  LinkOutlined
 } from '@ant-design/icons';
 import ResponsiveModal from './ResponsiveModal';
 import RedactedPhone from './RedactedPhone';
@@ -22,16 +22,169 @@ import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import './ResponsiveModal.css';
 
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
+// ── Styles ────────────────────────────────────────────────────────────────────
 
-/**
- * WarehouseDetailsModal Component
- * 
- * Mobile-optimized modal for displaying detailed warehouse information.
- * Organizes information into collapsible sections for better mobile navigation.
- * Implements touch-friendly interactions and responsive layout.
- */
+const styles = {
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  sectionIcon: {
+    width: 28,
+    height: 28,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    background: 'var(--bg-surface)',
+    color: 'var(--text-muted)',
+    fontSize: 13,
+    flexShrink: 0,
+  },
+  sectionTitle: {
+    margin: 0,
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--text-secondary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  },
+  grid: {
+    display: 'grid',
+    background: 'var(--bg-card)',
+    borderRadius: 10,
+    border: '1px solid var(--border-primary)',
+    padding: 8,
+    gap: '2px 12px',
+  },
+  field: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    padding: '12px 16px',
+  },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.6px',
+  },
+  fieldValue: {
+    fontSize: 14,
+    fontWeight: 500,
+    color: 'var(--text-primary)',
+    lineHeight: 1.5,
+  },
+  heroBar: {
+    display: 'flex',
+    alignItems: 'stretch',
+    background: 'var(--bg-card)',
+    borderRadius: 10,
+    border: '1px solid var(--border-primary)',
+    marginBottom: 32,
+    overflow: 'hidden',
+    flexWrap: 'wrap',
+  },
+  heroStat: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    padding: '16px 20px',
+    flex: '1 1 0',
+    minWidth: 100,
+  },
+  divider: {
+    width: 1,
+    alignSelf: 'stretch',
+    background: 'var(--border-primary)',
+    flexShrink: 0,
+  },
+  mediaGrid: {
+    display: 'grid',
+    gap: 10,
+  },
+  emptyMedia: {
+    fontSize: 13,
+    color: 'var(--text-muted)',
+    fontStyle: 'italic',
+  },
+  videoCard: {
+    position: 'relative',
+    borderRadius: 8,
+    overflow: 'hidden',
+    border: '1px solid var(--border-primary)',
+    background: '#000',
+  },
+  docLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '12px 16px',
+    borderRadius: 8,
+    border: '1px solid var(--border-primary)',
+    background: 'var(--bg-card)',
+    color: 'var(--text-primary)',
+    textDecoration: 'none',
+    fontSize: 13,
+    fontWeight: 500,
+    transition: 'background 0.15s, border-color 0.15s',
+  },
+};
+
+// ── Tiny helpers ──────────────────────────────────────────────────────────────
+
+const Field = ({ label, value }) => {
+  if (value == null || value === '' || value === '-') return null;
+  return (
+    <div style={styles.field}>
+      <span style={styles.fieldLabel}>{label}</span>
+      <span style={styles.fieldValue}>{value}</span>
+    </div>
+  );
+};
+
+const BoolField = ({ label, value }) => {
+  if (value == null) return null;
+  const yes = value === true || value === 'true' || value === 1;
+  return (
+    <div style={styles.field}>
+      <span style={styles.fieldLabel}>{label}</span>
+      <Tag color={yes ? 'green' : 'red'} style={{ width: 'fit-content' }}>
+        {yes ? 'Yes' : 'No'}
+      </Tag>
+    </div>
+  );
+};
+
+const formatSpace = (space) => {
+  if (!space) return null;
+  if (Array.isArray(space)) {
+    const total = space.reduce((s, v) => s + v, 0);
+    return space.length > 1
+      ? `${total.toLocaleString()} sq ft (${space.join(' + ')})`
+      : `${total.toLocaleString()} sq ft`;
+  }
+  return `${Number(space).toLocaleString()} sq ft`;
+};
+
+const getFileNameFromUrl = (url) => {
+  try {
+    const pathname = new URL(url).pathname;
+    const name = pathname.split('/').pop();
+    return name || url;
+  } catch {
+    return url.split('/').pop() || url;
+  }
+};
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
 const WarehouseDetailsModal = ({
   visible = false,
   onClose,
@@ -42,10 +195,18 @@ const WarehouseDetailsModal = ({
 
   if (!warehouse) return null;
 
-  // Download handler function
+  const wd = warehouse.WarehouseData || warehouse.warehouseData || {};
+  const media = getMediaFromWarehouse(warehouse);
+  const imageUrls = media.images || [];
+  const videoUrls = media.videos || [];
+  const docUrls = media.docs || [];
+  const hasMedia = imageUrls.length + videoUrls.length + docUrls.length > 0;
+
+  const gridCols = isMobile ? '1fr 1fr' : '1fr 1fr 1fr';
+
+  // ── Download handler ────────────────────────────────────────────────────
+
   const handleDownloadAllImages = async () => {
-    const imageUrls = getImageUrls();
-    
     if (imageUrls.length === 0) {
       showErrorNotification(
         { message: ERROR_MESSAGES.NO_IMAGES },
@@ -54,9 +215,8 @@ const WarehouseDetailsModal = ({
       return;
     }
 
-    // Show mobile-specific info message if on mobile with many images
-    const isMobile = isMobileBrowser();
-    if (isMobile && imageUrls.length > 3) {
+    const isMobileDevice = isMobileBrowser();
+    if (isMobileDevice && imageUrls.length > 3) {
       showSuccessMessage('info', {
         details: ERROR_MESSAGES.MOBILE_FALLBACK,
         duration: 6
@@ -64,562 +224,325 @@ const WarehouseDetailsModal = ({
     }
 
     setIsDownloading(true);
-
     try {
       const results = await downloadAllImages(imageUrls, warehouse.id);
-      
-      // Reset state
       setIsDownloading(false);
-      
-      // Display appropriate notification based on results
+
       if (results.successful === results.total) {
-        // All downloads successful
         const message = results.usedFallback
-          ? `Successfully processed ${results.successful} image${results.successful > 1 ? 's' : ''}. Some images opened in new tabs.`
-          : `Successfully downloaded ${results.successful} image${results.successful > 1 ? 's' : ''}`;
-        
-        showSuccessMessage('download', {
-          details: message,
-          duration: 4
-        });
+          ? `Processed ${results.successful} image${results.successful > 1 ? 's' : ''}. Some opened in new tabs.`
+          : `Downloaded ${results.successful} image${results.successful > 1 ? 's' : ''}`;
+        showSuccessMessage('download', { details: message, duration: 4 });
       } else if (results.successful > 0) {
-        // Partial success
-        const hasCorsError = results.errors.some(err => 
-          err.error.toLowerCase().includes('cors')
-        );
-        
         let description = ERROR_MESSAGES.PARTIAL_FAILURE(results.successful, results.total, results.failed);
-        
-        if (results.usedFallback) {
-          description += '\n\nSome images were opened in new tabs due to mobile browser limitations.';
+        if (results.usedFallback) description += '\nSome images opened in new tabs.';
+        if (results.errors.some(e => e.error.toLowerCase().includes('cors'))) {
+          description += `\n${ERROR_MESSAGES.CORS_ERROR}`;
         }
-        
-        if (hasCorsError) {
-          description += `\n\n${ERROR_MESSAGES.CORS_ERROR}`;
-        }
-        
-        showErrorNotification(
-          { message: description },
-          { 
-            title: 'Partial Download Success', 
-            duration: 8,
-            showDetails: true
-          }
-        );
+        showErrorNotification({ message: description }, { title: 'Partial Download', duration: 8, showDetails: true });
       } else {
-        // Complete failure
-        const hasCorsError = results.errors.some(err => 
-          err.error.toLowerCase().includes('cors')
-        );
-        const hasNetworkError = results.errors.some(err => 
-          err.error.toLowerCase().includes('network')
-        );
-        
-        let errorMessage = ERROR_MESSAGES.COMPLETE_FAILURE;
-        if (hasCorsError) {
-          errorMessage = ERROR_MESSAGES.CORS_ERROR;
-        } else if (hasNetworkError) {
-          errorMessage = ERROR_MESSAGES.NETWORK_ERROR;
-        }
-        
-        showErrorNotification(
-          { message: errorMessage },
-          { 
-            title: 'Download Failed', 
-            duration: 8,
-            showDetails: true
-          }
-        );
+        const hasCors = results.errors.some(e => e.error.toLowerCase().includes('cors'));
+        const hasNet = results.errors.some(e => e.error.toLowerCase().includes('network'));
+        const msg = hasCors ? ERROR_MESSAGES.CORS_ERROR : hasNet ? ERROR_MESSAGES.NETWORK_ERROR : ERROR_MESSAGES.COMPLETE_FAILURE;
+        showErrorNotification({ message: msg }, { title: 'Download Failed', duration: 8, showDetails: true });
       }
     } catch (error) {
       setIsDownloading(false);
-      
-      // Handle unexpected errors
       showErrorNotification(
         { message: error.message || ERROR_MESSAGES.COMPLETE_FAILURE },
-        { 
-          title: 'Download Error', 
-          duration: 8
-        }
+        { title: 'Download Error', duration: 8 }
       );
     }
   };
 
-  // Helper function to render field with label
-  const renderField = (label, value, icon = null) => {
-    if (!value || value === '-' || value === '') return null;
-    
-    return (
-      <div style={{ marginBottom: isMobile ? '16px' : '12px' }}>
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          marginBottom: '4px',
-          gap: '6px'
-        }}>
-          {icon}
-          <Text style={{ 
-            color: 'rgba(255, 255, 255, 0.65)', 
-            fontSize: '12px',
-            fontWeight: 500,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
-            {label}
-          </Text>
-        </div>
-        <div style={{ 
-          color: '#fff', 
-          fontSize: isMobile ? '15px' : '14px', 
-          fontWeight: 500,
-          lineHeight: 1.4
-        }}>
-          {value}
-        </div>
-      </div>
-    );
-  };
+  // ── Image preview toolbar ───────────────────────────────────────────────
 
-  // Helper function to format space values
-  const formatSpace = (space) => {
-    if (Array.isArray(space)) {
-      return `[${space.join(', ')}] sq ft`;
-    }
-    return space ? `${space.toLocaleString()} sq ft` : '-';
-  };
-
-  // Helper function to format boolean values
-  const formatBoolean = (value) => {
-    if (value === true || value === 'true' || value === 1) {
-      return <Tag color="green">Yes</Tag>;
-    }
-    if (value === false || value === 'false' || value === 0) {
-      return <Tag color="red">No</Tag>;
-    }
-    return '-';
-  };
-
-  // Basic Information Section
-  const basicInfoContent = (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} sm={12}>
-        {renderField('Warehouse Owner Type', warehouse.warehouseOwnerType, <UserOutlined />)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('Warehouse Type', warehouse.warehouseType, <HomeOutlined />)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('Zone', warehouse.zone, <EnvironmentOutlined />)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('Visibility', formatBoolean(warehouse.visibility))}
-      </Col>
-    </Row>
+  const previewToolbar = (_, { actions: { onRotateLeft, onRotateRight, onZoomOut, onZoomIn, onReset } }) => (
+    <Space size={12} className="toolbar-wrapper">
+      {[
+        { icon: <ZoomInOutlined />, action: onZoomIn, title: 'Zoom In' },
+        { icon: <ZoomOutOutlined />, action: onZoomOut, title: 'Zoom Out' },
+        { icon: <RotateLeftOutlined />, action: onRotateLeft, title: 'Rotate Left' },
+        { icon: <RotateRightOutlined />, action: onRotateRight, title: 'Rotate Right' },
+        { icon: <UndoOutlined />, action: onReset, title: 'Reset' },
+      ].map(({ icon, action, title }) => (
+        <Button
+          key={title}
+          type="text"
+          icon={icon}
+          onClick={action}
+          style={{ color: '#fff', minHeight: 44, minWidth: 44 }}
+          title={title}
+        />
+      ))}
+    </Space>
   );
 
-  // Address Information Section
-  const addressInfoContent = (
-    <Row gutter={[16, 16]}>
-      <Col xs={24}>
-        {renderField('Address', warehouse.address, <EnvironmentOutlined />)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('City', warehouse.city)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('State', warehouse.state)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('Postal Code', warehouse.postalCode)}
-      </Col>
-      <Col xs={24}>
-        {warehouse.googleLocation && renderField(
-          'Google Location', 
-          <a 
-            href={warehouse.googleLocation} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            style={{ 
-              color: 'var(--accent-primary)',
-              textDecoration: 'underline'
-            }}
-          >
-            View on Google Maps
-          </a>
-        )}
-      </Col>
-    </Row>
-  );
-
-  // Contact Information Section
-  const contactInfoContent = (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} sm={12}>
-        {renderField('Contact Person', warehouse.contactPerson, <UserOutlined />)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('Contact Number', (
-          <RedactedPhone warehouseId={warehouse.id} />
-        ), <PhoneOutlined />)}
-      </Col>
-    </Row>
-  );
-
-  // Warehouse Details Section
-  const warehouseDetailsContent = (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} sm={8}>
-        {renderField('Total Space', formatSpace(warehouse.totalSpaceSqft), <ExpandOutlined />)}
-      </Col>
-      <Col xs={24} sm={8}>
-        {renderField('Offered Space', warehouse.offeredSpaceSqft ? `${warehouse.offeredSpaceSqft} sq ft` : '-')}
-      </Col>
-      <Col xs={24} sm={8}>
-        {renderField('Rate per Sq Ft', warehouse.ratePerSqft, <DollarOutlined />)}
-      </Col>
-      <Col xs={24} sm={8}>
-        {renderField('Number of Docks', warehouse.numberOfDocks)}
-      </Col>
-      <Col xs={24} sm={8}>
-        {renderField('Clear Height', warehouse.clearHeightFt ? `${warehouse.clearHeightFt} ft` : '-')}
-      </Col>
-      <Col xs={24} sm={8}>
-        {renderField('Availability', warehouse.availability)}
-      </Col>
-      <Col xs={24} sm={8}>
-        {renderField('Is Broker', formatBoolean(warehouse.isBroker))}
-      </Col>
-      <Col xs={24}>
-        {renderField('Other Specifications', warehouse.otherSpecifications)}
-      </Col>
-    </Row>
-  );
-
-  // Location Data Section
-  const locationDataContent = (
-    <Row gutter={[16, 16]}>
-      <Col xs={24} sm={12}>
-        {renderField('Latitude', warehouse.latitude)}
-      </Col>
-      <Col xs={24} sm={12}>
-        {renderField('Longitude', warehouse.longitude)}
-      </Col>
-    </Row>
-  );
-
-  // Images Section with enhanced mobile viewing
-  const getImageUrls = () => {
-    const media = getMediaFromWarehouse(warehouse);
-    return media.images || [];
-  };
-
-  const imageUrls = getImageUrls();
-  
-  const downloadButton = imageUrls.length > 0 && (
-    <Button
-      type="primary"
-      icon={<DownloadOutlined />}
-      onClick={handleDownloadAllImages}
-      loading={isDownloading}
-      disabled={imageUrls.length === 0}
-      size={isMobile ? 'large' : 'middle'}
-      style={{
-        minHeight: isMobile ? '44px' : 'auto',
-        minWidth: isMobile ? '44px' : 'auto',
-        marginBottom: isMobile ? '20px' : '16px',
-        marginTop: isMobile ? '8px' : '0',
-        width: isMobile ? '100%' : 'auto',
-        padding: isMobile ? '8px 16px' : undefined,
-        fontSize: isMobile ? '16px' : '14px',
-        fontWeight: 500,
-        touchAction: 'manipulation', // Optimize for touch
-        WebkitTapHighlightColor: 'transparent' // Remove tap highlight on mobile
-      }}
-    >
-      {isDownloading ? 'Downloading...' : 'Download All Images'}
-    </Button>
-  );
-  
-  const imagesContent = imageUrls.length > 0 ? (
-    <div style={{ 
-      marginTop: isMobile ? '8px' : '0',
-      paddingTop: isMobile ? '8px' : '0'
-    }}>
-      {downloadButton}
-      <Row gutter={[16, 16]}>
-      <Image.PreviewGroup>
-        {imageUrls.map((image, index) => (
-          <Col xs={12} sm={8} md={6} key={index}>
-            <Image
-              src={image}
-              alt={`Warehouse ${warehouse.id} - Image ${index + 1}`}
-              style={{
-                width: '100%',
-                height: isMobile ? '120px' : '100px',
-                objectFit: 'cover',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                border: '1px solid var(--border-primary)'
-              }}
-              preview={{
-                mask: 'Preview',
-                maskClassName: 'warehouse-image-preview',
-                // Enhanced preview for mobile with touch support
-                toolbarRender: (
-                  _,
-                  {
-                    actions: { onRotateLeft, onRotateRight, onZoomOut, onZoomIn, onReset }
-                  }
-                ) => (
-                  <Space size={12} className="toolbar-wrapper">
-                    <Button
-                      type="text"
-                      icon={<ZoomInOutlined />}
-                      onClick={onZoomIn}
-                      style={{ color: '#fff', minHeight: '44px', minWidth: '44px' }}
-                      title="Zoom In"
-                    />
-                    <Button
-                      type="text"
-                      icon={<ZoomOutOutlined />}
-                      onClick={onZoomOut}
-                      style={{ color: '#fff', minHeight: '44px', minWidth: '44px' }}
-                      title="Zoom Out"
-                    />
-                    <Button
-                      type="text"
-                      icon={<RotateLeftOutlined />}
-                      onClick={onRotateLeft}
-                      style={{ color: '#fff', minHeight: '44px', minWidth: '44px' }}
-                      title="Rotate Left"
-                    />
-                    <Button
-                      type="text"
-                      icon={<RotateRightOutlined />}
-                      onClick={onRotateRight}
-                      style={{ color: '#fff', minHeight: '44px', minWidth: '44px' }}
-                      title="Rotate Right"
-                    />
-                    <Button
-                      type="text"
-                      icon={<UndoOutlined />}
-                      onClick={onReset}
-                      style={{ color: '#fff', minHeight: '44px', minWidth: '44px' }}
-                      title="Reset"
-                    />
-                  </Space>
-                )
-              }}
-              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgeHANwDrkl1AuO+pmgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
-            />
-          </Col>
-        ))}
-      </Image.PreviewGroup>
-    </Row>
-    </div>
-  ) : (
-    <Text style={{ color: 'rgba(255, 255, 255, 0.65)' }}>
-      No images available
-    </Text>
-  );
-
-  // Mobile layout with collapsible sections
-  const mobileContent = (
-    <Collapse 
-      defaultActiveKey={['basic', 'address']}
-      ghost
-      style={{ 
-        background: 'transparent',
-        border: 'none'
-      }}
-    >
-      <Panel 
-        header={
-          <Text style={{ 
-            color: 'var(--text-primary)', 
-            fontSize: '16px', 
-            fontWeight: 600 
-          }}>
-            Basic Information
-          </Text>
-        } 
-        key="basic"
-        style={{ 
-          background: 'transparent',
-          border: 'none',
-          borderBottom: '1px solid var(--border-primary)'
-        }}
-      >
-        {basicInfoContent}
-      </Panel>
-      
-      <Panel 
-        header={
-          <Text style={{ 
-            color: 'var(--text-primary)', 
-            fontSize: '16px', 
-            fontWeight: 600 
-          }}>
-            Address Information
-          </Text>
-        } 
-        key="address"
-        style={{ 
-          background: 'transparent',
-          border: 'none',
-          borderBottom: '1px solid var(--border-primary)'
-        }}
-      >
-        {addressInfoContent}
-      </Panel>
-      
-      <Panel 
-        header={
-          <Text style={{ 
-            color: 'var(--text-primary)', 
-            fontSize: '16px', 
-            fontWeight: 600 
-          }}>
-            Contact Information
-          </Text>
-        } 
-        key="contact"
-        style={{ 
-          background: 'transparent',
-          border: 'none',
-          borderBottom: '1px solid var(--border-primary)'
-        }}
-      >
-        {contactInfoContent}
-      </Panel>
-      
-      <Panel 
-        header={
-          <Text style={{ 
-            color: 'var(--text-primary)', 
-            fontSize: '16px', 
-            fontWeight: 600 
-          }}>
-            Warehouse Details
-          </Text>
-        } 
-        key="details"
-        style={{ 
-          background: 'transparent',
-          border: 'none',
-          borderBottom: '1px solid var(--border-primary)'
-        }}
-      >
-        {warehouseDetailsContent}
-      </Panel>
-      
-      <Panel 
-        header={
-          <Text style={{ 
-            color: 'var(--text-primary)', 
-            fontSize: '16px', 
-            fontWeight: 600 
-          }}>
-            Location Data
-          </Text>
-        } 
-        key="location"
-        style={{ 
-          background: 'transparent',
-          border: 'none',
-          borderBottom: '1px solid var(--border-primary)'
-        }}
-      >
-        {locationDataContent}
-      </Panel>
-      
-      {imageUrls.length > 0 && (
-        <Panel 
-          header={
-            <Text style={{ 
-              color: 'var(--text-primary)', 
-              fontSize: '16px', 
-              fontWeight: 600 
-            }}>
-              Images
-            </Text>
-          } 
-          key="images"
-          style={{ 
-            background: 'transparent',
-            border: 'none'
-          }}
-        >
-          {imagesContent}
-        </Panel>
-      )}
-    </Collapse>
-  );
-
-  // Desktop layout with sections
-  const desktopContent = (
-    <div>
-      {/* Basic Information */}
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={5} style={{ color: '#fff', marginBottom: '16px' }}>
-          Basic Information
-        </Title>
-        {basicInfoContent}
-      </div>
-
-      {/* Address Information */}
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={5} style={{ color: '#fff', marginBottom: '16px' }}>
-          Address Information
-        </Title>
-        {addressInfoContent}
-      </div>
-
-      {/* Contact Information */}
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={5} style={{ color: '#fff', marginBottom: '16px' }}>
-          Contact Information
-        </Title>
-        {contactInfoContent}
-      </div>
-
-      {/* Warehouse Details */}
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={5} style={{ color: '#fff', marginBottom: '16px' }}>
-          Warehouse Details
-        </Title>
-        {warehouseDetailsContent}
-      </div>
-
-      {/* Location Data */}
-      <div style={{ marginBottom: '32px' }}>
-        <Title level={5} style={{ color: '#fff', marginBottom: '16px' }}>
-          Location Data
-        </Title>
-        {locationDataContent}
-      </div>
-
-      {/* Images */}
-      {imageUrls.length > 0 && (
-        <div>
-          <Title level={5} style={{ color: '#fff', marginBottom: '16px' }}>
-            Images
-          </Title>
-          {imagesContent}
-        </div>
-      )}
-    </div>
-  );
+  // ── Render ──────────────────────────────────────────────────────────────
 
   return (
     <ResponsiveModal
       visible={visible}
       onClose={onClose}
-      title={`Warehouse Details - #${warehouse.id}`}
+      title={`Warehouse #${warehouse.id}`}
       maxWidth="900px"
       className="warehouse-details-modal"
     >
-      {isMobile ? mobileContent : desktopContent}
+      {/* ── Hero bar: key metrics at a glance ── */}
+      <div style={styles.heroBar}>
+        <div style={styles.heroStat}>
+          <span style={styles.fieldLabel}>Type</span>
+          <span style={{ ...styles.fieldValue, fontSize: 15, fontWeight: 600 }}>
+            {warehouse.warehouseType}
+          </span>
+        </div>
+        <div style={styles.divider} />
+        <div style={styles.heroStat}>
+          <span style={styles.fieldLabel}>Total Space</span>
+          <span style={{ ...styles.fieldValue, fontSize: 15, fontWeight: 600 }}>
+            {formatSpace(warehouse.totalSpaceSqft) || '-'}
+          </span>
+        </div>
+        <div style={styles.divider} />
+        <div style={styles.heroStat}>
+          <span style={styles.fieldLabel}>Rate</span>
+          <span style={{ ...styles.fieldValue, fontSize: 15, fontWeight: 600 }}>
+            {warehouse.ratePerSqft ? `₹${warehouse.ratePerSqft}/sqft` : '-'}
+          </span>
+        </div>
+        <div style={styles.divider} />
+        <div style={styles.heroStat}>
+          <span style={styles.fieldLabel}>Status</span>
+          <Tag
+            color={
+              warehouse.availability?.toLowerCase().includes('available') ? 'green' :
+              warehouse.availability?.toLowerCase().includes('occupied') ? 'red' :
+              warehouse.availability?.toLowerCase().includes('partial') ? 'orange' : 'default'
+            }
+            style={{ width: 'fit-content', margin: 0 }}
+          >
+            {warehouse.availability || 'Unknown'}
+          </Tag>
+        </div>
+      </div>
+
+      {/* ── Location & Contact ── */}
+      <div style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <div style={styles.sectionIcon}><EnvironmentOutlined /></div>
+          <h4 style={styles.sectionTitle}>Location & Contact</h4>
+        </div>
+        <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
+          <Field label="Address" value={warehouse.address} />
+          <Field label="City" value={warehouse.city} />
+          <Field label="State" value={warehouse.state} />
+          <Field label="Postal Code" value={warehouse.postalCode} />
+          <Field label="Zone" value={warehouse.zone} />
+          {warehouse.googleLocation && (
+            <div style={styles.field}>
+              <span style={styles.fieldLabel}>Google Maps</span>
+              <a
+                href={warehouse.googleLocation}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ ...styles.fieldValue, color: '#4ea1f5', textDecoration: 'none' }}
+              >
+                Open in Maps &rarr;
+              </a>
+            </div>
+          )}
+          <Field label="Contact Person" value={warehouse.contactPerson} />
+          <div style={styles.field}>
+            <span style={styles.fieldLabel}>Contact Number</span>
+            <span style={styles.fieldValue}>
+              <RedactedPhone warehouseId={warehouse.id} />
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Warehouse Specs ── */}
+      <div style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <div style={styles.sectionIcon}><HomeOutlined /></div>
+          <h4 style={styles.sectionTitle}>Warehouse Specs</h4>
+        </div>
+        <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
+          <Field label="Owner Type" value={warehouse.warehouseOwnerType} />
+          <Field label="Offered Space" value={warehouse.offeredSpaceSqft ? `${warehouse.offeredSpaceSqft} sq ft` : null} />
+          <Field label="No. of Docks" value={warehouse.numberOfDocks} />
+          <Field label="Clear Height" value={warehouse.clearHeightFt ? `${warehouse.clearHeightFt} ft` : null} />
+          <Field label="Dimensions" value={wd.dimensions} />
+          <Field label="Parking / Docking" value={wd.parkingDockingSpace} />
+          <Field label="Compliances" value={warehouse.compliances} />
+          <Field label="Other Specs" value={warehouse.otherSpecifications} />
+          <BoolField label="Is Broker" value={warehouse.isBroker} />
+          <BoolField label="Visibility" value={warehouse.visibility} />
+        </div>
+      </div>
+
+      {/* ── Infrastructure ── */}
+      <div style={styles.section}>
+        <div style={styles.sectionHeader}>
+          <div style={styles.sectionIcon}><ThunderboltOutlined /></div>
+          <h4 style={styles.sectionTitle}>Infrastructure</h4>
+        </div>
+        <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
+          <BoolField label="Fire NOC" value={wd.fireNocAvailable} />
+          <Field label="Fire Safety" value={wd.fireSafetyMeasures} />
+          <Field label="Land Type" value={wd.landType} />
+          <Field label="Approach Road" value={wd.approachRoadWidth ? `${wd.approachRoadWidth} ft` : null} />
+          <Field label="Power" value={wd.powerKva ? `${wd.powerKva} KVA` : null} />
+          <Field label="Pollution Zone" value={wd.pollutionZone} />
+          <BoolField label="Vaastu" value={wd.vaastuCompliance} />
+          <Field label="Latitude" value={wd.latitude} />
+          <Field label="Longitude" value={wd.longitude} />
+        </div>
+      </div>
+
+      {/* ── Media ── */}
+      {hasMedia && (
+        <div style={styles.section}>
+          <div style={styles.sectionHeader}>
+            <div style={styles.sectionIcon}><FileTextOutlined /></div>
+            <h4 style={styles.sectionTitle}>
+              Media
+              <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 11, opacity: 0.7 }}>
+                {imageUrls.length + videoUrls.length + docUrls.length} file{imageUrls.length + videoUrls.length + docUrls.length > 1 ? 's' : ''}
+              </span>
+            </h4>
+          </div>
+
+          {/* Images */}
+          {imageUrls.length > 0 && (
+            <div style={{ marginBottom: videoUrls.length || docUrls.length ? 24 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                  Images ({imageUrls.length})
+                </span>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  onClick={handleDownloadAllImages}
+                  loading={isDownloading}
+                  style={{ fontSize: 12 }}
+                >
+                  {isDownloading ? 'Downloading...' : 'Download All'}
+                </Button>
+              </div>
+              <div style={{ ...styles.mediaGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)' }}>
+                <Image.PreviewGroup>
+                  {imageUrls.map((url, i) => (
+                    <Image
+                      key={i}
+                      src={url}
+                      alt={`Warehouse ${warehouse.id} - Image ${i + 1}`}
+                      style={{
+                        width: '100%',
+                        height: isMobile ? 130 : 120,
+                        objectFit: 'cover',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        border: '1px solid var(--border-primary)',
+                      }}
+                      preview={{
+                        mask: 'Preview',
+                        maskClassName: 'warehouse-image-preview',
+                        toolbarRender: previewToolbar,
+                      }}
+                      fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23282828'/%3E%3Ctext x='50' y='54' text-anchor='middle' fill='%23666' font-size='11'%3ENo Image%3C/text%3E%3C/svg%3E"
+                    />
+                  ))}
+                </Image.PreviewGroup>
+              </div>
+            </div>
+          )}
+
+          {/* Videos */}
+          {videoUrls.length > 0 && (
+            <div style={{ marginBottom: docUrls.length ? 24 : 0 }}>
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
+                Videos ({videoUrls.length})
+              </span>
+              <div style={{ ...styles.mediaGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)' }}>
+                {videoUrls.map((url, i) => (
+                  <div key={i} style={styles.videoCard}>
+                    <video
+                      src={url}
+                      controls
+                      preload="metadata"
+                      style={{ width: '100%', height: isMobile ? 180 : 200, objectFit: 'contain', background: '#000' }}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                    <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)' }}>
+                      <PlayCircleOutlined />
+                      {getFileNameFromUrl(url)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Documents */}
+          {docUrls.length > 0 && (
+            <div>
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
+                Documents ({docUrls.length})
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {docUrls.map((url, i) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.docLink}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-surface)'; }}
+                  >
+                    <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, background: 'var(--bg-surface)', flexShrink: 0 }}>
+                      <FileTextOutlined style={{ fontSize: 14, color: 'var(--text-muted)' }} />
+                    </div>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {getFileNameFromUrl(url)}
+                    </span>
+                    <LinkOutlined style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }} />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* No media at all */}
+      {!hasMedia && (
+        <div style={{ ...styles.section, textAlign: 'center', padding: '20px 0' }}>
+          <span style={styles.emptyMedia}>No media files attached</span>
+        </div>
+      )}
+
+      {/* ── Footer meta ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingTop: 16,
+        marginTop: 8,
+        borderTop: '1px solid var(--border-primary)',
+        fontSize: 12,
+        color: 'var(--text-muted)',
+        flexWrap: 'wrap',
+        gap: 8,
+      }}>
+        <span>Uploaded by: {warehouse.uploadedBy}</span>
+        {warehouse.createdAt && (
+          <span>{new Date(warehouse.createdAt).toLocaleDateString()}</span>
+        )}
+      </div>
     </ResponsiveModal>
   );
 };
