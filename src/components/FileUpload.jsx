@@ -48,17 +48,6 @@ const classifyFile = (file) => {
   return null; // rejected
 };
 
-/** Classify a URL by its extension */
-const classifyUrl = (url) => {
-  try {
-    const ext = new URL(url).pathname.split('.').pop().toLowerCase().split(/[?#]/)[0];
-    if (IMAGE_EXTENSIONS.includes(ext)) return 'images';
-    if (VIDEO_EXTENSIONS.includes(ext)) return 'videos';
-    if (DOC_EXTENSIONS.includes(ext)) return 'docs';
-  } catch { /* ignore */ }
-  return 'images'; // default to images for legacy URLs
-};
-
 /** Resolve MIME type from file — Android sometimes sends empty or octet-stream */
 const resolveMime = (file) => {
   let contentType = file.type;
@@ -365,5 +354,4 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
   );
 };
 
-export { classifyUrl };
 export default FileUpload;
