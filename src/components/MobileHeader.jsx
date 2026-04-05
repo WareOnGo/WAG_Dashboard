@@ -215,10 +215,21 @@ const MobileHeader = ({ onMenuToggle }) => {
   };
 
   // Open config modal when user submits IDs
-  const handlePptSubmitIds = () => {
+  const handlePptSubmitIds = async () => {
     if (!pptWarehouseIds.trim()) {
       message.warning('Please enter warehouse IDs');
       return;
+    }
+    // Lazy-load warehouse data if not already loaded (shared with itinerary)
+    if (!warehouses) {
+      try {
+        const data = await warehouseService.getAll();
+        setWarehouses(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to fetch warehouses:', error);
+        message.error('Failed to load warehouse data');
+        return;
+      }
     }
     setPptModalOpen(true);
   };
@@ -728,6 +739,7 @@ const MobileHeader = ({ onMenuToggle }) => {
       <PptConfigModal
         open={pptModalOpen}
         warehouseIds={pptWarehouseIds}
+        allWarehouses={warehouses}
         onCancel={() => setPptModalOpen(false)}
         onGenerate={handlePptGenerate}
         generating={generatingPpt}
