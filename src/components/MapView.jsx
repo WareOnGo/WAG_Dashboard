@@ -132,7 +132,7 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
 
                     // Create popup HTML
                     const popupHTML = `
-        <div style="font-family:system-ui;padding:10px;min-width:220px;max-width:260px;background:rgba(26,26,26,0.98);color:rgba(255,255,255,0.95);border-radius:6px;">
+        <div style="font-family:Verdana,Geneva,sans-serif;padding:10px;min-width:220px;max-width:260px;background:rgba(26,26,26,0.98);color:rgba(255,255,255,0.95);border-radius:6px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.15);">
             <span style="font-size:13px;font-weight:600;color:#fff;">#${warehouse.id}</span>
             <span style="font-size:10px;padding:3px 8px;background:${getMarkerColor()};border-radius:4px;color:#fff;font-weight:500;">${warehouse.availability || 'Unknown'}</span>

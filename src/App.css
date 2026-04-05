@@ -839,9 +839,9 @@ rformance optimizations for mobile devices */
 
 /* Optimize font loading */
 @font-face {
-  font-family: 'Inter';
+  font-family: 'Verdana';
   font-display: swap;
-  src: local('Inter'), url('/fonts/inter.woff2') format('woff2');
+  src: local('Verdana');
 }
 
 /* Critical CSS for above-the-fold content */
