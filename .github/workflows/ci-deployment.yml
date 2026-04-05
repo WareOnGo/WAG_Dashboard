@@ -45,6 +45,7 @@ jobs:
         VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
         VITE_OAUTH_REDIRECT_URI: ${{ secrets.VITE_OAUTH_REDIRECT_URI }}
         VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
+        VITE_PPT_API_BASE_URL: ${{ secrets.VITE_PPT_API_BASE_URL }}
         
     # 🔍 Debug: Verify the built files contain the correct API URL
     - name: Verify API URL in built files
