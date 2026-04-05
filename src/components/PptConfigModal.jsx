@@ -8,7 +8,6 @@ import {
   CheckCircleFilled,
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
-import { fetchWarehousesByIds } from '../services/pptService';
 
 const { Text, Title } = Typography;
 
@@ -46,7 +45,7 @@ const PPT_TYPES = [
  *  - onGenerate: ({ pptType, customDetails, selectedImages }) => Promise<void>
  *  - generating: boolean
  */
-const PptConfigModal = ({ open, warehouseIds, onCancel, onGenerate, generating }) => {
+const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerate, generating }) => {
   const { isMobile } = useViewport();
 
   // Step management
@@ -78,33 +77,32 @@ const PptConfigModal = ({ open, warehouseIds, onCancel, onGenerate, generating }
     }
   }, [open]);
 
-  // Fetch warehouses when moving to step 2
-  const handleGoToStep2 = async () => {
-    setLoadingWarehouses(true);
-    try {
-      const data = await fetchWarehousesByIds(warehouseIds);
-      setWarehouses(data);
+  // Filter warehouses from pre-loaded data when moving to step 2
+  const handleGoToStep2 = () => {
+    const idList = warehouseIds.split(',').map((s) => s.trim()).filter(Boolean);
+    const matched = (allWarehouses || []).filter((wh) => idList.includes(String(wh.id)));
 
-      // Auto-select first 4 images per warehouse for detailed
-      const autoSelected = {};
-      data.forEach((wh) => {
-        if (wh.photos) {
-          const allUrls = wh.photos.split(',').map((u) => u.trim());
-          const imageUrls = allUrls.filter((u) => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(u));
-          if (pptType === 'detailed') {
-            autoSelected[wh.id] = imageUrls.slice(0, 4);
-          } else {
-            autoSelected[wh.id] = [];
-          }
-        }
-      });
-      setSelectedImages(autoSelected);
-      setStep(2);
-    } catch (err) {
-      message.error(err.message || 'Failed to fetch warehouse data');
-    } finally {
-      setLoadingWarehouses(false);
+    if (matched.length === 0) {
+      message.error('No matching warehouses found for the entered IDs');
+      return;
     }
+    setWarehouses(matched);
+
+    // Auto-select first 4 images per warehouse for detailed
+    const autoSelected = {};
+    matched.forEach((wh) => {
+      if (wh.photos) {
+        const allUrls = wh.photos.split(',').map((u) => u.trim());
+        const imageUrls = allUrls.filter((u) => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(u));
+        if (pptType === 'detailed') {
+          autoSelected[wh.id] = imageUrls.slice(0, 4);
+        } else {
+          autoSelected[wh.id] = [];
+        }
+      }
+    });
+    setSelectedImages(autoSelected);
+    setStep(2);
   };
 
   // Toggle image selection
