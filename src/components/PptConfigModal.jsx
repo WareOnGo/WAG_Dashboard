@@ -56,7 +56,6 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
   // Step 2 state
   const [warehouses, setWarehouses] = useState([]);
-  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [selectedImages, setSelectedImages] = useState({}); // { warehouseId: [url, ...] }
   const [clientName, setClientName] = useState('');
   const [clientRequirement, setClientRequirement] = useState('');
@@ -423,7 +422,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       return (
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
           <Button onClick={onCancel}>Cancel</Button>
-          <Button type="primary" onClick={handleGoToStep2} loading={loadingWarehouses}>
+          <Button type="primary" onClick={handleGoToStep2}>
             Next
           </Button>
         </div>
