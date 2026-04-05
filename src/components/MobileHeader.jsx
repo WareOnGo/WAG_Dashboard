@@ -11,6 +11,8 @@ import {
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { warehouseService } from '../services/warehouseService';
+import { generateStandardPpt, generateDetailedPpt } from '../services/pptService';
+import PptConfigModal from './PptConfigModal';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -26,6 +28,12 @@ const MobileHeader = ({ onMenuToggle }) => {
   const [generatedItinerary, setGeneratedItinerary] = useState('');
   const [warehouses, setWarehouses] = useState(null);
   const [generatingItinerary, setGeneratingItinerary] = useState(false);
+
+  // PPT generator state
+  const [pptExpanded, setPptExpanded] = useState(false);
+  const [pptWarehouseIds, setPptWarehouseIds] = useState('');
+  const [pptModalOpen, setPptModalOpen] = useState(false);
+  const [generatingPpt, setGeneratingPpt] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -196,11 +204,51 @@ const MobileHeader = ({ onMenuToggle }) => {
     },
   ];
 
-  const linkItems = [
-    { key: 'ppt-generator', icon: <FileTextOutlined />, label: 'PPT Generator', href: 'https://radiant-phoenix-e19499.netlify.app/', external: true, tooltip: 'Open internal PPT generator tool' },
-  ];
+  const linkItems = [];
 
+  const pptTooltip = 'Generate warehouse presentation (PPT)';
   const itineraryTooltip = 'Generate copy-pastable itinerary details for on-ground teams';
+
+  // Handle PPT inline toggle
+  const handlePptToggle = () => {
+    setPptExpanded(!pptExpanded);
+  };
+
+  // Open config modal when user submits IDs
+  const handlePptSubmitIds = () => {
+    if (!pptWarehouseIds.trim()) {
+      message.warning('Please enter warehouse IDs');
+      return;
+    }
+    setPptModalOpen(true);
+  };
+
+  // Called from PptConfigModal when user clicks Generate
+  const handlePptGenerate = async ({ pptType, customDetails, selectedImages }) => {
+    setGeneratingPpt(true);
+    try {
+      const ids = pptWarehouseIds.trim();
+      if (pptType === 'detailed') {
+        await generateDetailedPpt({ ids, selectedImages, customDetails });
+      } else {
+        await generateStandardPpt({
+          ids,
+          selectedImages,
+          includeLocation: pptType === 'standard-with-location',
+          customDetails,
+        });
+      }
+      message.success('Presentation downloaded successfully!');
+      setPptModalOpen(false);
+      setPptWarehouseIds('');
+      setPptExpanded(false);
+    } catch (error) {
+      console.error('PPT generation error:', error);
+      message.error(error.message || 'Failed to generate presentation');
+    } finally {
+      setGeneratingPpt(false);
+    }
+  };
 
   return (
     <>
@@ -268,7 +316,67 @@ const MobileHeader = ({ onMenuToggle }) => {
 
           {/* Desktop nav links */}
           {!isMobile && (
-            <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '28px' }}>
+            <nav style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '28px' }}>
+              {/* PPT Generator inline */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <Tooltip title={pptTooltip} placement="bottom">
+                  <a
+                    href="#"
+                    className="nav-link-btn"
+                    onClick={(e) => { e.preventDefault(); handlePptToggle(); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: pptExpanded ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.5)',
+                      transition: 'color 0.15s ease',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', display: 'flex' }}><FileTextOutlined /></span>
+                    PPT Generator
+                  </a>
+                </Tooltip>
+                {pptExpanded && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginLeft: '10px',
+                    animation: 'itinerary-expand 0.2s ease-out',
+                  }}>
+                    <Input
+                      value={pptWarehouseIds}
+                      onChange={(e) => setPptWarehouseIds(e.target.value)}
+                      placeholder="Warehouse IDs (e.g. 1, 5, 12)"
+                      size="small"
+                      onPressEnter={handlePptSubmitIds}
+                      style={{
+                        width: '280px',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: '6px',
+                        color: '#fff',
+                        fontSize: '13px',
+                      }}
+                    />
+                    <Button
+                      type="primary"
+                      size="small"
+                      onClick={handlePptSubmitIds}
+                      style={{ borderRadius: '6px', fontSize: '12px' }}
+                    >
+                      Submit
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               {linkItems.map((item) => (
                 <Tooltip key={item.key} title={item.tooltip} placement="bottom">
                   <a
@@ -293,7 +401,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   </a>
                 </Tooltip>
               ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0px' }}>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <Tooltip title={itineraryTooltip} placement="bottom">
                   <a
                     href="#"
@@ -321,8 +429,8 @@ const MobileHeader = ({ onMenuToggle }) => {
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    marginLeft: '6px',
+                    gap: '8px',
+                    marginLeft: '10px',
                     animation: 'itinerary-expand 0.2s ease-out',
                   }}>
                     <Input
@@ -333,7 +441,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                       onPressEnter={handleGenerateItinerary}
                       disabled={generatingItinerary}
                       style={{
-                        width: '220px',
+                        width: '280px',
                         background: 'rgba(255, 255, 255, 0.06)',
                         border: '1px solid rgba(255, 255, 255, 0.12)',
                         borderRadius: '6px',
@@ -362,6 +470,32 @@ const MobileHeader = ({ onMenuToggle }) => {
           {/* Mobile icon links */}
           {isMobile && (
             <>
+              {/* PPT Generator mobile icon */}
+              <Tooltip title={pptTooltip} placement="bottom">
+                <a
+                  href="#"
+                  className="nav-link-btn"
+                  onClick={(e) => { e.preventDefault(); handlePptToggle(); }}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '15px',
+                    transition: 'all 0.2s ease',
+                    color: pptExpanded ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.45)',
+                    background: pptExpanded ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="PPT Generator"
+                >
+                  <FileTextOutlined />
+                </a>
+              </Tooltip>
+
               {linkItems.map((item) => (
                 <Tooltip key={item.key} title={item.tooltip} placement="bottom">
                   <a
@@ -472,6 +606,43 @@ const MobileHeader = ({ onMenuToggle }) => {
         </div>
       </Header>
 
+      {/* Mobile inline PPT input bar */}
+      {isMobile && pptExpanded && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '8px 16px',
+          background: 'rgba(18, 18, 18, 0.95)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+          animation: 'itinerary-expand 0.2s ease-out',
+        }}>
+          <Input
+            value={pptWarehouseIds}
+            onChange={(e) => setPptWarehouseIds(e.target.value)}
+            placeholder="Warehouse IDs for PPT (e.g. 1, 5, 12)"
+            size="small"
+            onPressEnter={handlePptSubmitIds}
+            style={{
+              flex: 1,
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '6px',
+              color: '#fff',
+              fontSize: '12px',
+            }}
+          />
+          <Button
+            type="primary"
+            size="small"
+            onClick={handlePptSubmitIds}
+            style={{ borderRadius: '6px', fontSize: '12px', flexShrink: 0 }}
+          >
+            Submit
+          </Button>
+        </div>
+      )}
+
       {/* Mobile inline itinerary input bar */}
       {isMobile && itineraryExpanded && (
         <div style={{
@@ -552,6 +723,15 @@ const MobileHeader = ({ onMenuToggle }) => {
           </div>
         )}
       </Modal>
+
+      {/* PPT Config Modal */}
+      <PptConfigModal
+        open={pptModalOpen}
+        warehouseIds={pptWarehouseIds}
+        onCancel={() => setPptModalOpen(false)}
+        onGenerate={handlePptGenerate}
+        generating={generatingPpt}
+      />
     </>
   );
 };

@@ -26,6 +26,7 @@ export { default as DeviceGate } from './DeviceGate';
 export { default as SignInScreen } from './SignInScreen';
 export { default as ProtectedRoute } from './ProtectedRoute';
 export { default as SessionExpired } from './SessionExpired';
+export { default as PptConfigModal } from './PptConfigModal';
 
 // Re-export hooks and utilities
 export { useCompatibility } from '../hooks/useCompatibility';
