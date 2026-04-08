@@ -137,23 +137,6 @@ const TextAreaInput = ({ value, onChange, mobile, placeholder, rows = 3 }) => (
   />
 );
 
-const NumberInput = ({ value, onChange, mobile, placeholder, min, max, step }) => (
-  <input
-    type="number"
-    inputMode="decimal"
-    value={value ?? ''}
-    onChange={e => {
-      // Keep raw input text to support partial decimals like "25." while typing.
-      onChange(e.target.value);
-    }}
-    placeholder={placeholder}
-    min={min}
-    max={max}
-    step={step ?? 'any'}
-    style={inputBase(mobile)}
-  />
-);
-
 const SelectInput = ({ value, onChange, mobile, placeholder, options }) => (
   <select
     value={value ?? ''}
@@ -473,7 +456,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               true)}
               {col(
                 <Field label="Rate per sq ft" required error={errors.ratePerSqft}>
-                  <NumberInput mobile={m} value={values.ratePerSqft} onChange={set('ratePerSqft')} placeholder="Rate per sq ft" min={0} data-field="ratePerSqft" />
+                  <TextInput mobile={m} value={values.ratePerSqft} onChange={set('ratePerSqft')} placeholder="Rate per sq ft" data-field="ratePerSqft" />
                 </Field>,
               true)}
             </>)}
@@ -481,12 +464,12 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Offered Space (sq ft)">
-                  <NumberInput mobile={m} value={values.offeredSpaceSqft} onChange={set('offeredSpaceSqft')} placeholder="Offered space" min={0} />
+                  <TextInput mobile={m} value={values.offeredSpaceSqft} onChange={set('offeredSpaceSqft')} placeholder="Offered space" />
                 </Field>,
               true)}
               {col(
                 <Field label="Number of Docks">
-                  <NumberInput mobile={m} value={values.numberOfDocks} onChange={set('numberOfDocks')} placeholder="Number of docks" min={0} />
+                  <TextInput mobile={m} value={values.numberOfDocks} onChange={set('numberOfDocks')} placeholder="Number of docks" />
                 </Field>,
               true)}
             </>)}
@@ -494,7 +477,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Clear Height (ft)">
-                  <NumberInput mobile={m} value={values.clearHeightFt} onChange={set('clearHeightFt')} placeholder="Clear height in feet" min={0} step={0.1} />
+                  <TextInput mobile={m} value={values.clearHeightFt} onChange={set('clearHeightFt')} placeholder="Clear height in feet" />
                 </Field>,
               true)}
               {col(
@@ -571,7 +554,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               true)}
               {col(
                 <Field label="Approach Road Width (ft)">
-                  <NumberInput mobile={m} value={values.approachRoadWidth} onChange={set('approachRoadWidth')} placeholder="Road width" min={1} />
+                  <TextInput mobile={m} value={values.approachRoadWidth} onChange={set('approachRoadWidth')} placeholder="Road width" />
                 </Field>,
               true)}
             </>)}
@@ -579,7 +562,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Power (KVA)">
-                  <NumberInput mobile={m} value={values.powerKva} onChange={set('powerKva')} placeholder="Power in KVA" min={1} />
+                  <TextInput mobile={m} value={values.powerKva} onChange={set('powerKva')} placeholder="Power in KVA" />
                 </Field>,
               true)}
               {col(
