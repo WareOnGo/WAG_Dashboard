@@ -79,7 +79,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   // Filter warehouses from pre-loaded data when moving to step 2
   const handleGoToStep2 = () => {
     const idList = warehouseIds.split(',').map((s) => s.trim()).filter(Boolean);
-    const matched = (allWarehouses || []).filter((wh) => idList.includes(String(wh.id)));
+    const whMap = new Map((allWarehouses || []).map((wh) => [String(wh.id), wh]));
+    const matched = idList.map((id) => whMap.get(id)).filter(Boolean);
 
     if (matched.length === 0) {
       message.error('No matching warehouses found for the entered IDs');
