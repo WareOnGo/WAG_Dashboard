@@ -88,8 +88,8 @@ const EMPTY_MEDIA = { images: [], videos: [], docs: [] };
  *   maxSize  : number (MB, default 50)
  */
 const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  // Per-file upload tracking: Map<id, { name, progress, status }>
+  const [activeUploads, setActiveUploads] = useState(new Map());
   const [media, setMedia] = useState(EMPTY_MEDIA);
   const { isMobile } = useViewport();
   const { handleUploadError, showSuccessMessage, showErrorMessage } = useErrorHandler();
@@ -112,12 +112,30 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
     if (onChange) onChange(next);
   }, [onChange]);
 
+  const uploading = activeUploads.size > 0;
+
+  const updateUpload = (id, patch) => {
+    setActiveUploads(prev => {
+      const next = new Map(prev);
+      next.set(id, { ...next.get(id), ...patch });
+      return next;
+    });
+  };
+
+  const removeUpload = (id) => {
+    setActiveUploads(prev => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
   // Upload one file to R2 via presigned URL
-  const uploadFile = async (file) => {
+  const uploadFile = async (file, uploadId) => {
     const contentType = resolveMime(file);
     const { uploadUrl, imageUrl } = await warehouseService.getPresignedUrl(contentType);
 
-    setUploadProgress(10);
+    updateUpload(uploadId, { progress: 10 });
 
     await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -125,11 +143,11 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
 
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
-          setUploadProgress(Math.round(10 + (e.loaded / e.total) * 85));
+          updateUpload(uploadId, { progress: Math.round(10 + (e.loaded / e.total) * 85) });
         }
       });
       xhr.addEventListener('load', () => {
-        if (xhr.status === 200) { setUploadProgress(100); resolve(); }
+        if (xhr.status === 200) { updateUpload(uploadId, { progress: 100 }); resolve(); }
         else reject(new Error(`Upload failed with status ${xhr.status}`));
       });
       xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
@@ -143,25 +161,27 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
     return imageUrl;
   };
 
-  // Called by antd Upload for each selected file — uploads immediately
-  const beforeUpload = (file) => {
-    if (!file) return false;
-
+  // Process a single file — validate, upload, and add to media state
+  const processFile = (file) => {
     const category = classifyFile(file);
     if (!category) {
-      showErrorMessage({ type: 'validation', message: 'Unsupported file type. Allowed: images, videos, PDFs, and Office documents.' });
-      return false;
+      showErrorMessage({ type: 'validation', message: `"${file.name}": Unsupported file type. Allowed: images, videos, PDFs, and Office documents.` });
+      return;
     }
 
     if (file.size / 1024 / 1024 >= maxSize) {
-      showErrorMessage({ type: 'validation', message: `File must be smaller than ${maxSize}MB!` });
-      return false;
+      showErrorMessage({ type: 'validation', message: `"${file.name}": File must be smaller than ${maxSize}MB!` });
+      return;
     }
 
-    setUploading(true);
-    setUploadProgress(0);
+    const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    setActiveUploads(prev => {
+      const next = new Map(prev);
+      next.set(uploadId, { name: file.name, progress: 0 });
+      return next;
+    });
 
-    uploadFile(file)
+    uploadFile(file, uploadId)
       .then((url) => {
         setMedia(prev => {
           const next = { ...prev, [category]: [...prev[category], url] };
@@ -175,10 +195,14 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
         handleUploadError(err, file.name);
       })
       .finally(() => {
-        setUploading(false);
-        setUploadProgress(0);
+        removeUpload(uploadId);
       });
+  };
 
+  // Called by antd Upload for each selected file — uploads immediately
+  const beforeUpload = (file) => {
+    if (!file) return false;
+    processFile(file);
     return false; // prevent antd default upload
   };
 
@@ -311,11 +335,17 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
         </div>
       )}
 
-      {/* Upload progress */}
-      {uploading && (
-        <div style={{ marginBottom: 12, textAlign: 'center' }}>
-          <Progress percent={uploadProgress} size="small" strokeColor="#1890ff" />
-          <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>Uploading...</Text>
+      {/* Upload progress — per file */}
+      {activeUploads.size > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          {[...activeUploads.entries()].map(([id, { name, progress }]) => (
+            <div key={id} style={{ marginBottom: 6 }}>
+              <Text ellipsis style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', display: 'block' }}>
+                {name}
+              </Text>
+              <Progress percent={progress} size="small" strokeColor="#1890ff" />
+            </div>
+          ))}
         </div>
       )}
 
@@ -324,14 +354,13 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
         beforeUpload={beforeUpload}
         fileList={[]}
         accept={ACCEPT_STRING}
-        disabled={disabled || uploading}
+        disabled={disabled}
         showUploadList={false}
-        multiple={false}
+        multiple
       >
         <Button
           icon={<PlusOutlined />}
-          disabled={disabled || uploading}
-          loading={uploading}
+          disabled={disabled}
           style={{
             width: '100%',
             minHeight: isMobile ? 48 : 'auto',
@@ -341,7 +370,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
           size={isMobile ? 'large' : 'middle'}
           type="dashed"
         >
-          {uploading ? 'Uploading...' : totalCount === 0 ? 'Add File' : 'Add More Files'}
+          {totalCount === 0 && !uploading ? 'Add Files' : 'Add More Files'}
         </Button>
       </Upload>
 
