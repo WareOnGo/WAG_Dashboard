@@ -1,18 +1,15 @@
-import React, { useState } from 'react';
-import { Tag, Image, Space, Button } from 'antd';
+import { useState } from 'react';
+import { Image, Space, Button } from 'antd';
 import {
-  EnvironmentOutlined,
-  HomeOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
   RotateLeftOutlined,
   RotateRightOutlined,
   UndoOutlined,
   DownloadOutlined,
-  ThunderboltOutlined,
-  FileTextOutlined,
   PlayCircleOutlined,
-  LinkOutlined
+  FileTextOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import ResponsiveModal from './ResponsiveModal';
 import RedactedPhone from './RedactedPhone';
@@ -21,157 +18,79 @@ import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/ima
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import './ResponsiveModal.css';
+import './WarehouseForm.css';
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Shared inline styles (mirror WarehouseForm) ───────────────────────────────
 
-const styles = {
-  section: {
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  sectionIcon: {
-    width: 28,
-    height: 28,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    background: 'var(--bg-surface)',
-    color: 'var(--text-muted)',
-    fontSize: 13,
-    flexShrink: 0,
-  },
-  sectionTitle: {
-    margin: 0,
-    fontSize: 13,
-    fontWeight: 600,
-    color: 'var(--text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  grid: {
-    display: 'grid',
-    background: 'var(--bg-card)',
-    borderRadius: 10,
-    border: '1px solid var(--border-primary)',
-    padding: 8,
-    gap: '2px 12px',
-  },
-  field: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    padding: '12px 16px',
-  },
-  fieldLabel: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: 'var(--text-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.6px',
-  },
-  fieldValue: {
-    fontSize: 14,
-    fontWeight: 500,
-    color: 'var(--text-primary)',
-    lineHeight: 1.5,
-  },
-  heroBar: {
-    display: 'flex',
-    alignItems: 'stretch',
-    background: 'var(--bg-card)',
-    borderRadius: 10,
-    border: '1px solid var(--border-primary)',
-    marginBottom: 32,
-    overflow: 'hidden',
-    flexWrap: 'wrap',
-  },
-  heroStat: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    padding: '16px 20px',
-    flex: '1 1 0',
-    minWidth: 100,
-  },
-  divider: {
-    width: 1,
-    alignSelf: 'stretch',
-    background: 'var(--border-primary)',
-    flexShrink: 0,
-  },
-  mediaGrid: {
-    display: 'grid',
-    gap: 10,
-  },
-  emptyMedia: {
-    fontSize: 13,
-    color: 'var(--text-muted)',
-    fontStyle: 'italic',
-  },
-  videoCard: {
-    position: 'relative',
-    borderRadius: 8,
-    overflow: 'hidden',
-    border: '1px solid var(--border-primary)',
-    background: '#000',
-  },
-  docLink: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    padding: '12px 16px',
-    borderRadius: 8,
-    border: '1px solid var(--border-primary)',
-    background: 'var(--bg-card)',
-    color: 'var(--text-primary)',
-    textDecoration: 'none',
-    fontSize: 13,
-    fontWeight: 500,
-    transition: 'background 0.15s, border-color 0.15s',
-  },
-};
+const labelStyle = (mobile) => ({
+  display: 'block',
+  marginBottom: 6,
+  fontSize: mobile ? 13 : 14,
+  fontWeight: 500,
+  color: 'var(--text-muted, #8c8c8c)',
+  opacity: 0.75,
+  textTransform: mobile ? 'uppercase' : 'none',
+  letterSpacing: mobile ? 0.5 : 0,
+});
+const valueBase = (mobile) => ({
+  width: '100%',
+  minHeight: mobile ? 44 : 36,
+  padding: mobile ? '10px 0' : '6px 0',
+  fontSize: mobile ? 16 : 14,
+  background: 'transparent',
+  border: 'none',
+  color: 'var(--text-primary, #fff)',
+  boxSizing: 'border-box',
+  display: 'flex',
+  alignItems: 'center',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+});
+const textAreaValueBase = (mobile) => ({
+  ...valueBase(mobile),
+  minHeight: mobile ? 'auto' : 'auto',
+  display: 'block',
+  lineHeight: 1.5,
+  padding: mobile ? '10px 0' : '6px 0',
+});
+const sectionTitle = { color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, margin: '24px 0 16px' };
 
-// ── Tiny helpers ──────────────────────────────────────────────────────────────
+// ── Reusable read-only field components ───────────────────────────────────────
 
-const Field = ({ label, value }) => {
-  if (value == null || value === '' || value === '-') return null;
-  return (
-    <div style={styles.field}>
-      <span style={styles.fieldLabel}>{label}</span>
-      <span style={styles.fieldValue}>{value}</span>
-    </div>
-  );
-};
+const Field = ({ label, children, style, mobile }) => (
+  <div style={{ marginBottom: 20, ...style }}>
+    {label && (
+      <label style={labelStyle(mobile)}>{label}</label>
+    )}
+    {children}
+  </div>
+);
 
-const BoolField = ({ label, value }) => {
-  if (value == null) return null;
-  const yes = value === true || value === 'true' || value === 1;
-  return (
-    <div style={styles.field}>
-      <span style={styles.fieldLabel}>{label}</span>
-      <Tag color={yes ? 'green' : 'red'} style={{ width: 'fit-content' }}>
-        {yes ? 'Yes' : 'No'}
-      </Tag>
-    </div>
-  );
-};
-
-const formatSpace = (space) => {
-  if (!space) return null;
-  if (Array.isArray(space)) {
-    const total = space.reduce((s, v) => s + v, 0);
-    return space.length > 1
-      ? `${total.toLocaleString()} sq ft (${space.join(' + ')})`
-      : `${total.toLocaleString()} sq ft`;
+const renderRaw = (v) => {
+  if (v === null || v === undefined || v === '') return '-';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '-';
+  if (typeof v === 'object') {
+    try { return JSON.stringify(v); } catch { return String(v); }
   }
-  return `${Number(space).toLocaleString()} sq ft`;
+  return String(v);
 };
+
+const TextValue = ({ value, mobile }) => (
+  <div style={valueBase(mobile)}>{renderRaw(value)}</div>
+);
+
+const TextAreaValue = ({ value, mobile }) => (
+  <div style={textAreaValueBase(mobile)}>{renderRaw(value)}</div>
+);
+
+const Section = ({ title, children }) => (
+  <div>
+    <div style={sectionTitle}>{title}</div>
+    {children}
+  </div>
+);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const getFileNameFromUrl = (url) => {
   try {
@@ -183,14 +102,30 @@ const getFileNameFromUrl = (url) => {
   }
 };
 
+const formatIST = (v) => {
+  if (v === null || v === undefined || v === '') return '-';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }) + ' IST';
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const WarehouseDetailsModal = ({
   visible = false,
   onClose,
-  warehouse = null
+  warehouse = null,
 }) => {
   const { isMobile } = useViewport();
+  const m = isMobile;
   const [isDownloading, setIsDownloading] = useState(false);
 
   if (!warehouse) return null;
@@ -202,10 +137,19 @@ const WarehouseDetailsModal = ({
   const docUrls = media.docs || [];
   const hasMedia = imageUrls.length + videoUrls.length + docUrls.length > 0;
 
-  const gridCols = isMobile ? '1fr 1fr' : '1fr 1fr 1fr';
+  // ── Layout helpers (mirror WarehouseForm) ──────────────────────────────
+  const row = (children) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: m ? 0 : 16 }}>
+      {children}
+    </div>
+  );
+  const col = (children, half = false) => (
+    <div style={{ width: (half && !m) ? 'calc(50% - 8px)' : '100%' }}>
+      {children}
+    </div>
+  );
 
-  // ── Download handler ────────────────────────────────────────────────────
-
+  // ── Download handler ───────────────────────────────────────────────────
   const handleDownloadAllImages = async () => {
     if (imageUrls.length === 0) {
       showErrorNotification(
@@ -219,7 +163,7 @@ const WarehouseDetailsModal = ({
     if (isMobileDevice && imageUrls.length > 3) {
       showSuccessMessage('info', {
         details: ERROR_MESSAGES.MOBILE_FALLBACK,
-        duration: 6
+        duration: 6,
       });
     }
 
@@ -255,8 +199,7 @@ const WarehouseDetailsModal = ({
     }
   };
 
-  // ── Image preview toolbar ───────────────────────────────────────────────
-
+  // ── Image preview toolbar ──────────────────────────────────────────────
   const previewToolbar = (_, { actions: { onRotateLeft, onRotateRight, onZoomOut, onZoomIn, onReset } }) => (
     <Space size={12} className="toolbar-wrapper">
       {[
@@ -278,8 +221,7 @@ const WarehouseDetailsModal = ({
     </Space>
   );
 
-  // ── Render ──────────────────────────────────────────────────────────────
-
+  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <ResponsiveModal
       visible={visible}
@@ -288,138 +230,251 @@ const WarehouseDetailsModal = ({
       maxWidth="900px"
       className="warehouse-details-modal"
     >
-      {/* ── Hero bar: key metrics at a glance ── */}
-      <div style={styles.heroBar}>
-        <div style={styles.heroStat}>
-          <span style={styles.fieldLabel}>Type</span>
-          <span style={{ ...styles.fieldValue, fontSize: 15, fontWeight: 600 }}>
-            {warehouse.warehouseType}
-          </span>
-        </div>
-        <div style={styles.divider} />
-        <div style={styles.heroStat}>
-          <span style={styles.fieldLabel}>Total Space</span>
-          <span style={{ ...styles.fieldValue, fontSize: 15, fontWeight: 600 }}>
-            {formatSpace(warehouse.totalSpaceSqft) || '-'}
-          </span>
-        </div>
-        <div style={styles.divider} />
-        <div style={styles.heroStat}>
-          <span style={styles.fieldLabel}>Rate</span>
-          <span style={{ ...styles.fieldValue, fontSize: 15, fontWeight: 600 }}>
-            {warehouse.ratePerSqft ? `₹${warehouse.ratePerSqft}/sqft` : '-'}
-          </span>
-        </div>
-        <div style={styles.divider} />
-        <div style={styles.heroStat}>
-          <span style={styles.fieldLabel}>Status</span>
-          <Tag
-            color={
-              warehouse.availability?.toLowerCase().includes('available') ? 'green' :
-              warehouse.availability?.toLowerCase().includes('occupied') ? 'red' :
-              warehouse.availability?.toLowerCase().includes('partial') ? 'orange' : 'default'
-            }
-            style={{ width: 'fit-content', margin: 0 }}
-          >
-            {warehouse.availability || 'Unknown'}
-          </Tag>
-        </div>
-      </div>
+      <div style={{ color: 'var(--text-primary)' }}>
 
-      {/* ── Location & Contact ── */}
-      <div style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <div style={styles.sectionIcon}><EnvironmentOutlined /></div>
-          <h4 style={styles.sectionTitle}>Location & Contact</h4>
-        </div>
-        <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
-          <Field label="Address" value={warehouse.address} />
-          <Field label="City" value={warehouse.city} />
-          <Field label="State" value={warehouse.state} />
-          <Field label="Postal Code" value={warehouse.postalCode} />
-          <Field label="Zone" value={warehouse.zone} />
-          {warehouse.googleLocation && (
-            <div style={styles.field}>
-              <span style={styles.fieldLabel}>Google Maps</span>
-              <a
-                href={warehouse.googleLocation}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ ...styles.fieldValue, color: '#4ea1f5', textDecoration: 'none' }}
-              >
-                Open in Maps &rarr;
-              </a>
-            </div>
+        {/* ── Basic Information ───────────────────────────────── */}
+        <Section title="Basic Information">
+          {row(<>
+            {col(
+              <Field label="Warehouse Owner Type" mobile={m}>
+                <TextValue mobile={m} value={warehouse.warehouseOwnerType} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Warehouse Type" mobile={m}>
+                <TextValue mobile={m} value={warehouse.warehouseType} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(
+            col(
+              <Field label="Zone" mobile={m}>
+                <TextValue mobile={m} value={warehouse.zone} />
+              </Field>,
+            true)
           )}
-          <Field label="Contact Person" value={warehouse.contactPerson} />
-          <div style={styles.field}>
-            <span style={styles.fieldLabel}>Contact Number</span>
-            <span style={styles.fieldValue}>
-              <RedactedPhone warehouseId={warehouse.id} />
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* ── Warehouse Specs ── */}
-      <div style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <div style={styles.sectionIcon}><HomeOutlined /></div>
-          <h4 style={styles.sectionTitle}>Warehouse Specs</h4>
-        </div>
-        <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
-          <Field label="Owner Type" value={warehouse.warehouseOwnerType} />
-          <Field label="Offered Space" value={warehouse.offeredSpaceSqft ? `${warehouse.offeredSpaceSqft} sq ft` : null} />
-          <Field label="No. of Docks" value={warehouse.numberOfDocks} />
-          <Field label="Clear Height" value={warehouse.clearHeightFt ? `${warehouse.clearHeightFt} ft` : null} />
-          <Field label="Dimensions" value={wd.dimensions} />
-          <Field label="Parking / Docking" value={wd.parkingDockingSpace} />
-          <Field label="Compliances" value={warehouse.compliances} />
-          <Field label="Other Specs" value={warehouse.otherSpecifications} />
-          <BoolField label="Is Broker" value={warehouse.isBroker} />
-          <BoolField label="Visibility" value={warehouse.visibility} />
-        </div>
-      </div>
+          <Field label="Address" mobile={m}>
+            <TextAreaValue mobile={m} value={warehouse.address} />
+          </Field>
 
-      {/* ── Infrastructure ── */}
-      <div style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <div style={styles.sectionIcon}><ThunderboltOutlined /></div>
-          <h4 style={styles.sectionTitle}>Infrastructure</h4>
-        </div>
-        <div style={{ ...styles.grid, gridTemplateColumns: gridCols }}>
-          <BoolField label="Fire NOC" value={wd.fireNocAvailable} />
-          <Field label="Fire Safety" value={wd.fireSafetyMeasures} />
-          <Field label="Land Type" value={wd.landType} />
-          <Field label="Approach Road" value={wd.approachRoadWidth ? `${wd.approachRoadWidth} ft` : null} />
-          <Field label="Power" value={wd.powerKva ? `${wd.powerKva} KVA` : null} />
-          <Field label="Pollution Zone" value={wd.pollutionZone} />
-          <BoolField label="Vaastu" value={wd.vaastuCompliance} />
-          <Field label="Latitude" value={wd.latitude} />
-          <Field label="Longitude" value={wd.longitude} />
-        </div>
-      </div>
+          {row(<>
+            {col(
+              <Field label="City" mobile={m}>
+                <TextValue mobile={m} value={warehouse.city} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="State" mobile={m}>
+                <TextValue mobile={m} value={warehouse.state} />
+              </Field>,
+            true)}
+          </>)}
 
-      {/* ── Media ── */}
-      {hasMedia && (
-        <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div style={styles.sectionIcon}><FileTextOutlined /></div>
-            <h4 style={styles.sectionTitle}>
-              Media
-              <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 11, opacity: 0.7 }}>
-                {imageUrls.length + videoUrls.length + docUrls.length} file{imageUrls.length + videoUrls.length + docUrls.length > 1 ? 's' : ''}
-              </span>
-            </h4>
-          </div>
+          {row(<>
+            {col(
+              <Field label="Postal Code" mobile={m}>
+                <TextValue mobile={m} value={warehouse.postalCode} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Google Location URL" mobile={m}>
+                {warehouse.googleLocation ? (
+                  <a
+                    href={warehouse.googleLocation}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      ...valueBase(m),
+                      color: '#4ea1f5',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {warehouse.googleLocation} ↗
+                  </a>
+                ) : (
+                  <TextValue mobile={m} value={warehouse.googleLocation} />
+                )}
+              </Field>,
+            true)}
+          </>)}
+        </Section>
 
-          {/* Images */}
+        {/* ── Contact Information ─────────────────────────────── */}
+        <Section title="Contact Information">
+          {row(<>
+            {col(
+              <Field label="Contact Person" mobile={m}>
+                <TextValue mobile={m} value={warehouse.contactPerson} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Contact Number" mobile={m}>
+                <div style={valueBase(m)}>
+                  <RedactedPhone warehouseId={warehouse.id} />
+                </div>
+              </Field>,
+            true)}
+          </>)}
+        </Section>
+
+        {/* ── Warehouse Details ───────────────────────────────── */}
+        <Section title="Warehouse Details">
+          {row(<>
+            {col(
+              <Field label="Total Space (sq ft)" mobile={m}>
+                <TextValue mobile={m} value={warehouse.totalSpaceSqft} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Rate per sq ft" mobile={m}>
+                <TextValue mobile={m} value={warehouse.ratePerSqft} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Offered Space (sq ft)" mobile={m}>
+                <TextValue mobile={m} value={warehouse.offeredSpaceSqft} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Number of Docks" mobile={m}>
+                <TextValue mobile={m} value={warehouse.numberOfDocks} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Clear Height (ft)" mobile={m}>
+                <TextValue mobile={m} value={warehouse.clearHeightFt} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Availability" mobile={m}>
+                <TextValue mobile={m} value={warehouse.availability} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Is Broker" mobile={m}>
+                <TextValue mobile={m} value={warehouse.isBroker} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Uploaded By" mobile={m}>
+                <TextValue mobile={m} value={warehouse.uploadedBy} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Visibility" mobile={m}>
+                <TextValue mobile={m} value={warehouse.visibility} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Compliances" mobile={m}>
+                <TextValue mobile={m} value={warehouse.compliances} />
+              </Field>,
+            true)}
+          </>)}
+
+          <Field label="Other Specifications" mobile={m}>
+            <TextAreaValue mobile={m} value={warehouse.otherSpecifications} />
+          </Field>
+        </Section>
+
+        {/* ── Location Data ───────────────────────────────────── */}
+        <Section title="Location Data">
+          {row(<>
+            {col(
+              <Field label="Latitude" mobile={m}>
+                <TextValue mobile={m} value={wd.latitude} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Longitude" mobile={m}>
+                <TextValue mobile={m} value={wd.longitude} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Fire NOC Available" mobile={m}>
+                <TextValue mobile={m} value={wd.fireNocAvailable} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Fire Safety Measures" mobile={m}>
+                <TextValue mobile={m} value={wd.fireSafetyMeasures} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Land Type" mobile={m}>
+                <TextValue mobile={m} value={wd.landType} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Approach Road Width (ft)" mobile={m}>
+                <TextValue mobile={m} value={wd.approachRoadWidth} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Power (KVA)" mobile={m}>
+                <TextValue mobile={m} value={wd.powerKva} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Pollution Zone" mobile={m}>
+                <TextValue mobile={m} value={wd.pollutionZone} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Vaastu Compliance" mobile={m}>
+                <TextValue mobile={m} value={wd.vaastuCompliance} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Dimensions" mobile={m}>
+                <TextValue mobile={m} value={wd.dimensions} />
+              </Field>,
+            true)}
+          </>)}
+
+          <Field label="Parking & Docking Space" mobile={m}>
+            <TextAreaValue mobile={m} value={wd.parkingDockingSpace} />
+          </Field>
+        </Section>
+
+        {/* ── Warehouse Media ─────────────────────────────────── */}
+        <Section title="Warehouse Media">
+          {!hasMedia && (
+            <Field label="Uploaded Files" mobile={m}>
+              <TextValue mobile={m} value="-" />
+            </Field>
+          )}
+
           {imageUrls.length > 0 && (
-            <div style={{ marginBottom: videoUrls.length || docUrls.length ? 24 : 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                  Images ({imageUrls.length})
-                </span>
+            <Field label={`Images (${imageUrls.length})`} mobile={m}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 12 }}>
                 <Button
                   type="primary"
                   size="small"
@@ -431,7 +486,11 @@ const WarehouseDetailsModal = ({
                   {isDownloading ? 'Downloading...' : 'Download All'}
                 </Button>
               </div>
-              <div style={{ ...styles.mediaGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)' }}>
+              <div style={{
+                display: 'grid',
+                gap: 10,
+                gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+              }}>
                 <Image.PreviewGroup>
                   {imageUrls.map((url, i) => (
                     <Image
@@ -440,7 +499,7 @@ const WarehouseDetailsModal = ({
                       alt={`Warehouse ${warehouse.id} - Image ${i + 1}`}
                       style={{
                         width: '100%',
-                        height: isMobile ? 130 : 120,
+                        height: m ? 130 : 120,
                         objectFit: 'cover',
                         borderRadius: 8,
                         cursor: 'pointer',
@@ -456,42 +515,52 @@ const WarehouseDetailsModal = ({
                   ))}
                 </Image.PreviewGroup>
               </div>
-            </div>
+            </Field>
           )}
 
-          {/* Videos */}
           {videoUrls.length > 0 && (
-            <div style={{ marginBottom: docUrls.length ? 24 : 0 }}>
-              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
-                Videos ({videoUrls.length})
-              </span>
-              <div style={{ ...styles.mediaGrid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)' }}>
+            <Field label={`Videos (${videoUrls.length})`} mobile={m}>
+              <div style={{
+                display: 'grid',
+                gap: 10,
+                gridTemplateColumns: m ? '1fr' : 'repeat(2, 1fr)',
+              }}>
                 {videoUrls.map((url, i) => (
-                  <div key={i} style={styles.videoCard}>
+                  <div key={i} style={{
+                    position: 'relative',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    border: '1px solid var(--border-primary)',
+                    background: '#000',
+                  }}>
                     <video
                       src={url}
                       controls
                       preload="metadata"
-                      style={{ width: '100%', height: isMobile ? 180 : 200, objectFit: 'contain', background: '#000' }}
+                      style={{ width: '100%', height: m ? 180 : 200, objectFit: 'contain', background: '#000' }}
                     >
                       Your browser does not support the video tag.
                     </video>
-                    <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-card)' }}>
+                    <div style={{
+                      padding: '8px 12px',
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      background: 'var(--bg-card)',
+                    }}>
                       <PlayCircleOutlined />
                       {getFileNameFromUrl(url)}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </Field>
           )}
 
-          {/* Documents */}
           {docUrls.length > 0 && (
-            <div>
-              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: 12 }}>
-                Documents ({docUrls.length})
-              </span>
+            <Field label={`Documents (${docUrls.length})`} mobile={m}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {docUrls.map((url, i) => (
                   <a
@@ -499,11 +568,28 @@ const WarehouseDetailsModal = ({
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={styles.docLink}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '12px 16px',
+                      borderRadius: 8,
+                      border: '1px solid var(--border-primary)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      textDecoration: 'none',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-surface)'; }}
                   >
-                    <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, background: 'var(--bg-surface)', flexShrink: 0 }}>
+                    <div style={{
+                      width: 32, height: 32,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 6, background: 'var(--bg-surface)', flexShrink: 0,
+                    }}>
                       <FileTextOutlined style={{ fontSize: 14, color: 'var(--text-muted)' }} />
                     </div>
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -513,35 +599,64 @@ const WarehouseDetailsModal = ({
                   </a>
                 ))}
               </div>
-            </div>
+            </Field>
           )}
-        </div>
-      )}
 
-      {/* No media at all */}
-      {!hasMedia && (
-        <div style={{ ...styles.section, textAlign: 'center', padding: '20px 0' }}>
-          <span style={styles.emptyMedia}>No media files attached</span>
-        </div>
-      )}
+        </Section>
 
-      {/* ── Footer meta ── */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: 16,
-        marginTop: 8,
-        borderTop: '1px solid var(--border-primary)',
-        fontSize: 12,
-        color: 'var(--text-muted)',
-        flexWrap: 'wrap',
-        gap: 8,
-      }}>
-        <span>Uploaded by: {warehouse.uploadedBy}</span>
-        {warehouse.createdAt && (
-          <span>{new Date(warehouse.createdAt).toLocaleDateString()}</span>
-        )}
+        {/* ── Metadata ────────────────────────────────────────── */}
+        <Section title="Metadata">
+          {row(<>
+            {col(
+              <Field label="ID" mobile={m}>
+                <TextValue mobile={m} value={warehouse.id} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Created At" mobile={m}>
+                <TextValue mobile={m} value={formatIST(warehouse.createdAt)} />
+              </Field>,
+            true)}
+          </>)}
+
+          {row(<>
+            {col(
+              <Field label="Updated At" mobile={m}>
+                <TextValue mobile={m} value={formatIST(warehouse.updatedAt)} />
+              </Field>,
+            true)}
+            {col(
+              <Field label="Uploaded By" mobile={m}>
+                <TextValue mobile={m} value={warehouse.uploadedBy} />
+              </Field>,
+            true)}
+          </>)}
+        </Section>
+
+        {/* ── Actions ─────────────────────────────────────────── */}
+        <div
+          className={m ? 'warehouse-form-actions' : ''}
+          style={{
+            marginTop: 32,
+            display: 'flex',
+            flexDirection: m ? 'column' : 'row',
+            justifyContent: 'flex-end',
+            gap: 12,
+            position: m ? 'sticky' : 'static',
+            bottom: m ? 0 : 'auto',
+            background: m ? 'var(--bg-secondary)' : 'transparent',
+            padding: m ? '16px 0' : 0,
+            borderTop: m ? '1px solid var(--border-primary)' : 'none',
+          }}
+        >
+          <Button
+            size="large"
+            onClick={onClose}
+            style={{ minWidth: 120, minHeight: m ? 44 : 'auto' }}
+          >
+            Close
+          </Button>
+        </div>
       </div>
     </ResponsiveModal>
   );
