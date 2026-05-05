@@ -169,6 +169,21 @@
   font-weight: 600;
 }
 
+.warehouse-card__space-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.warehouse-card__space-chip {
+  margin: 0 !important;
+  font-size: 10px;
+  line-height: 1.4;
+  padding: 1px 6px;
+}
+
 /* Expandable Details */
 .warehouse-card__details {
   border-top: 1px solid rgba(255, 255, 255, 0.08);

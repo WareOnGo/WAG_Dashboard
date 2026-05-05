@@ -253,13 +253,16 @@ const Dashboard = () => {
       });
     }
 
-    // Apply area range filter
+    // Apply area range filter — match if ANY unit in totalSpaceSqft falls in range
     if (areaRange[0] > 0 || areaRange[1] < 100000) {
       filtered = filtered.filter(warehouse => {
-        const totalSpace = Array.isArray(warehouse.totalSpaceSqft)
-          ? warehouse.totalSpaceSqft[0]
-          : warehouse.totalSpaceSqft;
-        return totalSpace >= areaRange[0] && totalSpace <= areaRange[1];
+        const spaces = Array.isArray(warehouse.totalSpaceSqft)
+          ? warehouse.totalSpaceSqft
+          : [warehouse.totalSpaceSqft];
+        return spaces.some(v => {
+          const n = Number(v);
+          return Number.isFinite(n) && n >= areaRange[0] && n <= areaRange[1];
+        });
       });
     }
 
@@ -272,6 +275,7 @@ const Dashboard = () => {
     }
 
     setFilteredWarehouses(filtered);
+    setCurrentPage(1);
   }, [warehouses, searchText, selectedOwnerType, selectedType, selectedCity, selectedState, selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType, selectedUploadedBy, selectedVisibility, areaRange, budgetRange]);
 
   const clearFilters = () => {

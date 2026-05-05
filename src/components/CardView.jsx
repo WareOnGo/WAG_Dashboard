@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Row, Col, Empty, Pagination } from 'antd';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
@@ -19,6 +19,11 @@ const CardView = ({
   const { isMobile } = useViewport();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(isMobile ? 6 : 12);
+
+  // Reset to first page whenever the dataset changes (filters/search applied upstream)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [warehouses]);
 
   // Determine column span based on columnsPerRow prop or default behavior
   const getColSpan = () => {
