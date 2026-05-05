@@ -180,6 +180,15 @@ const WarehouseCard = ({
             <span className="warehouse-card__metric-value">
               {formatSpace(warehouse.totalSpaceSqft)} sq ft
             </span>
+            {Array.isArray(warehouse.totalSpaceSqft) && warehouse.totalSpaceSqft.length > 1 && (
+              <div className="warehouse-card__space-breakdown">
+                {warehouse.totalSpaceSqft.map((v, i) => (
+                  <Tag key={i} size="small" className="warehouse-card__space-chip">
+                    {Number(v).toLocaleString()}
+                  </Tag>
+                ))}
+              </div>
+            )}
           </div>
           
           <div className="warehouse-card__metric">

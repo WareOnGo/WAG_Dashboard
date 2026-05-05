@@ -162,6 +162,15 @@ const SimpleWarehouseCard = ({
               <span className="simple-warehouse-card__metric-value">
                 {formatSpace(warehouse.totalSpaceSqft)} sq ft
               </span>
+              {Array.isArray(warehouse.totalSpaceSqft) && warehouse.totalSpaceSqft.length > 1 && (
+                <div className="simple-warehouse-card__space-breakdown">
+                  {warehouse.totalSpaceSqft.map((v, i) => (
+                    <span key={i} className="simple-warehouse-card__space-chip">
+                      {Number(v).toLocaleString()}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="simple-warehouse-card__metric">
