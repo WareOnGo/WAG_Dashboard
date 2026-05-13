@@ -463,7 +463,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
               {col(
                 <Field label="Warehouse Owner Type">
-                  <TextInput mobile={m} value={values.warehouseOwnerType} onChange={set('warehouseOwnerType')} placeholder="Owner, Tenant, Broker, etc." data-field="warehouseOwnerType" />
+                  <TextInput mobile={m} value={values.warehouseOwnerType} onChange={set('warehouseOwnerType')} placeholder="Individual/Company/3PL" data-field="warehouseOwnerType" />
                 </Field>,
                 true)}
             </>)}
@@ -505,7 +505,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Is Broker">
-                  <SelectInput mobile={m} value={values.isBroker} onChange={set('isBroker')} placeholder="Select" options={BROKER_OPTIONS} />
+                  <ToggleSwitch checked={values.isBroker === true || values.isBroker === 'true' || values.isBroker === 'Yes'} onChange={(v) => set('isBroker')(v ? 'Yes' : 'No')} />
                 </Field>,
                 true)}
               {col(
@@ -517,8 +517,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Owner Warmth" tooltip="Rate based on the owner's collaborativeness.">
-                  <TextInput mobile={m} value={values.owner_warmnth} onChange={set('owner_warmnth')} placeholder="Cold, Warm, Hot, etc." />
+                <Field label="Owner Warmth" tooltip="Rate the owner's personality. Green = positive and collaborative; Yellow = neutral; Red = hard to deal with.">
+                  <TextInput mobile={m} value={values.owner_warmnth} onChange={set('owner_warmnth')} placeholder="Green/Yellow/Red" />
                 </Field>,
                 true)}
               {col(
@@ -540,7 +540,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
           {/* ── Location Details ────────────────────────────────── */}
           <Section title="Location Details">
             <Field label="Address" required error={errors.address} tooltip="Please mention the locality, but not the exact address.">
-              <TextAreaInput mobile={m} value={values.address} onChange={set('address')} placeholder="Enter complete address" rows={m ? 3 : 2} data-field="address" />
+              <TextAreaInput mobile={m} value={values.address} onChange={set('address')} placeholder="Enter locality" rows={m ? 3 : 2} data-field="address" />
             </Field>
 
             {row(<>
@@ -631,7 +631,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
               {col(
                 /* NOTE: 'totalSpaceSqft' from the schema is displayed as "Offered Area" here per user request */
-                <Field label="Offered Area (sq ft)" required error={errors.totalSpaceSqft} tooltip="Please mention all kinds of areas offered.">
+                <Field label="Offered Area (sq ft)" required error={errors.totalSpaceSqft} tooltip="Please mention all kinds of areas offered, including partition possibilities.">
                   {(values.totalSpaceSqft || []).map((v, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                       <input
@@ -702,7 +702,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Plinth Height (ft)">
-                  <TextInput mobile={m} value={values.plinthHeightFt} onChange={set('plinthHeightFt')} placeholder="Plinth height" />
+                  <TextInput mobile={m} value={values.plinthHeightFt} onChange={set('plinthHeightFt')} placeholder="Plinth height / Dock Height" />
                 </Field>,
                 true)}
               {col(
@@ -710,21 +710,29 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                   <TextInput mobile={m} value={values.numberOfDocks} onChange={set('numberOfDocks')} placeholder="Number of docks" />
                 </Field>,
                 true)}
+            </>)}
+
+            {row(<>
               {col(
-                <Field label="Dock Dimension">
-                  <TextInput mobile={m} value={values.dockDimension} onChange={set('dockDimension')} placeholder="e.g. 8x10" />
+                <Field label="Dock Dimension (ft)">
+                  <TextInput mobile={m} value={values.dockDimension} onChange={set('dockDimension')} placeholder="e.g. 8x10 ft" />
+                </Field>,
+                true)}
+              {col(
+                <Field label="Canopy Type">
+                  <TextInput mobile={m} value={values.canopyType} onChange={set('canopyType')} placeholder="Running/Shutter/None" />
                 </Field>,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Dock Apron Length (ft)" tooltip="Please mention the distance from the wall to the dock platform.">
-                  <TextInput mobile={m} value={values.dockApronLengthFt} onChange={set('dockApronLengthFt')} placeholder="Apron length" />
+                <Field label="Dock Apron Length (ft)" tooltip="Please mention the distance from the wall to the dock platform for truck movement.">
+                  <TextInput mobile={m} value={values.dockApronLengthFt} onChange={set('dockApronLengthFt')} placeholder="Distance from Dock to Wall in ft" />
                 </Field>,
                 true)}
               {col(
-                <Field label="Dock Platform Type" tooltip="None / Dock Platform / Running Platform.">
+                <Field label="Dock Platform Type">
                   <TextInput mobile={m} value={values.dockPlatformType} onChange={set('dockPlatformType')} placeholder="None/Extended Platform/Running Platform/Cross Dock" />
                 </Field>,
                 true)}
@@ -732,34 +740,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Gate Size (ft)">
-                  <TextInput mobile={m} value={values.gateSizeFt} onChange={set('gateSizeFt')} placeholder="Gate size" />
+                <Field label="Compound Gate Width (ft)">
+                  <TextInput mobile={m} value={values.gateSizeFt} onChange={set('gateSizeFt')} placeholder="Gate Width of Compound" />
                 </Field>,
                 true)}
               {col(
-                <Field label="Setback Area">
-                  <TextInput mobile={m} value={values.setbackArea} onChange={set('setbackArea')} placeholder="Setback area" />
-                </Field>,
-                true)}
-            </>)}
-
-            {row(<>
-              {col(
-                <Field label="CC Roads">
-                  <TextInput mobile={m} value={values.ccRoads} onChange={set('ccRoads')} placeholder="Yes / No" />
-                </Field>,
-                true)}
-            </>)}
-
-            {row(<>
-              {col(
-                <Field label="Wall & Security Room">
-                  <TextInput mobile={m} value={values.wallAndSecurityRoom} onChange={set('wallAndSecurityRoom')} placeholder="Yes / No / details" />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Canopy Type" tooltip="Dock canopy vs running canopy.">
-                  <TextInput mobile={m} value={values.canopyType} onChange={set('canopyType')} placeholder="Running/Shutter/None" />
+                <Field label="Setback Area" tooltip="Setback area around the box.">
+                  <TextInput mobile={m} value={values.setbackArea} onChange={set('setbackArea')} placeholder="e.g. 5m on all sides" />
                 </Field>,
                 true)}
             </>)}
@@ -770,7 +757,20 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Flooring Type" tooltip="E.g. VDF / FM2.">
+                <Field label="CC Roads" tooltip="Are there concrete roads around the warehouse?">
+                  <ToggleSwitch checked={values.ccRoads === true || values.ccRoads === 'true' || values.ccRoads === 'Yes'} onChange={(v) => set('ccRoads')(v)} />
+                </Field>,
+                true)}
+              {col(
+                <Field label="Security Features">
+                  <TextInput mobile={m} value={values.wallAndSecurityRoom} onChange={set('wallAndSecurityRoom')} placeholder="eg: Security Room, CCTV etc" />
+                </Field>,
+                true)}
+            </>)}
+
+            {row(<>
+              {col(
+                <Field label="Flooring Type">
                   <TextInput mobile={m} value={values.flooringType} onChange={set('flooringType')} placeholder="VDF/FM2" />
                 </Field>,
                 true)}
@@ -797,7 +797,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Insulation Present">
-                  <TextInput mobile={m} value={values.insulationPresent} onChange={set('insulationPresent')} placeholder="Yes / No" />
+                  <ToggleSwitch checked={values.insulationPresent === true || values.insulationPresent === 'true' || values.insulationPresent === 'Yes'} onChange={(v) => set('insulationPresent')(v)} />
                 </Field>,
                 true)}
               {col(
@@ -814,20 +814,20 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
               {col(
-                <Field label="Washroom Count">
-                  <TextInput mobile={m} value={values.washroom_count} onChange={set('washroom_count')} placeholder="Number of washrooms" />
+                <Field label="Power (KVA)">
+                  <TextInput mobile={m} value={values.powerKva} onChange={set('powerKva')} placeholder="Power in KVA" />
                 </Field>,
                 true)}
             </>)}
 
-            <Field label="Parking & Docking Space">
-              <TextAreaInput mobile={m} value={values.parkingDockingSpace} onChange={set('parkingDockingSpace')} placeholder="Parking and docking space details" rows={m ? 3 : 2} />
+            <Field label="Parking Space Availability">
+              <TextAreaInput mobile={m} value={values.parkingDockingSpace} onChange={set('parkingDockingSpace')} placeholder="Mention area for seperate parking if available" rows={m ? 3 : 2} />
             </Field>
 
             {row(
               col(
-                <Field label="Power (KVA)">
-                  <TextInput mobile={m} value={values.powerKva} onChange={set('powerKva')} placeholder="Power in KVA" />
+                <Field label="Washroom Count">
+                  <TextInput mobile={m} value={values.washroom_count} onChange={set('washroom_count')} placeholder="Number of washrooms" />
                 </Field>,
                 true)
             )}
@@ -859,15 +859,15 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(
               col(
                 <Field label="Fire Safety Measures">
-                  <TextInput mobile={m} value={values.fireSafetyMeasures} onChange={set('fireSafetyMeasures')} placeholder="Fire safety measures" />
+                  <TextInput mobile={m} value={values.fireSafetyMeasures} onChange={set('fireSafetyMeasures')} placeholder="eg: Hydrants, Sprinklers etc" />
                 </Field>,
                 true)
             )}
 
             {row(<>
               {col(
-                <Field label="Fire Compliance Cert Type" tooltip="E.g. in Bangalore there is Fire Advisory, or Fire NOC.">
-                  <TextInput mobile={m} value={values.fire_compliance_cert_type} onChange={set('fire_compliance_cert_type')} placeholder="Cert type" />
+                <Field label="Fire Compliance Certification Type" tooltip="E.g. in Bangalore there is Fire Advisory, or Fire NOC.">
+                  <TextInput mobile={m} value={values.fire_compliance_cert_type} onChange={set('fire_compliance_cert_type')} placeholder="Fire Compliance Certifications" />
                 </Field>,
                 true)}
               {col(
