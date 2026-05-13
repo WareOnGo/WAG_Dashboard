@@ -232,84 +232,23 @@ const WarehouseDetailsModal = ({
     >
       <div style={{ color: 'var(--text-primary)' }}>
 
-        {/* ── Basic Information ───────────────────────────────── */}
-        <Section title="Basic Information">
+        {/* ── Owner Details ───────────────────────────────────── */}
+        <Section title="Owner Details">
           {row(<>
-            {col(
-              <Field label="Warehouse Owner Type" mobile={m}>
-                <TextValue mobile={m} value={warehouse.warehouseOwnerType} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Warehouse Type" mobile={m}>
-                <TextValue mobile={m} value={warehouse.warehouseType} />
-              </Field>,
-            true)}
-          </>)}
-
-          {row(
-            col(
-              <Field label="Zone" mobile={m}>
-                <TextValue mobile={m} value={warehouse.zone} />
-              </Field>,
-            true)
-          )}
-
-          <Field label="Address" mobile={m}>
-            <TextAreaValue mobile={m} value={warehouse.address} />
-          </Field>
-
-          {row(<>
-            {col(
-              <Field label="City" mobile={m}>
-                <TextValue mobile={m} value={warehouse.city} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="State" mobile={m}>
-                <TextValue mobile={m} value={warehouse.state} />
-              </Field>,
-            true)}
+            {col(<Field label="Listing Type" mobile={m}><TextValue mobile={m} value={warehouse.listing_type} /></Field>, true)}
+            {col(<Field label="Warehouse Owner Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseOwnerType} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(
-              <Field label="Postal Code" mobile={m}>
-                <TextValue mobile={m} value={warehouse.postalCode} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Google Location URL" mobile={m}>
-                {warehouse.googleLocation ? (
-                  <a
-                    href={warehouse.googleLocation}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      ...valueBase(m),
-                      color: '#4ea1f5',
-                      textDecoration: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {warehouse.googleLocation} ↗
-                  </a>
-                ) : (
-                  <TextValue mobile={m} value={warehouse.googleLocation} />
-                )}
-              </Field>,
-            true)}
-          </>)}
-        </Section>
-
-        {/* ── Contact Information ─────────────────────────────── */}
-        <Section title="Contact Information">
-          {row(<>
+            {col(<Field label="Owner Company Name" mobile={m}><TextValue mobile={m} value={warehouse.ownerCompanyName} /></Field>, true)}
             {col(
               <Field label="Contact Person" mobile={m}>
                 <TextValue mobile={m} value={warehouse.contactPerson} />
               </Field>,
             true)}
+          </>)}
+
+          {row(<>
             {col(
               <Field label="Contact Number" mobile={m}>
                 <div style={valueBase(m)}>
@@ -317,155 +256,217 @@ const WarehouseDetailsModal = ({
                 </div>
               </Field>,
             true)}
+            {col(<Field label="Alternate Phone Number" mobile={m}><TextValue mobile={m} value={warehouse.alt_phone_number} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Owner Alternate POC" mobile={m}><TextValue mobile={m} value={warehouse.ownerAltPoc} /></Field>, true)}
+            {col(<Field label="Is Broker" mobile={m}><TextValue mobile={m} value={warehouse.isBroker} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Is Builder" mobile={m}><TextValue mobile={m} value={warehouse.is_builder} /></Field>, true)}
+            {col(<Field label="Owner Warmth" mobile={m}><TextValue mobile={m} value={warehouse.owner_warmnth} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Owner of Multiple Sites" mobile={m}><TextValue mobile={m} value={warehouse.owner_of_multiple_sites} /></Field>, true)}
+            {col(<Field label="Uploaded By" mobile={m}><TextValue mobile={m} value={warehouse.uploadedBy} /></Field>, true)}
           </>)}
         </Section>
 
-        {/* ── Warehouse Details ───────────────────────────────── */}
-        <Section title="Warehouse Details">
+        {/* ── Location Details ────────────────────────────────── */}
+        <Section title="Location Details">
+          <Field label="Address" mobile={m}>
+            <TextAreaValue mobile={m} value={warehouse.address} />
+          </Field>
+
           {row(<>
+            {col(<Field label="City" mobile={m}><TextValue mobile={m} value={warehouse.city} /></Field>, true)}
+            {col(<Field label="State" mobile={m}><TextValue mobile={m} value={warehouse.state} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Postal Code" mobile={m}><TextValue mobile={m} value={warehouse.postalCode} /></Field>, true)}
+            {col(<Field label="Zone" mobile={m}><TextValue mobile={m} value={warehouse.zone} /></Field>, true)}
+          </>)}
+
+          <Field label="Google Location URL" mobile={m}>
+            {warehouse.googleLocation ? (
+              <a
+                href={warehouse.googleLocation}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ ...valueBase(m), color: '#4ea1f5', textDecoration: 'none', cursor: 'pointer' }}
+              >
+                {warehouse.googleLocation} ↗
+              </a>
+            ) : (
+              <TextValue mobile={m} value={warehouse.googleLocation} />
+            )}
+          </Field>
+
+          {row(<>
+            {col(<Field label="Latitude" mobile={m}><TextValue mobile={m} value={wd.latitude} /></Field>, true)}
+            {col(<Field label="Longitude" mobile={m}><TextValue mobile={m} value={wd.longitude} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Nearest Bus Transport" mobile={m}><TextValue mobile={m} value={warehouse.nearest_transport} /></Field>, true)}
+            {col(<Field label="Distance from Highway" mobile={m}><TextValue mobile={m} value={warehouse.distance_from_highway} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Approach Road Width (ft)" mobile={m}><TextValue mobile={m} value={wd.approachRoadWidth} /></Field>, true)}
+            {col(<Field label="Land Type" mobile={m}><TextValue mobile={m} value={wd.landType} /></Field>, true)}
+          </>)}
+
+          {row(
+            col(<Field label="Pollution Zone" mobile={m}><TextValue mobile={m} value={wd.pollutionZone} /></Field>, true)
+          )}
+        </Section>
+
+        {/* ── Warehouse Technical Specifications ──────────────── */}
+        <Section title="Warehouse Technical Specifications">
+          {row(<>
+            {col(<Field label="Warehouse Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseType} /></Field>, true)}
             {col(
-              <Field label="Total Space (sq ft)" mobile={m}>
+              /* NOTE: 'totalSpaceSqft' from the schema is displayed as "Offered Area" here per user request */
+              <Field label="Offered Area (sq ft)" mobile={m}>
                 <TextValue mobile={m} value={warehouse.totalSpaceSqft} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Rate per sq ft" mobile={m}>
-                <TextValue mobile={m} value={warehouse.ratePerSqft} />
-              </Field>,
+              </Field>, 
             true)}
           </>)}
 
           {row(<>
-            {col(
-              <Field label="Offered Space (sq ft)" mobile={m}>
-                <TextValue mobile={m} value={warehouse.offeredSpaceSqft} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Number of Docks" mobile={m}>
-                <TextValue mobile={m} value={warehouse.numberOfDocks} />
-              </Field>,
-            true)}
+            {col(<Field label="Land Parcel Size" mobile={m}><TextValue mobile={m} value={warehouse.land_parcel_size} /></Field>, true)}
+            {col(<Field label="Built-up Area" mobile={m}><TextValue mobile={m} value={warehouse.builtup_area} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(
-              <Field label="Clear Height (ft)" mobile={m}>
-                <TextValue mobile={m} value={warehouse.clearHeightFt} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Availability" mobile={m}>
-                <TextValue mobile={m} value={warehouse.availability} />
-              </Field>,
-            true)}
+            {col(<Field label="Carpet Area" mobile={m}><TextValue mobile={m} value={warehouse.carpet_area} /></Field>, true)}
+            {col(<Field label="Dimensions" mobile={m}><TextValue mobile={m} value={wd.dimensions} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(
-              <Field label="Is Broker" mobile={m}>
-                <TextValue mobile={m} value={warehouse.isBroker} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Uploaded By" mobile={m}>
-                <TextValue mobile={m} value={warehouse.uploadedBy} />
-              </Field>,
-            true)}
+            {col(<Field label="Clear Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.clearHeightFt} /></Field>, true)}
+            {col(<Field label="Centre Height" mobile={m}><TextValue mobile={m} value={warehouse.centreHeight} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(
-              <Field label="Visibility" mobile={m}>
-                <TextValue mobile={m} value={warehouse.visibility} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Compliances" mobile={m}>
-                <TextValue mobile={m} value={warehouse.compliances} />
-              </Field>,
-            true)}
+            {col(<Field label="Plinth Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.plinthHeightFt} /></Field>, true)}
+            {col(<Field label="Number of Docks" mobile={m}><TextValue mobile={m} value={warehouse.numberOfDocks} /></Field>, true)}
           </>)}
+
+          {row(<>
+            {col(<Field label="Dock Dimension" mobile={m}><TextValue mobile={m} value={warehouse.dockDimension} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Dock Apron Length (ft)" mobile={m}><TextValue mobile={m} value={warehouse.dockApronLengthFt} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Dock Platform Type" mobile={m}><TextValue mobile={m} value={warehouse.dockPlatformType} /></Field>, true)}
+            {col(<Field label="Gate Size (ft)" mobile={m}><TextValue mobile={m} value={warehouse.gateSizeFt} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Setback Area" mobile={m}><TextValue mobile={m} value={warehouse.setbackArea} /></Field>, true)}
+            {col(<Field label="CC Roads" mobile={m}><TextValue mobile={m} value={warehouse.ccRoads} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Wall & Security Room" mobile={m}><TextValue mobile={m} value={warehouse.wallAndSecurityRoom} /></Field>, true)}
+            {col(<Field label="Canopy Type" mobile={m}><TextValue mobile={m} value={warehouse.canopyType} /></Field>, true)}
+          </>)}
+
+          <Field label="Other Docking Specs" mobile={m}>
+            <TextAreaValue mobile={m} value={warehouse.otherDockingSpecs} />
+          </Field>
+
+          {row(<>
+            {col(<Field label="Flooring Type" mobile={m}><TextValue mobile={m} value={warehouse.flooringType} /></Field>, true)}
+            {col(<Field label="Floor Strength (per sqm)" mobile={m}><TextValue mobile={m} value={warehouse.floorStrengthPerSqm} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Ventilation Type" mobile={m}><TextValue mobile={m} value={warehouse.ventilationType} /></Field>, true)}
+            {col(<Field label="Ventilation Air Changes/Day" mobile={m}><TextValue mobile={m} value={warehouse.ventilationAirChangesPerDay} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Insulation Present" mobile={m}><TextValue mobile={m} value={warehouse.insulationPresent} /></Field>, true)}
+            {col(<Field label="Insulation Type" mobile={m}><TextValue mobile={m} value={warehouse.insulationType} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Lighting Details" mobile={m}><TextValue mobile={m} value={warehouse.lightingDetails} /></Field>, true)}
+            {col(<Field label="Washroom Count" mobile={m}><TextValue mobile={m} value={warehouse.washroom_count} /></Field>, true)}
+          </>)}
+
+          <Field label="Parking & Docking Space" mobile={m}>
+            <TextAreaValue mobile={m} value={wd.parkingDockingSpace} />
+          </Field>
+
+          {row(
+            col(<Field label="Power (KVA)" mobile={m}><TextValue mobile={m} value={wd.powerKva} /></Field>, true)
+          )}
 
           <Field label="Other Specifications" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.otherSpecifications} />
           </Field>
         </Section>
 
-        {/* ── Location Data ───────────────────────────────────── */}
-        <Section title="Location Data">
-          {row(<>
-            {col(
-              <Field label="Latitude" mobile={m}>
-                <TextValue mobile={m} value={wd.latitude} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Longitude" mobile={m}>
-                <TextValue mobile={m} value={wd.longitude} />
-              </Field>,
-            true)}
-          </>)}
-
-          {row(<>
-            {col(
-              <Field label="Fire NOC Available" mobile={m}>
-                <TextValue mobile={m} value={wd.fireNocAvailable} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Fire Safety Measures" mobile={m}>
-                <TextValue mobile={m} value={wd.fireSafetyMeasures} />
-              </Field>,
-            true)}
-          </>)}
-
-          {row(<>
-            {col(
-              <Field label="Land Type" mobile={m}>
-                <TextValue mobile={m} value={wd.landType} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Approach Road Width (ft)" mobile={m}>
-                <TextValue mobile={m} value={wd.approachRoadWidth} />
-              </Field>,
-            true)}
-          </>)}
-
-          {row(<>
-            {col(
-              <Field label="Power (KVA)" mobile={m}>
-                <TextValue mobile={m} value={wd.powerKva} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Pollution Zone" mobile={m}>
-                <TextValue mobile={m} value={wd.pollutionZone} />
-              </Field>,
-            true)}
-          </>)}
-
-          {row(<>
-            {col(
-              <Field label="Vaastu Compliance" mobile={m}>
-                <TextValue mobile={m} value={wd.vaastuCompliance} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Dimensions" mobile={m}>
-                <TextValue mobile={m} value={wd.dimensions} />
-              </Field>,
-            true)}
-          </>)}
-
-          <Field label="Parking & Docking Space" mobile={m}>
-            <TextAreaValue mobile={m} value={wd.parkingDockingSpace} />
+        {/* ── Compliances ─────────────────────────────────────── */}
+        <Section title="Compliances">
+          <Field label="Compliances" mobile={m}>
+            <TextAreaValue mobile={m} value={warehouse.compliances} />
           </Field>
+
+          {row(<>
+            {col(<Field label="Fire Exits" mobile={m}><TextValue mobile={m} value={warehouse.fire_exits} /></Field>, true)}
+            {col(<Field label="Fire NOC Available" mobile={m}><TextValue mobile={m} value={wd.fireNocAvailable} /></Field>, true)}
+          </>)}
+
+          {row(
+            col(<Field label="Fire Safety Measures" mobile={m}><TextValue mobile={m} value={wd.fireSafetyMeasures} /></Field>, true)
+          )}
+
+          {row(<>
+            {col(<Field label="Fire Compliance Cert Type" mobile={m}><TextValue mobile={m} value={warehouse.fire_compliance_cert_type} /></Field>, true)}
+            {col(<Field label="Vaastu Compliance" mobile={m}><TextValue mobile={m} value={wd.vaastuCompliance} /></Field>, true)}
+          </>)}
+
+          {row(
+            col(<Field label="WOG Verified" mobile={m}><TextValue mobile={m} value={warehouse.wogVerified === true ? 'Yes' : warehouse.wogVerified === false ? 'No' : '-'} /></Field>, true)
+          )}
         </Section>
 
-        {/* ── Warehouse Media ─────────────────────────────────── */}
-        <Section title="Warehouse Media">
+        {/* ── Commercials ─────────────────────────────────────── */}
+        <Section title="Commercials">
+          {row(<>
+            {col(<Field label="Rate per sq ft" mobile={m}><TextValue mobile={m} value={warehouse.ratePerSqft} /></Field>, true)}
+            {col(<Field label="Negotiated Rent" mobile={m}><TextValue mobile={m} value={warehouse.negotiated_rent} /></Field>, true)}
+          </>)}
+
+          {row(
+            col(<Field label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)
+          )}
+        </Section>
+
+        {/* ── Metadata (incl. media) ──────────────────────────── */}
+        <Section title="Metadata">
+          {row(<>
+            {col(<Field label="Visibility" mobile={m}><TextValue mobile={m} value={warehouse.visibility} /></Field>, true)}
+            {col(<Field label="ID" mobile={m}><TextValue mobile={m} value={warehouse.id} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Created At" mobile={m}><TextValue mobile={m} value={formatIST(warehouse.createdAt)} /></Field>, true)}
+            {col(<Field label="Status Updated At" mobile={m}><TextValue mobile={m} value={formatIST(warehouse.status_updated_at)} /></Field>, true)}
+          </>)}
+
           {!hasMedia && (
             <Field label="Uploaded Files" mobile={m}>
               <TextValue mobile={m} value="-" />
@@ -602,35 +603,6 @@ const WarehouseDetailsModal = ({
             </Field>
           )}
 
-        </Section>
-
-        {/* ── Metadata ────────────────────────────────────────── */}
-        <Section title="Metadata">
-          {row(<>
-            {col(
-              <Field label="ID" mobile={m}>
-                <TextValue mobile={m} value={warehouse.id} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Created At" mobile={m}>
-                <TextValue mobile={m} value={formatIST(warehouse.createdAt)} />
-              </Field>,
-            true)}
-          </>)}
-
-          {row(<>
-            {col(
-              <Field label="Updated At" mobile={m}>
-                <TextValue mobile={m} value={formatIST(warehouse.updatedAt)} />
-              </Field>,
-            true)}
-            {col(
-              <Field label="Uploaded By" mobile={m}>
-                <TextValue mobile={m} value={warehouse.uploadedBy} />
-              </Field>,
-            true)}
-          </>)}
         </Section>
 
         {/* ── Actions ─────────────────────────────────────────── */}
