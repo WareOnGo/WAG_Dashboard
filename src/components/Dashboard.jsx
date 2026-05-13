@@ -590,7 +590,7 @@ const Dashboard = () => {
       render: (_, record) => <RedactedPhone warehouseId={record.id} />,
     },
     {
-      title: 'Total Space',
+      title: 'Offered Area',
       dataIndex: 'totalSpaceSqft',
       key: 'totalSpaceSqft',
       width: 150,

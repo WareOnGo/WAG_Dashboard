@@ -176,7 +176,7 @@ const WarehouseCard = ({
         {/* Key Metrics */}
         <div className="warehouse-card__metrics">
           <div className="warehouse-card__metric">
-            <span className="warehouse-card__metric-label">Total Space</span>
+            <span className="warehouse-card__metric-label">Offered Area</span>
             <span className="warehouse-card__metric-value">
               {formatSpace(warehouse.totalSpaceSqft)} sq ft
             </span>
