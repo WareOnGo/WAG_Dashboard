@@ -262,7 +262,7 @@ const MobileHeader = ({ onMenuToggle }) => {
   };
 
   return (
-    <>
+    <div style={{ position: 'sticky', top: 0, zIndex: 'var(--z-sticky, 1000)', width: '100%' }}>
       <Header
         className="modern-header"
         style={{
@@ -275,9 +275,6 @@ const MobileHeader = ({ onMenuToggle }) => {
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 'var(--z-sticky)',
           paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '0',
         }}
       >
@@ -744,7 +741,7 @@ const MobileHeader = ({ onMenuToggle }) => {
         onGenerate={handlePptGenerate}
         generating={generatingPpt}
       />
-    </>
+    </div>
   );
 };
 
