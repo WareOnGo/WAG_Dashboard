@@ -13,7 +13,7 @@ import { getMediaFromWarehouse } from '../utils/mediaUtils';
 
 const ZONES = ['North', 'South', 'East', 'West', 'Central'];
 const LAND_TYPES = ['Commercial', 'Industrial', 'Others'];
-const POLLUTION_ZONES = ['Green', 'Orange', 'Red', 'White'];
+const POLLUTION_ZONES = ['Green', 'Yellow', 'Red'];
 const BROKER_OPTIONS = ['Yes', 'No'];
 
 const INITIAL_VALUES = {
@@ -741,7 +741,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Compound Gate Width (ft)">
-                  <TextInput mobile={m} value={values.gateSizeFt} onChange={set('gateSizeFt')} placeholder="Gate Width of Compound" />
+                  <TextInput mobile={m} value={values.gateSizeFt} onChange={set('gateSizeFt')} placeholder="Gate Width" />
                 </Field>,
                 true)}
               {col(
@@ -755,18 +755,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               <TextAreaInput mobile={m} value={values.otherDockingSpecs} onChange={set('otherDockingSpecs')} placeholder="Other docking specifications" rows={m ? 3 : 2} />
             </Field>
 
-            {row(<>
-              {col(
+            {row(
+              col(
                 <Field label="CC Roads" tooltip="Are there concrete roads around the warehouse?">
                   <ToggleSwitch checked={values.ccRoads === true || values.ccRoads === 'true' || values.ccRoads === 'Yes'} onChange={(v) => set('ccRoads')(v)} />
                 </Field>,
-                true)}
-              {col(
-                <Field label="Security Features">
-                  <TextInput mobile={m} value={values.wallAndSecurityRoom} onChange={set('wallAndSecurityRoom')} placeholder="eg: Security Room, CCTV etc" />
-                </Field>,
-                true)}
-            </>)}
+                true)
+            )}
 
             {row(<>
               {col(
@@ -824,13 +819,18 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               <TextAreaInput mobile={m} value={values.parkingDockingSpace} onChange={set('parkingDockingSpace')} placeholder="Mention area for seperate parking if available" rows={m ? 3 : 2} />
             </Field>
 
-            {row(
-              col(
+            {row(<>
+              {col(
                 <Field label="Washroom Count">
                   <TextInput mobile={m} value={values.washroom_count} onChange={set('washroom_count')} placeholder="Number of washrooms" />
                 </Field>,
-                true)
-            )}
+                true)}
+              {col(
+                <Field label="Security Features">
+                  <TextInput mobile={m} value={values.wallAndSecurityRoom} onChange={set('wallAndSecurityRoom')} placeholder="eg: Security Room, CCTV etc" />
+                </Field>,
+                true)}
+            </>)}
 
             <Field label="Other Specifications">
               <TextAreaInput mobile={m} value={values.otherSpecifications} onChange={set('otherSpecifications')} placeholder="Other specifications" rows={m ? 3 : 2} />
@@ -846,7 +846,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Fire Exits">
-                  <TextInput mobile={m} value={values.fire_exits} onChange={set('fire_exits')} placeholder="Number / details" />
+                  <TextInput mobile={m} value={values.fire_exits} onChange={set('fire_exits')} placeholder="Number of Fire Exits" />
                 </Field>,
                 true)}
               {col(
@@ -877,13 +877,6 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
             </>)}
 
-            {row(
-              col(
-                <Field label="WOG Verified">
-                  <ToggleSwitch checked={values.wogVerified} onChange={set('wogVerified')} />
-                </Field>,
-                true)
-            )}
           </Section>
 
           {/* ── Commercials ─────────────────────────────────────── */}
@@ -924,6 +917,32 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               <FileUpload value={values.media} onChange={set('media')} />
             </Field>
           </Section>
+
+          {/* ── WOG Verification (distinct) ──────────────────────── */}
+          <div
+            style={{
+              marginTop: 20,
+              padding: m ? 14 : 16,
+              border: '1px solid var(--border-primary, #303030)',
+              borderRadius: 8,
+              background: 'var(--bg-secondary, transparent)',
+              display: 'flex',
+              flexDirection: m ? 'column' : 'row',
+              alignItems: m ? 'flex-start' : 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>
+                WOG Verified
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
+                Mark this warehouse as verified by Wareongo.
+              </div>
+            </div>
+            <ToggleSwitch checked={values.wogVerified} onChange={set('wogVerified')} />
+          </div>
 
           {/* ── Actions ─────────────────────────────────────────── */}
           <div
