@@ -127,7 +127,7 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
 
                     const firstImage = getFirstImage();
                     const imageHtml = firstImage
-                        ? `<img src="${firstImage}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" onerror="this.style.display='none'" loading="lazy" />`
+                        ? `<img src="${firstImage}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" onerror="this.style.display='none'" loading="lazy" crossorigin="anonymous" />`
                         : '';
 
                     // Create popup HTML

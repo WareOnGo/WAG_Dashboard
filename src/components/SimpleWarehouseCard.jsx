@@ -125,6 +125,7 @@ const SimpleWarehouseCard = ({
           alt={`Warehouse ${warehouse.id}`}
           className="simple-warehouse-card__image"
           loading="lazy"
+          crossOrigin="anonymous"
         />
       ) : (
         <div className="simple-warehouse-card__image-placeholder">

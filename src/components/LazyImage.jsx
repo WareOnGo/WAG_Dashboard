@@ -94,6 +94,7 @@ const LazyImage = ({
           alt={alt}
           style={imageStyle}
           loading="lazy"
+          crossOrigin="anonymous"
         />
       )}
       
