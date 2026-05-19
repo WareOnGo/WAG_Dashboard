@@ -252,6 +252,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
                   display: 'block',
                 }}
                 loading="lazy"
+                crossOrigin="anonymous"
               />
               {isActive && (
                 <div style={{

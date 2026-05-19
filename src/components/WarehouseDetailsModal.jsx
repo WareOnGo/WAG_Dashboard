@@ -498,6 +498,7 @@ const WarehouseDetailsModal = ({
                       key={i}
                       src={url}
                       alt={`Warehouse ${warehouse.id} - Image ${i + 1}`}
+                      crossOrigin="anonymous"
                       style={{
                         width: '100%',
                         height: m ? 130 : 120,

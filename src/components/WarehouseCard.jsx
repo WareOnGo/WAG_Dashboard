@@ -141,6 +141,7 @@ const WarehouseCard = ({
               }}
               onError={() => setImageError(true)}
               loading="lazy"
+              crossOrigin="anonymous"
             />
           ) : (
             <div className="warehouse-card__image-placeholder">
