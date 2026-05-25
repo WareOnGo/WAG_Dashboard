@@ -135,3 +135,11 @@ export async function generateDetailedPpt({ ids, selectedImages, customDetails }
   const filename = buildFilename(customDetails, ids, true);
   await postPpt('/generate-detailed-ppt', { ids, selectedImages, customDetails }, filename);
 }
+
+/**
+ * Generate and download a v2 PPT (sidebar layout, photo grid, fixed cover hero).
+ */
+export async function generatePptV2({ ids, selectedImages, customDetails }) {
+  const filename = buildFilename(customDetails, ids, false);
+  await postPpt('/generate-ppt-v2', { ids, selectedImages, customDetails }, filename);
+}

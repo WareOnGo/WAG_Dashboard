@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Switch, Spin, Tooltip } from 'antd';
+import { Button, Switch, Spin, Tooltip, message } from 'antd';
 import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
@@ -190,17 +190,18 @@ const TextInput = ({ value, onChange, mobile, placeholder, type = 'text', inputM
   />
 );
 
-const TextAreaInput = ({ value, onChange, mobile, placeholder, rows = 3 }) => (
+const TextAreaInput = ({ value, onChange, mobile, placeholder, rows = 3, ...rest }) => (
   <textarea
     value={value ?? ''}
     onChange={e => onChange(e.target.value)}
     placeholder={placeholder}
     rows={rows}
     style={{ ...inputBase(mobile), resize: 'vertical', fontFamily: 'inherit' }}
+    {...rest}
   />
 );
 
-const SelectInput = ({ value, onChange, mobile, placeholder, options }) => (
+const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest }) => (
   <select
     value={value ?? ''}
     onChange={e => onChange(e.target.value)}
@@ -209,6 +210,7 @@ const SelectInput = ({ value, onChange, mobile, placeholder, options }) => (
       appearance: 'auto',
       cursor: 'pointer',
     }}
+    {...rest}
   >
     <option value="" disabled>{placeholder}</option>
     {options.map(o => <option key={o} value={o}>{o}</option>)}
@@ -291,16 +293,25 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
     setErrors(e);
 
-    // Scroll to first error on mobile
-    if (Object.keys(e).length > 0) {
-      const firstKey = Object.keys(e)[0];
+    const missingKeys = Object.keys(e);
+    if (missingKeys.length > 0) {
+      message.error(
+        missingKeys.length === 1
+          ? `Please fill in the required field: ${e[missingKeys[0]]}`
+          : `Please fill in ${missingKeys.length} required fields`
+      );
       setTimeout(() => {
-        const el = document.querySelector(`[data-field="${firstKey}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const el = document.querySelector(`[data-field="${missingKeys[0]}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (typeof el.focus === 'function') {
+            el.focus({ preventScroll: true });
+          }
+        }
       }, 50);
     }
 
-    return Object.keys(e).length === 0;
+    return missingKeys.length === 0;
   };
 
   // ── Submit ──────────────────────────────────────────────────────────────────
