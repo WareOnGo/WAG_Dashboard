@@ -657,6 +657,27 @@ const Dashboard = () => {
       render: (availability) => <span>{availability || 'Unknown'}</span>,
     },
     {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 150,
+      render: (status) => <span>{status || '-'}</span>,
+    },
+    {
+      title: 'Handover Date',
+      dataIndex: 'handoverDate',
+      key: 'handoverDate',
+      width: 130,
+      render: (d) => <span>{d ? String(d).slice(0, 10) : '-'}</span>,
+    },
+    {
+      title: 'Lock-in Date',
+      dataIndex: 'lockInDate',
+      key: 'lockInDate',
+      width: 130,
+      render: (d) => <span>{d ? String(d).slice(0, 10) : '-'}</span>,
+    },
+    {
       title: 'Broker',
       dataIndex: 'isBroker',
       key: 'isBroker',
@@ -961,12 +982,16 @@ const Dashboard = () => {
                 <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
                   Availability
                 </div>
-                <Input
+                <Select
                   placeholder="Filter by availability"
-                  value={selectedAvailability}
-                  onChange={(e) => setSelectedAvailability(e.target.value)}
+                  value={selectedAvailability || undefined}
+                  onChange={(value) => setSelectedAvailability(value || '')}
                   allowClear
-                />
+                  style={{ width: '100%' }}
+                >
+                  <Option value="Yes">Yes</Option>
+                  <Option value="No">No</Option>
+                </Select>
               </Col>
 
               <Col xs={24} sm={12} md={8} lg={6}>

@@ -117,6 +117,16 @@ const formatIST = (v) => {
   }) + ' IST';
 };
 
+const formatDate = (v) => {
+  if (v === null || v === undefined || v === '') return null;
+  const s = String(v).slice(0, 10);
+  const [y, m, d] = s.split('-');
+  if (!y || !m || !d) return null;
+  const dt = new Date(Number(y), Number(m) - 1, Number(d));
+  if (isNaN(dt.getTime())) return null;
+  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+};
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 const WarehouseDetailsModal = ({
@@ -450,9 +460,15 @@ const WarehouseDetailsModal = ({
             {col(<Field label="Negotiated Rent" mobile={m}><TextValue mobile={m} value={warehouse.negotiated_rent} /></Field>, true)}
           </>)}
 
-          {row(
-            col(<Field label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)
-          )}
+          {row(<>
+            {col(<Field label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)}
+            {col(<Field label="Status" mobile={m}><TextValue mobile={m} value={warehouse.status} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Handover Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.handoverDate)} /></Field>, true)}
+            {col(<Field label="Lock-in Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.lockInDate)} /></Field>, true)}
+          </>)}
         </Section>
 
         {/* ── Metadata (incl. media) ──────────────────────────── */}

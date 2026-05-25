@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Switch, Spin, Tooltip, message } from 'antd';
+import { Button, Switch, Spin, Tooltip, message, DatePicker } from 'antd';
+import dayjs from 'dayjs';
 import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
@@ -15,6 +16,7 @@ const ZONES = ['North', 'South', 'East', 'West', 'Central'];
 const LAND_TYPES = ['Commercial', 'Industrial', 'Others'];
 const POLLUTION_ZONES = ['Green', 'Yellow', 'Red'];
 const BROKER_OPTIONS = ['Yes', 'No'];
+const STATUS_OPTIONS = ['Under construction', 'Build to suit', 'Ready to move'];
 
 const INITIAL_VALUES = {
   warehouseOwnerType: '', warehouseType: '', zone: '', address: '',
@@ -41,6 +43,7 @@ const INITIAL_VALUES = {
   flooringType: '', floorStrengthPerSqm: '', ventilationType: '',
   ventilationAirChangesPerDay: '', insulationPresent: '', insulationType: '',
   lightingDetails: '', wogVerified: false, centreHeight: '',
+  status: '', handoverDate: '', lockInDate: '',
 };
 
 /** Flatten initialData (including nested WarehouseData) into form shape */
@@ -120,6 +123,9 @@ const toFormValues = (d) => {
     lightingDetails: d.lightingDetails || '',
     wogVerified: d.wogVerified === true || d.wogVerified === 'true',
     centreHeight: d.centreHeight || '',
+    status: d.status || '',
+    handoverDate: d.handoverDate ? String(d.handoverDate).slice(0, 10) : '',
+    lockInDate: d.lockInDate ? String(d.lockInDate).slice(0, 10) : '',
   };
 };
 
@@ -215,6 +221,27 @@ const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest })
     <option value="" disabled>{placeholder}</option>
     {options.map(o => <option key={o} value={o}>{o}</option>)}
   </select>
+);
+
+const DateInput = ({ value, onChange, mobile, placeholder }) => (
+  <DatePicker
+    value={value ? dayjs(value, 'YYYY-MM-DD') : null}
+    onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : '')}
+    format="DD/MM/YYYY"
+    placeholder={placeholder || 'DD/MM/YYYY'}
+    size={mobile ? 'large' : 'middle'}
+    className="wf-datepicker"
+    style={{
+      width: '100%',
+      minHeight: mobile ? 44 : 36,
+      background: 'var(--bg-primary, #141414)',
+      border: '1px solid var(--border-primary, #303030)',
+      borderRadius: 8,
+      fontSize: mobile ? 16 : 14,
+    }}
+    styles={{ popup: { root: { zIndex: 2000 } } }}
+    allowClear
+  />
 );
 
 const ToggleSwitch = ({ checked, onChange, yesLabel = 'Yes', noLabel = 'No' }) => (
@@ -394,6 +421,9 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         lightingDetails: values.lightingDetails || null,
         wogVerified: typeof values.wogVerified === 'boolean' ? values.wogVerified : null,
         centreHeight: values.centreHeight || null,
+        status: values.status || null,
+        handoverDate: values.handoverDate || null,
+        lockInDate: values.lockInDate || null,
         warehouseData: {
           latitude: values.latitude || null,
           longitude: values.longitude || null,
@@ -911,13 +941,35 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
             </>)}
 
-            {row(
-              col(
-                <Field label="Availability" tooltip="Please mention the date of availability.">
-                  <TextInput mobile={m} value={values.availability} onChange={set('availability')} placeholder="Available, Occupied, etc." />
+          </Section>
+
+          {/* ── Availability ────────────────────────────────────── */}
+          <Section title="Availability">
+            {row(<>
+              {col(
+                <Field label="Availability" tooltip="If the space can be booked (now/in future) within the next 6 months, then Y, else N.">
+                  <SelectInput mobile={m} value={values.availability} onChange={set('availability')} placeholder="Select availability" options={['Yes', 'No']} />
                 </Field>,
-                true)
-            )}
+                true)}
+              {col(
+                <Field label="Status" tooltip="Mention the building construction status (not related to whether it is occupied or not).">
+                  <SelectInput mobile={m} value={values.status} onChange={set('status')} placeholder="Select status" options={STATUS_OPTIONS} />
+                </Field>,
+                true)}
+            </>)}
+
+            {row(<>
+              {col(
+                <Field label="Handover Date" tooltip="Mention date from which warehouse can be realistically given.">
+                  <DateInput mobile={m} value={values.handoverDate} onChange={set('handoverDate')} />
+                </Field>,
+                true)}
+              {col(
+                <Field label="Lock-in Date" tooltip="Fill if Availability = N; by when will the lock-in / agreement duration end, when it could potentially become available.">
+                  <DateInput mobile={m} value={values.lockInDate} onChange={set('lockInDate')} />
+                </Field>,
+                true)}
+            </>)}
           </Section>
 
           {/* ── Metadata ────────────────────────────────────────── */}
