@@ -89,7 +89,8 @@ export const useLazyImage = (src, options = {}) => {
     if (!isIntersecting || !src) return;
 
     const img = new Image();
-    
+    img.crossOrigin = 'anonymous';
+
     img.onload = () => {
       setImageSrc(src);
       setImageStatus('loaded');
