@@ -58,6 +58,8 @@ const WarehouseCard = ({
   // Get warehouse status color
   const getStatusColor = () => {
     const availability = warehouse.availability?.toLowerCase();
+    if (availability === 'yes') return 'green';
+    if (availability === 'no') return 'red';
     if (availability?.includes('available')) return 'green';
     if (availability?.includes('occupied')) return 'red';
     if (availability?.includes('partial')) return 'orange';

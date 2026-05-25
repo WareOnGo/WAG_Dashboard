@@ -487,13 +487,17 @@ const MobileFilterDrawer = ({
                       />
                     )}
                   </div>
-                  <Input
+                  <Select
                     placeholder="Filter by availability"
-                    value={selectedAvailability}
-                    onChange={(e) => setSelectedAvailability(e.target.value)}
+                    value={selectedAvailability || undefined}
+                    onChange={(value) => setSelectedAvailability(value || '')}
                     allowClear
+                    style={{ width: '100%' }}
                     className={selectedAvailability ? 'active-input' : ''}
-                  />
+                  >
+                    <Option value="Yes">Yes</Option>
+                    <Option value="No">No</Option>
+                  </Select>
                 </Col>
 
                 <Col xs={24}>

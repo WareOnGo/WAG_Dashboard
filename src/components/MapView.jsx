@@ -113,6 +113,8 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
                     // Get marker color based on availability
                     const getMarkerColor = () => {
                         const availability = warehouse.availability?.toLowerCase();
+                        if (availability === 'yes') return '#3d8b40'; // Darker green
+                        if (availability === 'no') return '#c62828'; // Darker red
                         if (availability?.includes('available')) return '#3d8b40'; // Darker green
                         if (availability?.includes('occupied')) return '#c62828'; // Darker red
                         if (availability?.includes('partial')) return '#d68910'; // Darker orange
