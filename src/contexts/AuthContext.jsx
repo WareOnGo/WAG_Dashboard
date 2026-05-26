@@ -205,6 +205,25 @@ export const AuthProvider = ({ children }) => {
               token: storedToken
             }
           });
+
+          // Refresh user from /auth/me so fields added server-side after login
+          // (e.g. isAdmin) appear without forcing a re-login. Best-effort.
+          try {
+            const meRes = await fetch(`${authConfig.api.baseUrl}${authConfig.api.authEndpoints.me}`, {
+              headers: { 'Authorization': `Bearer ${storedToken}` }
+            });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              const freshUser = meData.user || meData.data?.user;
+              if (freshUser) {
+                setStoredUser(freshUser);
+                dispatch({ type: AUTH_ACTIONS.SET_USER, payload: freshUser });
+              }
+            }
+          } catch (e) {
+            // Non-fatal: keep cached user
+            console.warn('Failed to refresh user from /auth/me:', e);
+          }
         }
       } catch (error) {
         console.error('Error initializing authentication:', error);

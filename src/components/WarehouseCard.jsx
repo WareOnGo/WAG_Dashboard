@@ -11,6 +11,7 @@ import {
   MoreOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks/useViewport';
+import { useAuth } from '../contexts/AuthContext';
 import RedactedPhone from './RedactedPhone';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import './WarehouseCard.css';
@@ -28,6 +29,8 @@ const WarehouseCard = ({
   onContextMenu 
 }) => {
   const { isMobile } = useViewport();
+  const { user } = useAuth();
+  const isAdmin = !!user?.isAdmin;
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -273,15 +276,17 @@ const WarehouseCard = ({
           {isMobile ? '' : 'Edit'}
         </Button>
         
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={(e) => handleAction('delete', e)}
-          className="warehouse-card__action-btn"
-        >
-          {isMobile ? '' : 'Delete'}
-        </Button>
+        {isAdmin && (
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={(e) => handleAction('delete', e)}
+            className="warehouse-card__action-btn"
+          >
+            {isMobile ? '' : 'Delete'}
+          </Button>
+        )}
 
         {isMobile && (
           <Button
