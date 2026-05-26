@@ -7,6 +7,8 @@ import {
   LoadingOutlined,
   CheckCircleFilled,
   AppstoreOutlined,
+  ShopOutlined,
+  TruckOutlined,
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 
@@ -36,6 +38,18 @@ const PPT_TYPES = [
     icon: <AppstoreOutlined />,
     title: 'PPT v2',
     desc: 'New layout: sidebar tables, photo grid, fixed cover hero',
+  },
+  {
+    value: 'godamwale',
+    icon: <ShopOutlined />,
+    title: 'Godamwale (External)',
+    desc: 'Godamwale-branded deck for external sharing',
+  },
+  {
+    value: 'tci',
+    icon: <TruckOutlined />,
+    title: 'TCI (External)',
+    desc: 'TCI-branded 4:3 deck for external sharing',
   },
 ];
 
@@ -117,7 +131,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     setSelectedImages((prev) => {
       const current = prev[warehouseId] || [];
       const isSelected = current.includes(url);
-      const isStandard = pptType === 'standard' || pptType === 'standard-with-location' || pptType === 'v2';
+      const isStandard = pptType === 'standard' || pptType === 'standard-with-location' || pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
 
       if (isSelected) {
         return { ...prev, [warehouseId]: current.filter((u) => u !== url) };
@@ -227,7 +241,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     }
 
     const selected = selectedImages[warehouse.id] || [];
-    const isStandard = pptType === 'standard' || pptType === 'standard-with-location' || pptType === 'v2';
+    const isStandard = pptType === 'standard' || pptType === 'standard-with-location' || pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
 
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
