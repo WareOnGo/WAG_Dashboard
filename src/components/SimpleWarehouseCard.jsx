@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import RedactedPhone from './RedactedPhone';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { useAuth } from '../contexts/AuthContext';
 import './SimpleWarehouseCard.css';
 
 /**
@@ -21,6 +22,9 @@ const SimpleWarehouseCard = ({
   onViewDetails,
   onToggleVisibility
 }) => {
+  const { user } = useAuth();
+  const isAdmin = !!user?.isAdmin;
+
   // Get first image from media (with fallback to photos CSV)
   const getFirstImage = () => {
     const media = getMediaFromWarehouse(warehouse);
@@ -205,12 +209,14 @@ const SimpleWarehouseCard = ({
             >
               <EditOutlined /> Edit
             </button>
-            <button
-              className="simple-warehouse-card__action-btn simple-warehouse-card__action-btn--danger"
-              onClick={(e) => { e.stopPropagation(); onDelete?.(warehouse); }}
-            >
-              <DeleteOutlined /> Delete
-            </button>
+            {isAdmin && (
+              <button
+                className="simple-warehouse-card__action-btn simple-warehouse-card__action-btn--danger"
+                onClick={(e) => { e.stopPropagation(); onDelete?.(warehouse); }}
+              >
+                <DeleteOutlined /> Delete
+              </button>
+            )}
           </div>
         </div>
       </div>
