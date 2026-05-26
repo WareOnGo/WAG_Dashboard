@@ -143,3 +143,32 @@ export async function generatePptV2({ ids, selectedImages, customDetails }) {
   const filename = buildFilename(customDetails, ids, false);
   await postPpt('/generate-ppt-v2', { ids, selectedImages, customDetails }, filename);
 }
+
+/**
+ * Generate and download a Godamwale-branded PPT (external).
+ * Photos come exclusively from selectedImages; DB photos are not used.
+ */
+export async function generateGodamwalePpt({ ids, selectedImages, customDetails }) {
+  const client = customDetails?.clientName?.trim() || customDetails?.companyName?.trim();
+  const requirement = customDetails?.clientRequirement?.trim();
+  const filename = client
+    ? `Godamwale - WH options for ${client}_${requirement || 'Requirement'}.pptx`
+    : `Godamwale_Warehouses_${ids.replace(/,\s*/g, '_')}.pptx`;
+  await postPpt('/generate-ppt-godamwale', { ids, selectedImages, customDetails }, filename);
+}
+
+/**
+ * Generate and download a TCI-branded PPT (external).
+ * `ids` may be empty — backend falls back to placeholder warehouses.
+ */
+export async function generateTciPpt({ ids, selectedImages, customDetails }) {
+  const client = customDetails?.clientName?.trim() || customDetails?.companyName?.trim();
+  const requirement = customDetails?.clientRequirement?.trim();
+  const idsForName = (ids || '').trim();
+  const filename = client
+    ? `TCI - WH options for ${client}_${requirement || 'Requirement'}.pptx`
+    : idsForName
+      ? `TCI_Warehouses_${idsForName.replace(/,\s*/g, '_')}.pptx`
+      : `TCI_Warehouses_Preview.pptx`;
+  await postPpt('/generate-ppt-tci', { ids, selectedImages, customDetails }, filename);
+}

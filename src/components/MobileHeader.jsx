@@ -11,7 +11,7 @@ import {
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { warehouseService } from '../services/warehouseService';
-import { generateStandardPpt, generateDetailedPpt, generatePptV2 } from '../services/pptService';
+import { generateStandardPpt, generateDetailedPpt, generatePptV2, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
 
 const { Header } = Layout;
@@ -243,6 +243,10 @@ const MobileHeader = ({ onMenuToggle }) => {
         await generateDetailedPpt({ ids, selectedImages, customDetails });
       } else if (pptType === 'v2') {
         await generatePptV2({ ids, selectedImages, customDetails });
+      } else if (pptType === 'godamwale') {
+        await generateGodamwalePpt({ ids, selectedImages, customDetails });
+      } else if (pptType === 'tci') {
+        await generateTciPpt({ ids, selectedImages, customDetails });
       } else {
         await generateStandardPpt({
           ids,
