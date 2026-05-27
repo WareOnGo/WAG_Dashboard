@@ -207,21 +207,28 @@ const TextAreaInput = ({ value, onChange, mobile, placeholder, rows = 3, ...rest
   />
 );
 
-const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest }) => (
-  <select
-    value={value ?? ''}
-    onChange={e => onChange(e.target.value)}
-    style={{
-      ...inputBase(mobile),
-      appearance: 'auto',
-      cursor: 'pointer',
-    }}
-    {...rest}
-  >
-    <option value="" disabled>{placeholder}</option>
-    {options.map(o => <option key={o} value={o}>{o}</option>)}
-  </select>
-);
+const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest }) => {
+  // Preserve free-text values that don't match a predefined option, so an
+  // existing entry is shown (and not silently overwritten) in edit mode while
+  // the dropdown still lets the user switch to a standard option.
+  const hasCustomValue = value != null && value !== '' && !options.includes(value);
+  return (
+    <select
+      value={value ?? ''}
+      onChange={e => onChange(e.target.value)}
+      style={{
+        ...inputBase(mobile),
+        appearance: 'auto',
+        cursor: 'pointer',
+      }}
+      {...rest}
+    >
+      <option value="" disabled>{placeholder}</option>
+      {hasCustomValue && <option value={value}>{value} (current)</option>}
+      {options.map(o => <option key={o} value={o}>{o}</option>)}
+    </select>
+  );
+};
 
 const DateInput = ({ value, onChange, mobile, placeholder }) => (
   <DatePicker
@@ -584,6 +591,35 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             )}
           </Section>
 
+          {/* ── Availability ────────────────────────────────────── */}
+          <Section title="Availability">
+            {row(<>
+              {col(
+                <Field label="Availability" tooltip="If the space can be booked (now/in future) within the next 6 months, then Y, else N.">
+                  <SelectInput mobile={m} value={values.availability} onChange={set('availability')} placeholder="Select availability" options={['Yes', 'No']} />
+                </Field>,
+                true)}
+              {col(
+                <Field label="Status" tooltip="Mention the building construction status (not related to whether it is occupied or not).">
+                  <SelectInput mobile={m} value={values.status} onChange={set('status')} placeholder="Select status" options={STATUS_OPTIONS} />
+                </Field>,
+                true)}
+            </>)}
+
+            {row(<>
+              {col(
+                <Field label="Handover Date" tooltip="Mention date from which warehouse can be realistically given.">
+                  <DateInput mobile={m} value={values.handoverDate} onChange={set('handoverDate')} />
+                </Field>,
+                true)}
+              {col(
+                <Field label="Lock-in Date" tooltip="Fill if Availability = N; by when will the lock-in / agreement duration end, when it could potentially become available.">
+                  <DateInput mobile={m} value={values.lockInDate} onChange={set('lockInDate')} />
+                </Field>,
+                true)}
+            </>)}
+          </Section>
+
           {/* ── Location Details ────────────────────────────────── */}
           <Section title="Location Details">
             <Field label="Address" required error={errors.address} tooltip="Please mention the locality, but not the exact address.">
@@ -941,35 +977,6 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
             </>)}
 
-          </Section>
-
-          {/* ── Availability ────────────────────────────────────── */}
-          <Section title="Availability">
-            {row(<>
-              {col(
-                <Field label="Availability" tooltip="If the space can be booked (now/in future) within the next 6 months, then Y, else N.">
-                  <SelectInput mobile={m} value={values.availability} onChange={set('availability')} placeholder="Select availability" options={['Yes', 'No']} />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Status" tooltip="Mention the building construction status (not related to whether it is occupied or not).">
-                  <SelectInput mobile={m} value={values.status} onChange={set('status')} placeholder="Select status" options={STATUS_OPTIONS} />
-                </Field>,
-                true)}
-            </>)}
-
-            {row(<>
-              {col(
-                <Field label="Handover Date" tooltip="Mention date from which warehouse can be realistically given.">
-                  <DateInput mobile={m} value={values.handoverDate} onChange={set('handoverDate')} />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Lock-in Date" tooltip="Fill if Availability = N; by when will the lock-in / agreement duration end, when it could potentially become available.">
-                  <DateInput mobile={m} value={values.lockInDate} onChange={set('lockInDate')} />
-                </Field>,
-                true)}
-            </>)}
           </Section>
 
           {/* ── Metadata ────────────────────────────────────────── */}
