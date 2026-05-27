@@ -285,6 +285,19 @@ const WarehouseDetailsModal = ({
           </>)}
         </Section>
 
+        {/* ── Availability ────────────────────────────────────── */}
+        <Section title="Availability">
+          {row(<>
+            {col(<Field label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)}
+            {col(<Field label="Status" mobile={m}><TextValue mobile={m} value={warehouse.status} /></Field>, true)}
+          </>)}
+
+          {row(<>
+            {col(<Field label="Handover Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.handoverDate)} /></Field>, true)}
+            {col(<Field label="Lock-in Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.lockInDate)} /></Field>, true)}
+          </>)}
+        </Section>
+
         {/* ── Location Details ────────────────────────────────── */}
         <Section title="Location Details">
           <Field label="Address" mobile={m}>
@@ -458,16 +471,6 @@ const WarehouseDetailsModal = ({
           {row(<>
             {col(<Field label="Rate per sq ft" mobile={m}><TextValue mobile={m} value={warehouse.ratePerSqft} /></Field>, true)}
             {col(<Field label="Negotiated Rent" mobile={m}><TextValue mobile={m} value={warehouse.negotiated_rent} /></Field>, true)}
-          </>)}
-
-          {row(<>
-            {col(<Field label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)}
-            {col(<Field label="Status" mobile={m}><TextValue mobile={m} value={warehouse.status} /></Field>, true)}
-          </>)}
-
-          {row(<>
-            {col(<Field label="Handover Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.handoverDate)} /></Field>, true)}
-            {col(<Field label="Lock-in Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.lockInDate)} /></Field>, true)}
           </>)}
         </Section>
 
