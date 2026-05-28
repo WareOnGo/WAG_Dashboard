@@ -17,6 +17,9 @@ const LAND_TYPES = ['Commercial', 'Industrial', 'Others'];
 const POLLUTION_ZONES = ['Green', 'Yellow', 'Red'];
 const BROKER_OPTIONS = ['Yes', 'No'];
 const STATUS_OPTIONS = ['Under construction', 'Build to suit', 'Ready to move'];
+const OWNER_TYPES = ['Individual', 'Company', '3PL', 'Multiple owners'];
+const OWNER_WARMTH_OPTIONS = ['Green', 'Yellow', 'Red'];
+const WAREHOUSE_TYPES = ['PEB', 'RCC', 'Shed', 'BTS'];
 
 const INITIAL_VALUES = {
   warehouseOwnerType: '', warehouseType: '', zone: '', address: '',
@@ -531,7 +534,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
               {col(
                 <Field label="Warehouse Owner Type">
-                  <TextInput mobile={m} value={values.warehouseOwnerType} onChange={set('warehouseOwnerType')} placeholder="Individual/Company/3PL" data-field="warehouseOwnerType" />
+                  <SelectInput mobile={m} value={values.warehouseOwnerType} onChange={set('warehouseOwnerType')} placeholder="Select owner type" options={OWNER_TYPES} data-field="warehouseOwnerType" />
                 </Field>,
                 true)}
             </>)}
@@ -586,12 +589,12 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Owner Warmth" tooltip="Rate the owner's personality. Green = positive and collaborative; Yellow = neutral; Red = hard to deal with.">
-                  <TextInput mobile={m} value={values.owner_warmnth} onChange={set('owner_warmnth')} placeholder="Green/Yellow/Red" />
+                  <SelectInput mobile={m} value={values.owner_warmnth} onChange={set('owner_warmnth')} placeholder="Select owner warmth" options={OWNER_WARMTH_OPTIONS} />
                 </Field>,
                 true)}
               {col(
                 <Field label="Owner of Multiple Sites">
-                  <TextInput mobile={m} value={values.owner_of_multiple_sites} onChange={set('owner_of_multiple_sites')} placeholder="Yes / No / details" />
+                  <SelectInput mobile={m} value={values.owner_of_multiple_sites} onChange={set('owner_of_multiple_sites')} placeholder="Select Yes / No" options={['Yes', 'No']} />
                 </Field>,
                 true)}
             </>)}
@@ -723,7 +726,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Warehouse Type" required error={errors.warehouseType} tooltip="Please mention PEB / RCC / Shed. Use 'Shed' for old-style godowns.">
-                  <TextInput mobile={m} value={values.warehouseType} onChange={set('warehouseType')} placeholder="PEB/RCC/Shed" data-field="warehouseType" />
+                  <SelectInput mobile={m} value={values.warehouseType} onChange={set('warehouseType')} placeholder="Select warehouse type" options={WAREHOUSE_TYPES} data-field="warehouseType" />
                 </Field>,
                 true)}
               {col(
