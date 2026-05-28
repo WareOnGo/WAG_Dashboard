@@ -44,6 +44,7 @@ const INITIAL_VALUES = {
   ventilationAirChangesPerDay: '', insulationPresent: '', insulationType: '',
   lightingDetails: '', wogVerified: false, centreHeight: '',
   status: '', handoverDate: '', lockInDate: '',
+  cam: '', chargeableArea: '',
 };
 
 /** Flatten initialData (including nested WarehouseData) into form shape */
@@ -126,6 +127,8 @@ const toFormValues = (d) => {
     status: d.status || '',
     handoverDate: d.handoverDate ? String(d.handoverDate).slice(0, 10) : '',
     lockInDate: d.lockInDate ? String(d.lockInDate).slice(0, 10) : '',
+    cam: d.cam || '',
+    chargeableArea: d.chargeableArea ?? '',
   };
 };
 
@@ -323,6 +326,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     if (!values.uploadedBy?.trim()) e.uploadedBy = 'Uploaded by is required';
     if (!values.compliances) e.compliances = 'Compliance info is required';
 
+    if (values.chargeableArea !== '' && values.chargeableArea != null) {
+      const n = Number(values.chargeableArea);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+        e.chargeableArea = 'Chargeable area must be a non-negative whole number';
+      }
+    }
+
     // Latitude and longitude validation removed to support high precision formats
 
     setErrors(e);
@@ -431,6 +441,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         status: values.status || null,
         handoverDate: values.handoverDate || null,
         lockInDate: values.lockInDate || null,
+        cam: values.cam || null,
+        chargeableArea: values.chargeableArea === '' || values.chargeableArea == null
+          ? null
+          : Number(values.chargeableArea),
         warehouseData: {
           latitude: values.latitude || null,
           longitude: values.longitude || null,
@@ -769,6 +783,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
             </>)}
 
+            {row(
+              col(
+                <Field label="Chargeable Area (sq ft)" error={errors.chargeableArea} tooltip="The billable area used to compute rent.">
+                  <TextInput mobile={m} value={values.chargeableArea} onChange={set('chargeableArea')} placeholder="Chargeable area" type="number" inputMode="numeric" data-field="chargeableArea" />
+                </Field>,
+                true)
+            )}
+
             {row(<>
               {col(
                 <Field label="Clear Height (ft)" tooltip="Please mention the side height here.">
@@ -976,6 +998,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
             </>)}
+
+            {row(
+              col(
+                <Field label="CAM" tooltip="Common Area Maintenance charges.">
+                  <TextInput mobile={m} value={values.cam} onChange={set('cam')} placeholder="CAM charges" />
+                </Field>,
+                true)
+            )}
 
           </Section>
 

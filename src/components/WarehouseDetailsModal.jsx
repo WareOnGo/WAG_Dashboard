@@ -371,6 +371,10 @@ const WarehouseDetailsModal = ({
             {col(<Field label="Dimensions" mobile={m}><TextValue mobile={m} value={wd.dimensions} /></Field>, true)}
           </>)}
 
+          {row(
+            col(<Field label="Chargeable Area (sq ft)" mobile={m}><TextValue mobile={m} value={warehouse.chargeableArea} /></Field>, true)
+          )}
+
           {row(<>
             {col(<Field label="Clear Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.clearHeightFt} /></Field>, true)}
             {col(<Field label="Centre Height" mobile={m}><TextValue mobile={m} value={warehouse.centreHeight} /></Field>, true)}
@@ -472,6 +476,10 @@ const WarehouseDetailsModal = ({
             {col(<Field label="Rate per sq ft" mobile={m}><TextValue mobile={m} value={warehouse.ratePerSqft} /></Field>, true)}
             {col(<Field label="Negotiated Rent" mobile={m}><TextValue mobile={m} value={warehouse.negotiated_rent} /></Field>, true)}
           </>)}
+
+          {row(
+            col(<Field label="CAM" mobile={m}><TextValue mobile={m} value={warehouse.cam} /></Field>, true)
+          )}
         </Section>
 
         {/* ── Metadata (incl. media) ──────────────────────────── */}
