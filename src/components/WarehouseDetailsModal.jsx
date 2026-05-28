@@ -351,14 +351,18 @@ const WarehouseDetailsModal = ({
 
         {/* ── Warehouse Technical Specifications ──────────────── */}
         <Section title="Warehouse Technical Specifications">
+          {row(
+            col(<Field label="Warehouse Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseType} /></Field>, true)
+          )}
+
           {row(<>
-            {col(<Field label="Warehouse Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseType} /></Field>, true)}
             {col(
               /* NOTE: 'totalSpaceSqft' from the schema is displayed as "Offered Area" here per user request */
               <Field label="Offered Area (sq ft)" mobile={m}>
                 <TextValue mobile={m} value={warehouse.totalSpaceSqft} />
-              </Field>, 
+              </Field>,
             true)}
+            {col(<Field label="Chargeable Area (sq ft)" mobile={m}><TextValue mobile={m} value={warehouse.chargeableArea} /></Field>, true)}
           </>)}
 
           {row(<>
@@ -370,10 +374,6 @@ const WarehouseDetailsModal = ({
             {col(<Field label="Carpet Area" mobile={m}><TextValue mobile={m} value={warehouse.carpet_area} /></Field>, true)}
             {col(<Field label="Dimensions" mobile={m}><TextValue mobile={m} value={wd.dimensions} /></Field>, true)}
           </>)}
-
-          {row(
-            col(<Field label="Chargeable Area (sq ft)" mobile={m}><TextValue mobile={m} value={warehouse.chargeableArea} /></Field>, true)
-          )}
 
           {row(<>
             {col(<Field label="Clear Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.clearHeightFt} /></Field>, true)}
