@@ -21,12 +21,12 @@ import './WarehouseCard.css';
  * 
  * A clean, mobile-optimized card component for displaying warehouse data
  */
-const WarehouseCard = ({ 
-  warehouse, 
-  onEdit, 
-  onDelete, 
+const WarehouseCard = ({
+  warehouse,
+  onEdit,
+  onDelete,
   onViewDetails,
-  onContextMenu 
+  onContextMenu
 }) => {
   const { isMobile } = useViewport();
   const { user } = useAuth();
@@ -118,7 +118,7 @@ const WarehouseCard = ({
           <HomeOutlined className="warehouse-card__icon" />
           <span className="warehouse-card__id-text">#{warehouse.id}</span>
         </div>
-        
+
         <div className="warehouse-card__status">
           <Tag color={getStatusColor()}>
             {warehouse.availability || 'Unknown'}

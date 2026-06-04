@@ -309,7 +309,7 @@ const Section = ({ title, children }) => (
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loading = false }) => {
+const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loading = false, reviewActions = null }) => {
   const { isMobile } = useViewport();
   const [values, setValues] = useState(INITIAL_VALUES);
   const [errors, setErrors] = useState({});
@@ -1095,6 +1095,11 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               borderTop: m ? '1px solid var(--border-primary)' : 'none',
             }}
           >
+            {reviewActions && (
+              <div style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto', order: m ? 3 : 0 }}>
+                {reviewActions}
+              </div>
+            )}
             <Button
               size="large"
               onClick={handleCancel}

@@ -50,6 +50,74 @@ export const warehouseService = {
     return apiClient.get(`/warehouses/${warehouseId}/contact-number`);
   },
 
+  // --- Staging / review (admin-only) ---
+
+  /**
+   * List staged submissions (review queue).
+   * @param {Object} params - { reviewStatus?, page?, limit? }
+   * @returns {Promise} Array of staged rows
+   */
+  listStaged: async (params = {}) => {
+    return apiClient.get('/staging', { params });
+  },
+
+  /**
+   * Get a single staged submission.
+   * @param {string} id - Staged row uuid
+   * @returns {Promise} Staged row
+   */
+  getStaged: async (id) => {
+    return apiClient.get(`/staging/${id}`);
+  },
+
+  /**
+   * Apply reviewer edits to a staged submission (the row stays PENDING).
+   * @param {string} id - Staged row uuid
+   * @param {Object} data - Partial warehouse payload (may include nested warehouseData)
+   * @returns {Promise} Updated staged row
+   */
+  updateStaged: async (id, data) => {
+    return apiClient.patch(`/staging/${id}`, data);
+  },
+
+  /**
+   * Approve a staged submission (promotes it to the master Warehouse table).
+   * @param {string} id - Staged row uuid
+   * @returns {Promise} The created master warehouse
+   */
+  approveStaged: async (id) => {
+    return apiClient.post(`/staging/${id}/approve`);
+  },
+
+  /**
+   * Reject a staged submission with a reason.
+   * @param {string} id - Staged row uuid
+   * @param {string} rejectionReason - Required note explaining the rejection
+   * @returns {Promise} Updated staged row
+   */
+  rejectStaged: async (id, rejectionReason) => {
+    return apiClient.post(`/staging/${id}/reject`, { rejectionReason });
+  },
+
+  /**
+   * Move an approved/rejected submission back to PENDING (revoke / un-reject).
+   * Revoking an approved one also removes the warehouse it created from the master list.
+   * @param {string} id - Staged row uuid
+   * @returns {Promise} Updated staged row (PENDING)
+   */
+  reopenStaged: async (id) => {
+    return apiClient.post(`/staging/${id}/reopen`);
+  },
+
+  /**
+   * Delete a staged submission (does not remove a promoted master warehouse).
+   * @param {string} id - Staged row uuid
+   * @returns {Promise} No content
+   */
+  deleteStaged: async (id) => {
+    return apiClient.delete(`/staging/${id}`);
+  },
+
   /**
    * Get presigned URL for file upload
    * @param {string} contentType - MIME type of the file to upload

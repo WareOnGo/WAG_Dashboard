@@ -14,7 +14,8 @@ const CardView = ({
   onDelete,
   onViewDetails,
   onToggleVisibility,
-  columnsPerRow = null // null means auto-detect based on screen size
+  columnsPerRow = null, // null means auto-detect based on screen size
+  getCardProps // optional (warehouse) => extra props spread onto each card (used by the review queue)
 }) => {
   const { isMobile } = useViewport();
   const [currentPage, setCurrentPage] = useState(1);
@@ -93,6 +94,7 @@ const CardView = ({
               onDelete={onDelete}
               onViewDetails={onViewDetails}
               onToggleVisibility={onToggleVisibility}
+              {...(getCardProps ? getCardProps(warehouse) : {})}
             />
           </Col>
         ))}

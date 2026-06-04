@@ -6,7 +6,9 @@ import {
   MenuOutlined,
   LogoutOutlined,
   EnvironmentOutlined,
-  CopyOutlined
+  CopyOutlined,
+  SafetyCertificateOutlined,
+  DashboardOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
@@ -204,7 +206,24 @@ const MobileHeader = ({ onMenuToggle }) => {
     },
   ];
 
-  const linkItems = [];
+  const linkItems = [
+    {
+      key: 'dashboard',
+      label: 'Dashboard',
+      href: '/dashboard',
+      icon: <DashboardOutlined />,
+      tooltip: 'Back to dashboard',
+    },
+    ...(user?.isAdmin
+      ? [{
+          key: 'review',
+          label: 'Review Queue',
+          href: '/review',
+          icon: <SafetyCertificateOutlined />,
+          tooltip: 'Review staged warehouse submissions',
+        }]
+      : []),
+  ];
 
   const pptTooltip = 'Generate warehouse presentation (PPT)';
   const itineraryTooltip = 'Generate copy-pastable itinerary details for on-ground teams';
