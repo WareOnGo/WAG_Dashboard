@@ -40,9 +40,11 @@ import {
 } from './index';
 import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
+import WarehouseFilterBar from './WarehouseFilterBar';
 import RedactedPhone from './RedactedPhone';
 import './ResponsiveModal.css';
 import { useViewport, useViewPreference } from '../hooks';
+import useWarehouseFilters from '../hooks/useWarehouseFilters';
 import { useAuth } from '../contexts';
 import {
   showSuccessMessage,
@@ -55,7 +57,6 @@ const { Title, Text } = Typography;
 
 const Dashboard = () => {
   const [warehouses, setWarehouses] = useState([]);
-  const [filteredWarehouses, setFilteredWarehouses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formVisible, setFormVisible] = useState(false);
@@ -73,21 +74,25 @@ const Dashboard = () => {
     isTransitioning
   } = useViewPreference();
 
-  // Filter and search states
-  const [searchText, setSearchText] = useState('');
-  const [selectedOwnerType, setSelectedOwnerType] = useState('');
-  const [selectedType, setSelectedType] = useState('');
-  const [selectedCity, setSelectedCity] = useState('');
-  const [selectedState, setSelectedState] = useState('');
-  const [selectedZone, setSelectedZone] = useState('');
-  const [selectedAvailability, setSelectedAvailability] = useState('');
-  const [selectedBroker, setSelectedBroker] = useState('');
-  const [fireNocFilter, setFireNocFilter] = useState('');
-  const [selectedLandType, setSelectedLandType] = useState('');
-  const [selectedUploadedBy, setSelectedUploadedBy] = useState('');
-  const [selectedVisibility, setSelectedVisibility] = useState('');
-  const [areaRange, setAreaRange] = useState([0, 100000]);
-  const [budgetRange, setBudgetRange] = useState([0, 1000]);
+  // Filter and search state + logic (shared with the review queue)
+  const filters = useWarehouseFilters(warehouses);
+  const {
+    filtered: filteredWarehouses,
+    searchText, setSearchText,
+    selectedOwnerType,
+    selectedType,
+    selectedCity,
+    selectedState,
+    selectedZone,
+    selectedAvailability,
+    selectedBroker,
+    fireNocFilter,
+    selectedLandType,
+    selectedUploadedBy,
+    selectedVisibility,
+    areaRange,
+    budgetRange,
+  } = filters;
 
   // View details modal state
   const [viewDetailsVisible, setViewDetailsVisible] = useState(false);
@@ -130,7 +135,6 @@ const Dashboard = () => {
       // Ensure data is always an array
       const warehouseData = Array.isArray(data) ? data : [];
       setWarehouses(warehouseData);
-      setFilteredWarehouses(warehouseData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -145,155 +149,10 @@ const Dashboard = () => {
     }
   }, [authLoading, isAuthenticated, fetchWarehouses]);
 
-  // Filter and search functionality
+  // Reset table pagination whenever the filtered set changes
   useEffect(() => {
-    let filtered = [...warehouses];
-
-    // Apply search filter
-    if (searchText) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.id?.toString().includes(searchText) ||
-        warehouse.warehouseType?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.address?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.city?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.contactPerson?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.warehouseOwnerType?.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
-
-    // Apply owner type filter
-    if (selectedOwnerType) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.warehouseOwnerType?.toLowerCase().includes(selectedOwnerType.toLowerCase())
-      );
-    }
-
-    // Apply type filter
-    if (selectedType) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.warehouseType?.toLowerCase().includes(selectedType.toLowerCase())
-      );
-    }
-
-    // Apply city filter
-    if (selectedCity) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.city?.toLowerCase().includes(selectedCity.toLowerCase())
-      );
-    }
-
-    // Apply state filter
-    if (selectedState) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.state?.toLowerCase().includes(selectedState.toLowerCase())
-      );
-    }
-
-    // Apply zone filter
-    if (selectedZone) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.zone?.toLowerCase().includes(selectedZone.toLowerCase())
-      );
-    }
-
-    // Apply availability filter
-    if (selectedAvailability) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.availability?.toLowerCase().includes(selectedAvailability.toLowerCase())
-      );
-    }
-
-    // Apply broker filter
-    if (selectedBroker) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.isBroker?.toLowerCase().includes(selectedBroker.toLowerCase())
-      );
-    }
-
-    // Apply fire NOC filter
-    if (fireNocFilter) {
-      filtered = filtered.filter(warehouse => {
-        const fireNoc = warehouse.WarehouseData?.fireNocAvailable || warehouse.warehouseData?.fireNocAvailable;
-        if (fireNocFilter === 'available') {
-          return fireNoc === true;
-        } else if (fireNocFilter === 'not_available') {
-          return fireNoc === false || fireNoc === null || fireNoc === undefined;
-        }
-        return true;
-      });
-    }
-
-    // Apply land type filter
-    if (selectedLandType) {
-      filtered = filtered.filter(warehouse =>
-        (warehouse.WarehouseData?.landType || warehouse.warehouseData?.landType || '')
-          .toLowerCase().includes(selectedLandType.toLowerCase())
-      );
-    }
-
-    // Apply uploaded by filter
-    if (selectedUploadedBy) {
-      filtered = filtered.filter(warehouse =>
-        warehouse.uploadedBy?.toLowerCase().includes(selectedUploadedBy.toLowerCase())
-      );
-    }
-
-    // Apply visibility filter
-    if (selectedVisibility) {
-      filtered = filtered.filter(warehouse => {
-        // Handle different data types for visibility
-        const isVisible = warehouse.visibility === true || warehouse.visibility === 'true' || warehouse.visibility === 1;
-
-        if (selectedVisibility === 'visible') {
-          return isVisible;
-        } else if (selectedVisibility === 'hidden') {
-          return !isVisible;
-        }
-        return true;
-      });
-    }
-
-    // Apply area range filter — match if ANY unit in totalSpaceSqft falls in range
-    if (areaRange[0] > 0 || areaRange[1] < 100000) {
-      filtered = filtered.filter(warehouse => {
-        const spaces = Array.isArray(warehouse.totalSpaceSqft)
-          ? warehouse.totalSpaceSqft
-          : [warehouse.totalSpaceSqft];
-        return spaces.some(v => {
-          const n = Number(v);
-          return Number.isFinite(n) && n >= areaRange[0] && n <= areaRange[1];
-        });
-      });
-    }
-
-    // Apply budget range filter (rate per sq ft)
-    if (budgetRange[0] > 0 || budgetRange[1] < 1000) {
-      filtered = filtered.filter(warehouse => {
-        const rate = parseFloat(warehouse.ratePerSqft?.replace(/[^\d.]/g, '') || 0);
-        return rate >= budgetRange[0] && rate <= budgetRange[1];
-      });
-    }
-
-    setFilteredWarehouses(filtered);
     setCurrentPage(1);
-  }, [warehouses, searchText, selectedOwnerType, selectedType, selectedCity, selectedState, selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType, selectedUploadedBy, selectedVisibility, areaRange, budgetRange]);
-
-  const clearFilters = () => {
-    setSearchText('');
-    setSelectedOwnerType('');
-    setSelectedType('');
-    setSelectedCity('');
-    setSelectedState('');
-    setSelectedZone('');
-    setSelectedAvailability('');
-    setSelectedBroker('');
-    setFireNocFilter('');
-    setSelectedLandType('');
-    setSelectedUploadedBy('');
-    setSelectedVisibility('');
-    setAreaRange([0, 100000]);
-    setBudgetRange([0, 1000]);
-  };
+  }, [filteredWarehouses]);
 
   const handleDelete = (warehouse) => {
     modal.confirm({
@@ -413,7 +272,8 @@ const Dashboard = () => {
                 prev.map(w => w.id === editingWarehouse.id ? updatedWarehouse : w)
               );
             } else {
-              // Create new warehouse
+              // Create new warehouse -> now staged for admin review (PENDING).
+              // It does NOT enter the master list until an admin approves it.
               result = await withRetry(
                 () => warehouseService.create(formData),
                 {
@@ -421,8 +281,6 @@ const Dashboard = () => {
                   maxRetries: 1
                 }
               );
-
-              setWarehouses(prev => [...prev, result]);
             }
 
             // Close form and reset state
@@ -430,11 +288,35 @@ const Dashboard = () => {
             setEditingWarehouse(null);
 
             // Show success message
-            showSuccessMessage(operationType, {
-              details: operationType === 'create'
-                ? `${result.warehouseType} in ${result.city}`
-                : `${result.warehouseType || formData.warehouseType} in ${result.city || formData.city}`
-            });
+            if (operationType === 'update') {
+              showSuccessMessage('update', {
+                details: `${result.warehouseType || formData.warehouseType} in ${result.city || formData.city}`
+              });
+            } else {
+              // Surface the staged entry's reference ID (uuid) so the employee can keep it
+              // to track the submission through review later.
+              modal.success({
+                title: 'Submitted for review',
+                content: (
+                  <div>
+                    <p style={{ marginBottom: 12 }}>
+                      {formData.warehouseType} in {formData.city} is pending admin approval.
+                    </p>
+                    <p style={{ marginBottom: 4, color: 'rgba(255, 255, 255, 0.65)' }}>
+                      Reference ID — save this to track it later:
+                    </p>
+                    <Text
+                      copyable={{ text: result.id }}
+                      strong
+                      style={{ fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}
+                    >
+                      {result.id}
+                    </Text>
+                  </div>
+                ),
+                okText: 'Done',
+              });
+            }
             resolve(result);
 
           } catch (error) {
@@ -898,227 +780,8 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Desktop Filter Panel */}
-        {filtersVisible && !isMobile && (
-          <Card
-            size="small"
-            style={{
-              background: 'rgba(31, 31, 31, 0.4)',
-              backdropFilter: 'blur(15px)',
-              WebkitBackdropFilter: 'blur(15px)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              marginBottom: '16px'
-            }}
-          >
-            <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Owner Type
-                </div>
-                <Input
-                  placeholder="Filter by owner type"
-                  value={selectedOwnerType}
-                  onChange={(e) => setSelectedOwnerType(e.target.value)}
-                  allowClear
-                />
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Warehouse Type
-                </div>
-                <Input
-                  placeholder="Filter by warehouse type"
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  allowClear
-                />
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  City
-                </div>
-                <Input
-                  placeholder="Filter by city"
-                  value={selectedCity}
-                  onChange={(e) => setSelectedCity(e.target.value)}
-                  allowClear
-                />
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  State
-                </div>
-                <Input
-                  placeholder="Filter by state"
-                  value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
-                  allowClear
-                />
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Zone
-                </div>
-                <Select
-                  placeholder="Select zone"
-                  value={selectedZone || undefined}
-                  onChange={setSelectedZone}
-                  allowClear
-                  style={{ width: '100%' }}
-                >
-                  <Option value="NORTH">North</Option>
-                  <Option value="SOUTH">South</Option>
-                  <Option value="EAST">East</Option>
-                  <Option value="WEST">West</Option>
-                  <Option value="CENTRAL">Central</Option>
-                </Select>
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Availability
-                </div>
-                <Select
-                  placeholder="Filter by availability"
-                  value={selectedAvailability || undefined}
-                  onChange={(value) => setSelectedAvailability(value || '')}
-                  allowClear
-                  style={{ width: '100%' }}
-                >
-                  <Option value="Yes">Yes</Option>
-                  <Option value="No">No</Option>
-                </Select>
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Broker Status
-                </div>
-                <Select
-                  placeholder="Select broker status"
-                  value={selectedBroker || undefined}
-                  onChange={setSelectedBroker}
-                  allowClear
-                  style={{ width: '100%' }}
-                >
-                  <Option value="y">Y</Option>
-                  <Option value="n">N</Option>
-                </Select>
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Fire NOC
-                </div>
-                <Select
-                  placeholder="Select Fire NOC status"
-                  value={fireNocFilter || undefined}
-                  onChange={setFireNocFilter}
-                  allowClear
-                  style={{ width: '100%' }}
-                >
-                  <Option value="available">Available</Option>
-                  <Option value="not_available">Not Available</Option>
-                </Select>
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Land Type
-                </div>
-                <Input
-                  placeholder="Filter by land type"
-                  value={selectedLandType}
-                  onChange={(e) => setSelectedLandType(e.target.value)}
-                  allowClear
-                />
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Uploaded By
-                </div>
-                <Input
-                  placeholder="Filter by uploader"
-                  value={selectedUploadedBy}
-                  onChange={(e) => setSelectedUploadedBy(e.target.value)}
-                  allowClear
-                />
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Area Range (sq ft)
-                </div>
-                <Slider
-                  range
-                  min={0}
-                  max={100000}
-                  step={1000}
-                  value={areaRange}
-                  onChange={setAreaRange}
-                  tooltip={{
-                    formatter: (value) => `${value.toLocaleString()} sq ft`
-                  }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)' }}>
-                  <span>{areaRange[0].toLocaleString()}</span>
-                  <span>{areaRange[1].toLocaleString()}</span>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Budget Range (₹/sq ft)
-                </div>
-                <Slider
-                  range
-                  min={0}
-                  max={1000}
-                  step={5}
-                  value={budgetRange}
-                  onChange={setBudgetRange}
-                  tooltip={{
-                    formatter: (value) => `₹${value}/sq ft`
-                  }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)' }}>
-                  <span>₹{budgetRange[0]}</span>
-                  <span>₹{budgetRange[1]}</span>
-                </div>
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <div style={{ marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' }}>
-                  Visibility
-                </div>
-                <Select
-                  placeholder="Select visibility"
-                  value={selectedVisibility || undefined}
-                  onChange={setSelectedVisibility}
-                  allowClear
-                  style={{ width: '100%' }}
-                >
-                  <Option value="visible">Visible</Option>
-                  <Option value="hidden">Hidden</Option>
-                </Select>
-              </Col>
-
-              <Col xs={24} sm={12} md={8} lg={6}>
-                <Button
-                  onClick={clearFilters}
-                  style={{ marginTop: '20px' }}
-                >
-                  Clear All Filters
-                </Button>
-              </Col>
-            </Row>
-          </Card>
-        )}
+        {/* Desktop Filter Panel (shared component) */}
+        {filtersVisible && !isMobile && <WarehouseFilterBar filters={filters} />}
 
         {error && (
           <div style={{
@@ -1276,35 +939,7 @@ const Dashboard = () => {
       <MobileFilterDrawer
         visible={filtersVisible && isMobile}
         onClose={() => setFiltersVisible(false)}
-        searchText={searchText}
-        setSearchText={setSearchText}
-        selectedOwnerType={selectedOwnerType}
-        setSelectedOwnerType={setSelectedOwnerType}
-        selectedType={selectedType}
-        setSelectedType={setSelectedType}
-        selectedCity={selectedCity}
-        setSelectedCity={setSelectedCity}
-        selectedState={selectedState}
-        setSelectedState={setSelectedState}
-        selectedZone={selectedZone}
-        setSelectedZone={setSelectedZone}
-        selectedAvailability={selectedAvailability}
-        setSelectedAvailability={setSelectedAvailability}
-        selectedBroker={selectedBroker}
-        setSelectedBroker={setSelectedBroker}
-        fireNocFilter={fireNocFilter}
-        setFireNocFilter={setFireNocFilter}
-        selectedLandType={selectedLandType}
-        setSelectedLandType={setSelectedLandType}
-        selectedUploadedBy={selectedUploadedBy}
-        setSelectedUploadedBy={setSelectedUploadedBy}
-        selectedVisibility={selectedVisibility}
-        setSelectedVisibility={setSelectedVisibility}
-        areaRange={areaRange}
-        setAreaRange={setAreaRange}
-        budgetRange={budgetRange}
-        setBudgetRange={setBudgetRange}
-        clearFilters={clearFilters}
+        {...filters}
         activeFilterCount={
           (searchText ? 1 : 0) +
           (selectedOwnerType ? 1 : 0) +

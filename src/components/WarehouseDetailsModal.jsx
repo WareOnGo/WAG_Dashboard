@@ -133,6 +133,8 @@ const WarehouseDetailsModal = ({
   visible = false,
   onClose,
   warehouse = null,
+  footerActions = null, // optional extra footer buttons (e.g. review-queue revoke/reopen)
+  statusBanner = null,  // optional banner rendered at the top (e.g. review provenance)
 }) => {
   const { isMobile } = useViewport();
   const m = isMobile;
@@ -241,6 +243,8 @@ const WarehouseDetailsModal = ({
       className="warehouse-details-modal"
     >
       <div style={{ color: 'var(--text-primary)' }}>
+
+        {statusBanner && <div style={{ marginBottom: 16 }}>{statusBanner}</div>}
 
         {/* ── Owner Details ───────────────────────────────────── */}
         <Section title="Owner Details">
@@ -649,6 +653,11 @@ const WarehouseDetailsModal = ({
             borderTop: m ? '1px solid var(--border-primary)' : 'none',
           }}
         >
+          {footerActions && (
+            <div style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto' }}>
+              {footerActions}
+            </div>
+          )}
           <Button
             size="large"
             onClick={onClose}

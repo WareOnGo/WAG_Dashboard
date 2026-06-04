@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Layout, ConfigProvider, theme, App as AntApp } from 'antd'
-import { Dashboard, ErrorBoundary, MobileHeader, MobileNavigation, ProtectedRoute, SignInScreen } from './components'
+import { Dashboard, ErrorBoundary, MobileHeader, MobileNavigation, ProtectedRoute, ReviewQueue, SignInScreen } from './components'
 import { AboveFoldOptimizer } from './components/CriticalContentLoader'
 import { CompatibilityProvider } from './components/CompatibilityProvider'
 import AuthErrorBoundary from './components/AuthErrorBoundary'
@@ -141,6 +141,29 @@ function AppContent() {
             }}>
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            </Content>
+          </Layout>
+        } />
+
+        {/* Review queue route (admin-only; ReviewQueue renders a 403 for non-admins) */}
+        <Route path="/review" element={
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+            <MobileHeader
+              onMenuToggle={handleMenuToggle}
+              isMenuOpen={mobileMenuOpen}
+            />
+            <MobileNavigation
+              visible={mobileMenuOpen}
+              onClose={handleMenuClose}
+            />
+            <Content style={{
+              background: 'var(--bg-primary)',
+              minHeight: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
+              padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
+            }}>
+              <ProtectedRoute>
+                <ReviewQueue />
               </ProtectedRoute>
             </Content>
           </Layout>

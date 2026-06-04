@@ -20,7 +20,12 @@ const SimpleWarehouseCard = ({
   onEdit,
   onDelete,
   onViewDetails,
-  onToggleVisibility
+  onToggleVisibility,
+  // Optional overrides (used by the review queue; dashboard leaves these undefined)
+  idLabel,        // overrides the "#id" header text
+  statusContent,  // overrides the visibility status chip
+  actions,        // overrides the default View/Edit/Delete action row
+  metaInfo,       // optional provenance strip rendered above the actions
 }) => {
   const { user } = useAuth();
   const isAdmin = !!user?.isAdmin;
@@ -110,16 +115,18 @@ const SimpleWarehouseCard = ({
       {/* Header */}
       <div className="simple-warehouse-card__header">
         <div className="simple-warehouse-card__id">
-          <span>#{warehouse.id}</span>
+          <span>{idLabel || `#${warehouse.id}`}</span>
         </div>
-        <div
-          className={`simple-warehouse-card__status ${getVisibilityClass()}`}
-          onClick={handleToggleVisibility}
-          style={{ cursor: onToggleVisibility ? 'pointer' : 'default' }}
-          title={onToggleVisibility ? 'Click to toggle visibility' : ''}
-        >
-          {getVisibilityStatus()}
-        </div>
+        {statusContent || (
+          <div
+            className={`simple-warehouse-card__status ${getVisibilityClass()}`}
+            onClick={handleToggleVisibility}
+            style={{ cursor: onToggleVisibility ? 'pointer' : 'default' }}
+            title={onToggleVisibility ? 'Click to toggle visibility' : ''}
+          >
+            {getVisibilityStatus()}
+          </div>
+        )}
       </div>
 
       {/* Image */}
@@ -195,27 +202,44 @@ const SimpleWarehouseCard = ({
             )}
           </div>
 
+          {metaInfo && (
+            <div style={{
+              marginTop: 8,
+              paddingTop: 8,
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              fontSize: 12,
+              lineHeight: 1.5,
+              color: 'rgba(255, 255, 255, 0.55)',
+            }}>
+              {metaInfo}
+            </div>
+          )}
+
           {/* Actions */}
           <div className="simple-warehouse-card__actions">
-            <button
-              className="simple-warehouse-card__action-btn"
-              onClick={(e) => { e.stopPropagation(); onViewDetails?.(warehouse); }}
-            >
-              <EyeOutlined /> View
-            </button>
-            <button
-              className="simple-warehouse-card__action-btn"
-              onClick={(e) => { e.stopPropagation(); onEdit?.(warehouse); }}
-            >
-              <EditOutlined /> Edit
-            </button>
-            {isAdmin && (
-              <button
-                className="simple-warehouse-card__action-btn simple-warehouse-card__action-btn--danger"
-                onClick={(e) => { e.stopPropagation(); onDelete?.(warehouse); }}
-              >
-                <DeleteOutlined /> Delete
-              </button>
+            {actions || (
+              <>
+                <button
+                  className="simple-warehouse-card__action-btn"
+                  onClick={(e) => { e.stopPropagation(); onViewDetails?.(warehouse); }}
+                >
+                  <EyeOutlined /> View
+                </button>
+                <button
+                  className="simple-warehouse-card__action-btn"
+                  onClick={(e) => { e.stopPropagation(); onEdit?.(warehouse); }}
+                >
+                  <EditOutlined /> Edit
+                </button>
+                {isAdmin && (
+                  <button
+                    className="simple-warehouse-card__action-btn simple-warehouse-card__action-btn--danger"
+                    onClick={(e) => { e.stopPropagation(); onDelete?.(warehouse); }}
+                  >
+                    <DeleteOutlined /> Delete
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

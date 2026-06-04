@@ -6,7 +6,8 @@ import {
   UserOutlined,
   CloseOutlined,
   DashboardOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  SafetyCertificateOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
@@ -71,6 +72,13 @@ const MobileNavigation = ({ visible, onClose }) => {
       label: 'Dashboard',
       href: '/dashboard'
     },
+    // Admin-only: staged submission review queue
+    ...(user?.isAdmin ? [{
+      key: 'review',
+      icon: <SafetyCertificateOutlined />,
+      label: 'Review Queue',
+      href: '/review'
+    }] : []),
     {
       key: 'ppt-generator',
       icon: <FileTextOutlined />,
