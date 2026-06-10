@@ -124,14 +124,21 @@ class ApiClient {
             }
           } catch (refreshError) {
             console.error('Token refresh failed:', refreshError);
-            
+
             // Process queued requests with error
             this.processQueue(refreshError, null);
-            
-            // Handle authentication failure
-            this.handleAuthenticationFailure();
-            
-            return Promise.reject(new Error('Authentication expired - please sign in again'));
+
+            // Only end the session when the refresh genuinely failed auth (the
+            // token was rejected) or the stored token is actually expired. For
+            // transient failures (network/server/config) leave the session
+            // intact and surface the error so a retry can recover.
+            const storedToken = getStoredToken();
+            if (refreshError?.isAuthFailure || !storedToken || isTokenExpired(storedToken)) {
+              this.handleAuthenticationFailure();
+              return Promise.reject(new Error('Authentication expired - please sign in again'));
+            }
+
+            return Promise.reject(refreshError);
           } finally {
             this.isRefreshing = false;
           }
@@ -150,16 +157,12 @@ class ApiClient {
    * @returns {Promise<string|null>} New token or null if refresh failed
    */
   async refreshToken() {
-    try {
-      // Import authService dynamically to avoid circular dependency
-      const { authService } = await import('./authService.js');
-      
-      const newToken = await authService.refreshToken();
-      return newToken;
-    } catch (error) {
-      console.error('Token refresh failed in API client:', error);
-      return null;
-    }
+    // Import authService dynamically to avoid circular dependency.
+    // Let the error propagate (rather than swallowing it as null) so the
+    // caller can distinguish a genuine auth failure from a transient one and
+    // only end the session in the former case.
+    const { authService } = await import('./authService.js');
+    return authService.refreshToken();
   }
 
   /**
