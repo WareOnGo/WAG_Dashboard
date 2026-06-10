@@ -367,9 +367,14 @@ class AuthService {
       return newToken;
     } catch (error) {
       console.error('Error refreshing token:', error);
-      
-      // If refresh fails, logout user
-      await this.logout();
+
+      // Only destroy the session on a genuine auth failure (the token was
+      // rejected with a 401, or it was already expired). Transient failures —
+      // network blips, server 5xx, or a misconfigured refresh endpoint — must
+      // NOT log out a user whose token is still valid; just surface the error.
+      if (error.isAuthFailure) {
+        await this.logout();
+      }
       throw error;
     } finally {
       this.refreshPromise = null;
@@ -415,9 +420,16 @@ class AuthService {
 
       return token;
     } catch (error) {
+      // Only a 401 means the token was genuinely rejected and the session is
+      // truly over. Tag it so callers know it's safe to destroy the session.
       if (error.response?.status === 401) {
-        throw new Error('Refresh token expired - please sign in again');
+        const authError = new Error('Refresh token expired - please sign in again');
+        authError.isAuthFailure = true;
+        throw authError;
       }
+      // Network errors, 404s (misconfigured route), and 5xx are transient or
+      // configuration issues — propagate without tagging so the session,
+      // which may still be valid, is left intact.
       throw error;
     }
   }
