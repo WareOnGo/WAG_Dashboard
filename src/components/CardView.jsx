@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Row, Col, Empty, Pagination } from 'antd';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
@@ -27,16 +27,14 @@ const CardView = ({
   }, [warehouses]);
 
   // Determine column span based on columnsPerRow prop or default behavior
-  const getColSpan = () => {
+  const colSpan = useMemo(() => {
     if (columnsPerRow === 2) {
       // 2 cards per row: 12 span each (24/2 = 12)
       return { xs: 24, sm: 12, md: 12, lg: 12, xl: 12 };
     }
     // Default: 4 cards per row on large screens
     return { xs: 24, sm: 12, md: 8, lg: 6 };
-  };
-
-  const colSpan = getColSpan();
+  }, [columnsPerRow]);
 
   // Simple pagination handler - no complex logic
   const handlePageChange = (page) => {
@@ -49,9 +47,10 @@ const CardView = ({
   };
 
   // Calculate pagination
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedData = warehouses.slice(startIndex, endIndex);
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return warehouses.slice(startIndex, startIndex + pageSize);
+  }, [warehouses, currentPage, pageSize]);
 
   if (loading) {
     return (
@@ -127,4 +126,6 @@ const CardView = ({
   );
 };
 
-export default CardView;
+// Memoized: parent (Dashboard) passes a stable filtered list (useWarehouseFilters memoises it)
+// and stable useCallback handlers, so cards don't re-render on unrelated Dashboard state changes.
+export default React.memo(CardView);

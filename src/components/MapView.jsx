@@ -20,6 +20,11 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
     useEffect(() => {
         if (map.current) return;
 
+        if (!mapboxgl.accessToken) {
+            console.warn('[MapView] VITE_MAPBOX_TOKEN is not set — the map will not render.');
+            return;
+        }
+
         // Copy refs to local variables for cleanup
         const markersRef = markers.current;
         const poolRef = markersPool.current;
@@ -33,8 +38,18 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
 
         map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+        // Correct any initial 0-size canvas once the map has loaded. On mobile the
+        // container can mount before its height resolves, leaving a blank canvas.
+        map.current.once('load', () => map.current?.resize());
+
         const observer = new ResizeObserver(() => map.current?.resize());
         observer.observe(mapContainer.current);
+
+        // ResizeObserver is unreliable on iOS Safari for orientation flips, so listen
+        // explicitly for window resize / orientation change too.
+        const handleResize = () => map.current?.resize();
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('orientationchange', handleResize);
 
         return () => {
             // Clean up markers when map is destroyed
@@ -43,6 +58,8 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
             poolRef.length = 0;
 
             observer.disconnect();
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('orientationchange', handleResize);
             if (map.current) {
                 map.current.remove();
                 map.current = null;
