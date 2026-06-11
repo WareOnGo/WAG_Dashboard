@@ -68,6 +68,12 @@
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+  /* Defensive floor: guarantees the absolutely-positioned canvas has a real
+     containing-block height on mobile even if the parent's % height resolves to 0. */
+  .map-view {
+    min-height: 400px;
+  }
+
   .map-info {
     top: 8px;
     left: 8px;

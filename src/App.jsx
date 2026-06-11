@@ -13,6 +13,7 @@ import AuthErrorBoundary from './components/AuthErrorBoundary'
 import AuthCallback from './components/AuthCallback'
 import SessionExpired from './components/SessionExpired'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { MobileToolsProvider } from './contexts/MobileToolsContext'
 import { useViewport } from './hooks'
 import { useTokenExpiryWatcher } from './hooks/useTokenExpiryWatcher'
 import { useState, useEffect, lazy, Suspense } from 'react'
@@ -103,6 +104,7 @@ function AppContent() {
 
   // Main app with router (includes both auth and non-auth routes)
   return (
+    <MobileToolsProvider>
     <Router>
       <Suspense fallback={<RouteFallback />}>
       <Routes>
@@ -189,6 +191,7 @@ function AppContent() {
       </Routes>
       </Suspense>
     </Router>
+    </MobileToolsProvider>
   );
 }
 
