@@ -707,8 +707,8 @@ const Dashboard = () => {
         {/* Search Bar and Actions */}
         <div style={{
           display: 'flex',
-          gap: '12px',
-          marginBottom: '16px',
+          gap: isMobile ? '10px' : '12px',
+          marginBottom: isMobile ? '10px' : '16px',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap'
@@ -728,50 +728,71 @@ const Dashboard = () => {
               allowClear
               style={{ maxWidth: isMobile ? '100%' : '400px' }}
             />
-            <Button
-              icon={<FilterOutlined />}
-              onClick={() => setFiltersVisible(!filtersVisible)}
-              type={filtersVisible ? 'primary' : 'default'}
-              size={isMobile ? 'small' : 'middle'}
-            >
-              {isMobile ? '' : 'Filters'}
-            </Button>
-            <div style={{
-              color: 'rgba(255, 255, 255, 0.65)',
-              fontSize: isMobile ? '12px' : '14px',
-              whiteSpace: 'nowrap'
-            }}>
-              {filteredWarehouses.length} of {warehouses.length} results
-            </div>
+            {/* Filters button stays in the search row on desktop; on mobile it moves
+                into the actions row below to keep this row to just the search field. */}
+            {!isMobile && (
+              <Button
+                icon={<FilterOutlined />}
+                onClick={() => setFiltersVisible(!filtersVisible)}
+                type={filtersVisible ? 'primary' : 'default'}
+                size="middle"
+              >
+                Filters
+              </Button>
+            )}
+            {!isMobile && (
+              <div style={{
+                color: 'rgba(255, 255, 255, 0.65)',
+                fontSize: '14px',
+                whiteSpace: 'nowrap'
+              }}>
+                {filteredWarehouses.length} of {warehouses.length} results
+              </div>
+            )}
           </div>
 
           <div style={{
             display: 'flex',
-            gap: '12px',
+            gap: isMobile ? '8px' : '12px',
             alignItems: 'center',
-            flexWrap: 'wrap'
+            flexWrap: 'wrap',
+            width: isMobile ? '100%' : 'auto',
+            justifyContent: isMobile ? 'space-between' : 'flex-end'
           }}>
-            {/* View Switcher */}
-            <ViewSwitcher
-              currentView={currentView}
-              onViewChange={changeView}
-              disabled={loading}
-              showLabels={!isMobile}
-            />
-
-            {/* Split View Toggle - only show for cards view */}
-            {currentView === 'cards' && (
-              <Tooltip title={splitViewEnabled ? "Close map" : "Show map"}>
+            {/* Left control group: filter (mobile) + view switcher + map toggle */}
+            <div style={{ display: 'flex', gap: isMobile ? '8px' : '12px', alignItems: 'center' }}>
+              {isMobile && (
                 <Button
-                  icon={<EnvironmentOutlined />}
-                  onClick={() => setSplitViewEnabled(!splitViewEnabled)}
-                  type={splitViewEnabled ? 'primary' : 'default'}
-                  size={isMobile ? 'small' : 'large'}
-                >
-                  {isMobile ? '' : splitViewEnabled ? 'Hide Map' : 'Show Map'}
-                </Button>
-              </Tooltip>
-            )}
+                  icon={<FilterOutlined />}
+                  onClick={() => setFiltersVisible(!filtersVisible)}
+                  type={filtersVisible ? 'primary' : 'default'}
+                  size="small"
+                  aria-label="Filters"
+                />
+              )}
+
+              {/* View Switcher */}
+              <ViewSwitcher
+                currentView={currentView}
+                onViewChange={changeView}
+                disabled={loading}
+                showLabels={!isMobile}
+              />
+
+              {/* Split View Toggle - only show for cards view */}
+              {currentView === 'cards' && (
+                <Tooltip title={splitViewEnabled ? "Close map" : "Show map"}>
+                  <Button
+                    icon={<EnvironmentOutlined />}
+                    onClick={() => setSplitViewEnabled(!splitViewEnabled)}
+                    type={splitViewEnabled ? 'primary' : 'default'}
+                    size={isMobile ? 'small' : 'large'}
+                  >
+                    {isMobile ? '' : splitViewEnabled ? 'Hide Map' : 'Show Map'}
+                  </Button>
+                </Tooltip>
+              )}
+            </div>
 
             <Button
               type="primary"
@@ -783,6 +804,17 @@ const Dashboard = () => {
             </Button>
           </div>
         </div>
+
+        {/* Mobile-only: subtle results count on its own line */}
+        {isMobile && (
+          <div style={{
+            color: 'rgba(255, 255, 255, 0.55)',
+            fontSize: '12px',
+            marginBottom: '12px'
+          }}>
+            {filteredWarehouses.length} of {warehouses.length} results
+          </div>
+        )}
 
         {/* Desktop Filter Panel (shared component) */}
         {filtersVisible && !isMobile && <WarehouseFilterBar filters={filters} />}
@@ -821,10 +853,13 @@ const Dashboard = () => {
             }}>
               {/* Cards View */}
               <div style={{
-                flex: 1,
-                overflow: 'auto',
-                height: isMobile ? '400px' : 'auto',
-                minHeight: isMobile ? '400px' : 'auto'
+                flex: isMobile ? 'none' : 1,
+                // On mobile the listings sit BELOW the map (order 2) and flow in the
+                // normal page scroll (no inner scroll-box), so you scroll past the map
+                // straight into the cards.
+                order: isMobile ? 2 : 0,
+                overflow: isMobile ? 'visible' : 'auto',
+                height: 'auto'
               }}>
                 <CardView
                   warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
@@ -839,7 +874,11 @@ const Dashboard = () => {
 
               {/* Map View */}
               <div style={{
-                flex: 1,
+                // Definite 400px height on mobile so MapView's percentage-height canvas
+                // resolves; shown ABOVE the listings (order 1) and scrolls away with the
+                // page rather than staying pinned.
+                flex: isMobile ? 'none' : 1,
+                order: isMobile ? 1 : 0,
                 height: isMobile ? '400px' : 'auto',
                 minHeight: isMobile ? '400px' : 'auto',
                 background: 'rgba(0, 0, 0, 0.3)',

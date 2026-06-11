@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { useViewport } from '../hooks/useViewport';
 import './MapView.css';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -11,6 +12,7 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
  * Renders warehouses on a Mapbox map with dark theme
  */
 const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
+    const { isMobile } = useViewport();
     const mapContainer = useRef(null);
     const map = useRef(null);
     const markers = useRef(new Map()); // Use Map for O(1) lookup by warehouse ID
@@ -144,44 +146,50 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
                         return media.images?.[0] || null;
                     };
 
+                    // Compact popup sizing on mobile so the card doesn't overflow the
+                    // small map pane; roomier on desktop.
+                    const s = isMobile
+                        ? { pad: 8, minW: 150, maxW: 190, imgH: 64, id: 12, badge: 9, title: 12, sub: 10, loc: 11, label: 8, val: 11, btn: 10, btnPad: 5, gap: 5, mb: 6 }
+                        : { pad: 10, minW: 220, maxW: 260, imgH: 80, id: 13, badge: 10, title: 14, sub: 11, loc: 12, label: 9, val: 12, btn: 11, btnPad: 6, gap: 8, mb: 8 };
+
                     const firstImage = getFirstImage();
                     const imageHtml = firstImage
-                        ? `<img src="${firstImage}" style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;" onerror="this.style.display='none'" loading="lazy" crossorigin="anonymous" />`
+                        ? `<img src="${firstImage}" style="width:100%;height:${s.imgH}px;object-fit:cover;border-radius:6px;margin-bottom:${s.mb}px;" onerror="this.style.display='none'" loading="lazy" crossorigin="anonymous" />`
                         : '';
 
                     // Create popup HTML
                     const popupHTML = `
-        <div style="font-family:Verdana,Geneva,sans-serif;padding:10px;min-width:220px;max-width:260px;background:rgba(26,26,26,0.98);color:rgba(255,255,255,0.95);border-radius:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.15);">
-            <span style="font-size:13px;font-weight:600;color:#fff;">#${warehouse.id}</span>
-            <span style="font-size:10px;padding:3px 8px;background:${getMarkerColor()};border-radius:4px;color:#fff;font-weight:500;">${warehouse.availability || 'Unknown'}</span>
+        <div style="font-family:Verdana,Geneva,sans-serif;padding:${s.pad}px;min-width:${s.minW}px;max-width:${s.maxW}px;background:rgba(26,26,26,0.98);color:rgba(255,255,255,0.95);border-radius:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${s.mb}px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.15);">
+            <span style="font-size:${s.id}px;font-weight:600;color:#fff;">#${warehouse.id}</span>
+            <span style="font-size:${s.badge}px;padding:3px 8px;background:${getMarkerColor()};border-radius:4px;color:#fff;font-weight:500;">${warehouse.availability || 'Unknown'}</span>
           </div>
-          ${imageHtml ? `<div style="margin-bottom:8px;">${imageHtml.replace('height:120px', 'height:80px')}</div>` : ''}
-          <div style="font-size:14px;font-weight:600;margin-bottom:4px;color:#fff;line-height:1.3;">${warehouse.warehouseType}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.65);margin-bottom:8px;">${warehouse.warehouseOwnerType || ''}</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.85);margin-bottom:8px;line-height:1.4;">
+          ${imageHtml ? `<div style="margin-bottom:${s.mb}px;">${imageHtml}</div>` : ''}
+          <div style="font-size:${s.title}px;font-weight:600;margin-bottom:4px;color:#fff;line-height:1.3;">${warehouse.warehouseType}</div>
+          <div style="font-size:${s.sub}px;color:rgba(255,255,255,0.65);margin-bottom:${s.mb}px;">${warehouse.warehouseOwnerType || ''}</div>
+          <div style="font-size:${s.loc}px;color:rgba(255,255,255,0.85);margin-bottom:${s.mb}px;line-height:1.4;">
             📍 ${warehouse.city}, ${warehouse.state}
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px;background:rgba(0,0,0,0.3);border-radius:4px;margin-bottom:8px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:${s.gap}px;padding:${s.pad}px;background:rgba(0,0,0,0.3);border-radius:4px;margin-bottom:${s.mb}px;">
             <div>
-              <div style="font-size:9px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Space</div>
-              <div style="font-size:12px;font-weight:600;color:#fff;">${formatSpace(warehouse.totalSpaceSqft)} sqft</div>
+              <div style="font-size:${s.label}px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Space</div>
+              <div style="font-size:${s.val}px;font-weight:600;color:#fff;">${formatSpace(warehouse.totalSpaceSqft)} sqft</div>
             </div>
             <div>
-              <div style="font-size:9px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Rate</div>
-              <div style="font-size:12px;font-weight:600;color:#fff;">₹${warehouse.ratePerSqft || '—'}/sqft</div>
+              <div style="font-size:${s.label}px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Rate</div>
+              <div style="font-size:${s.val}px;font-weight:600;color:#fff;">₹${warehouse.ratePerSqft || '—'}/sqft</div>
             </div>
           </div>
           <div style="display:flex;gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.15);">
-            <button onclick="window.warehouseMapActions.view(${warehouse.id})" style="flex:1;padding:6px;font-size:11px;font-weight:500;background:#1890ff;color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#40a9ff'" onmouseout="this.style.background='#1890ff'">View</button>
-            <button onclick="window.warehouseMapActions.edit(${warehouse.id})" style="flex:1;padding:6px;font-size:11px;font-weight:500;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Edit</button>
+            <button onclick="window.warehouseMapActions.view(${warehouse.id})" style="flex:1;padding:${s.btnPad}px;font-size:${s.btn}px;font-weight:500;background:#1890ff;color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#40a9ff'" onmouseout="this.style.background='#1890ff'">View</button>
+            <button onclick="window.warehouseMapActions.edit(${warehouse.id})" style="flex:1;padding:${s.btnPad}px;font-size:${s.btn}px;font-weight:500;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Edit</button>
           </div>
         </div>
       `;
 
                     const popup = new mapboxgl.Popup({
                         offset: 15,
-                        maxWidth: '260px',
+                        maxWidth: `${s.maxW}px`,
                         closeButton: false,
                         closeOnClick: true,
                         closeOnMove: false,
@@ -236,7 +244,7 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
         } else {
             updateMarkers();
         }
-    }, [warehouses, onEdit, onDelete, onViewDetails]);
+    }, [warehouses, onEdit, onDelete, onViewDetails, isMobile]);
 
     // Count valid warehouses
     const validCount = warehouses.filter(
@@ -263,17 +271,19 @@ const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
                 }}
             />
 
-            {/* Map info overlay */}
-            <div className="map-info">
-                <div className="map-info__count">
-                    {validCount} warehouse{validCount !== 1 ? 's' : ''} on map
-                </div>
-                {warehouses.length > validCount && (
-                    <div className="map-info__warning">
-                        {warehouses.length - validCount} warehouse{warehouses.length - validCount !== 1 ? 's' : ''} without coordinates
+            {/* Map info overlay — hidden on mobile to keep the small map clean */}
+            {!isMobile && (
+                <div className="map-info">
+                    <div className="map-info__count">
+                        {validCount} warehouse{validCount !== 1 ? 's' : ''} on map
                     </div>
-                )}
-            </div>
+                    {warehouses.length > validCount && (
+                        <div className="map-info__warning">
+                            {warehouses.length - validCount} warehouse{warehouses.length - validCount !== 1 ? 's' : ''} without coordinates
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

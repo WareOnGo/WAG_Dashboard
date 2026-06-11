@@ -7,10 +7,12 @@ import {
   CloseOutlined,
   DashboardOutlined,
   LogoutOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
+import { useMobileTools } from '../contexts/MobileToolsContext';
 
 const { Text } = Typography;
 
@@ -22,6 +24,7 @@ const { Text } = Typography;
 const MobileNavigation = ({ visible, onClose }) => {
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
+  const { setPptOpen, setItineraryOpen } = useMobileTools();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
@@ -79,18 +82,26 @@ const MobileNavigation = ({ visible, onClose }) => {
       label: 'Review Queue',
       href: '/review'
     }] : []),
+    // In-app tools (rendered by MobileHeader, opened via shared MobileTools context)
     {
       key: 'ppt-generator',
       icon: <FileTextOutlined />,
       label: 'PPT Generator',
-      href: 'https://radiant-phoenix-e19499.netlify.app/',
-      external: true
+      action: () => setPptOpen(true)
+    },
+    {
+      key: 'itinerary',
+      icon: <EnvironmentOutlined />,
+      label: 'Itinerary',
+      action: () => setItineraryOpen(true)
     }
   ];
 
   const handleMenuClick = ({ key }) => {
     const item = menuItems.find(i => i.key === key);
-    if (item?.href) {
+    if (item?.action) {
+      item.action();
+    } else if (item?.href) {
       if (item.external) {
         window.open(item.href, '_blank', 'noopener,noreferrer');
       } else {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, message } from 'antd';
 import {
   UserOutlined,
@@ -8,10 +8,12 @@ import {
   EnvironmentOutlined,
   CopyOutlined,
   SafetyCertificateOutlined,
-  DashboardOutlined
+  DashboardOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
+import { useMobileTools } from '../contexts/MobileToolsContext';
 import { warehouseService } from '../services/warehouseService';
 import { generateStandardPpt, generateDetailedPpt, generatePptV2, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
@@ -23,8 +25,13 @@ const { TextArea } = Input;
 const MobileHeader = ({ onMenuToggle }) => {
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
+  // PPT/Itinerary open-state is shared (via context) so the mobile nav drawer can
+  // open these tools while this header renders them. Aliased to the previous names.
+  const {
+    pptOpen: pptExpanded, setPptOpen: setPptExpanded,
+    itineraryOpen: itineraryExpanded, setItineraryOpen: setItineraryExpanded,
+  } = useMobileTools();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [itineraryExpanded, setItineraryExpanded] = useState(false);
   const [itineraryResultOpen, setItineraryResultOpen] = useState(false);
   const [warehouseIds, setWarehouseIds] = useState('');
   const [generatedItinerary, setGeneratedItinerary] = useState('');
@@ -32,7 +39,6 @@ const MobileHeader = ({ onMenuToggle }) => {
   const [generatingItinerary, setGeneratingItinerary] = useState(false);
 
   // PPT generator state
-  const [pptExpanded, setPptExpanded] = useState(false);
   const [pptWarehouseIds, setPptWarehouseIds] = useState('');
   const [pptModalOpen, setPptModalOpen] = useState(false);
   const [generatingPpt, setGeneratingPpt] = useState(false);
@@ -50,22 +56,23 @@ const MobileHeader = ({ onMenuToggle }) => {
     }
   };
 
-  // Toggle the inline itinerary input in the navbar
-  const handleItineraryToggle = async () => {
-    const opening = !itineraryExpanded;
-    setItineraryExpanded(opening);
-
-    // Fetch warehouses on first expand (lazy load)
-    if (opening && !warehouses) {
-      try {
-        const data = await warehouseService.getAll();
-        setWarehouses(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Failed to fetch warehouses:', error);
-        message.error('Failed to load warehouse data');
-      }
-    }
+  // Toggle the inline itinerary input in the navbar (used by the desktop nav link)
+  const handleItineraryToggle = () => {
+    setItineraryExpanded(prev => !prev);
   };
+
+  // Lazy-load warehouse data the first time the itinerary tool opens, regardless of
+  // whether it was opened from the desktop nav or the mobile drawer.
+  useEffect(() => {
+    if (itineraryExpanded && !warehouses) {
+      warehouseService.getAll()
+        .then(data => setWarehouses(Array.isArray(data) ? data : []))
+        .catch(error => {
+          console.error('Failed to fetch warehouses:', error);
+          message.error('Failed to load warehouse data');
+        });
+    }
+  }, [itineraryExpanded, warehouses]);
 
   // Generate itinerary from comma-separated IDs
   const handleGenerateItinerary = async () => {
@@ -327,9 +334,7 @@ const MobileHeader = ({ onMenuToggle }) => {
           )}
 
           <a
-            href="https://wareongo.com"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/dashboard"
             style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}
             className="brand-link"
           >
@@ -500,86 +505,9 @@ const MobileHeader = ({ onMenuToggle }) => {
 
         {/* Right section */}
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px' }}>
-          {/* Mobile icon links */}
-          {isMobile && (
-            <>
-              {/* PPT Generator mobile icon */}
-              <Tooltip title={pptTooltip} placement="bottom">
-                <a
-                  href="#"
-                  className="nav-link-btn"
-                  onClick={(e) => { e.preventDefault(); handlePptToggle(); }}
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '15px',
-                    transition: 'all 0.2s ease',
-                    color: pptExpanded ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.45)',
-                    background: pptExpanded ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                    textDecoration: 'none',
-                    cursor: 'pointer',
-                  }}
-                  aria-label="PPT Generator"
-                >
-                  <FileTextOutlined />
-                </a>
-              </Tooltip>
-
-              {linkItems.map((item) => (
-                <Tooltip key={item.key} title={item.tooltip} placement="bottom">
-                  <a
-                    href={item.href}
-                    {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                    className="nav-link-btn"
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '10px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '15px',
-                      transition: 'all 0.2s ease',
-                      color: 'rgba(255, 255, 255, 0.45)',
-                      background: 'transparent',
-                      textDecoration: 'none',
-                    }}
-                    aria-label={item.label}
-                  >
-                    {item.icon}
-                  </a>
-                </Tooltip>
-              ))}
-              <Tooltip title={itineraryTooltip} placement="bottom">
-                <a
-                  href="#"
-                  className="nav-link-btn"
-                  onClick={(e) => { e.preventDefault(); handleItineraryToggle(); }}
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '15px',
-                    transition: 'all 0.2s ease',
-                    color: itineraryExpanded ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.45)',
-                    background: itineraryExpanded ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                    textDecoration: 'none',
-                    cursor: 'pointer',
-                  }}
-                  aria-label="Itinerary"
-                >
-                  <EnvironmentOutlined />
-                </a>
-              </Tooltip>
-            </>
-          )}
+          {/* Mobile tool/nav icons intentionally removed — they now live in the
+              hamburger drawer (MobileNavigation) as labeled rows, so the mobile
+              header stays as: menu + brand + avatar. */}
 
           {/* Separator */}
           {!isMobile && (
@@ -592,15 +520,19 @@ const MobileHeader = ({ onMenuToggle }) => {
             }} />
           )}
 
-          {/* User profile */}
+          {/* User profile — on mobile the avatar opens the nav drawer (which holds
+              the profile + Sign Out); on desktop it opens the Sign Out dropdown. */}
           <Dropdown
             menu={{ items: userMenuItems }}
             trigger={['click']}
             placement="bottomRight"
             arrow
+            disabled={isMobile}
           >
             <div
               className="user-profile-btn"
+              onClick={isMobile ? onMenuToggle : undefined}
+              aria-label={isMobile ? 'Open menu' : undefined}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -673,6 +605,14 @@ const MobileHeader = ({ onMenuToggle }) => {
           >
             Submit
           </Button>
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined />}
+            onClick={() => setPptExpanded(false)}
+            aria-label="Close PPT generator"
+            style={{ color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}
+          />
         </div>
       )}
 
@@ -712,6 +652,14 @@ const MobileHeader = ({ onMenuToggle }) => {
           >
             Generate
           </Button>
+          <Button
+            type="text"
+            size="small"
+            icon={<CloseOutlined />}
+            onClick={() => setItineraryExpanded(false)}
+            aria-label="Close itinerary"
+            style={{ color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}
+          />
         </div>
       )}
 

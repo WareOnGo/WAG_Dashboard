@@ -10,8 +10,7 @@ import {
   Typography, 
   Collapse,
   Badge,
-  Space,
-  Spin
+  Space
 } from 'antd';
 import { 
   FilterOutlined, 
@@ -59,11 +58,11 @@ const MobileFilterDrawer = ({
   budgetRange,
   setBudgetRange,
   clearFilters,
-  activeFilterCount
+  activeFilterCount,
+  filtered = []
 }) => {
   const { isMobile } = useViewport();
   const [activeKeys, setActiveKeys] = useState(['basic', 'location', 'details']);
-  const [isApplyingFilters, setIsApplyingFilters] = useState(false);
 
   // Calculate active filters for each section
   const getBasicFiltersCount = () => {
@@ -98,39 +97,25 @@ const MobileFilterDrawer = ({
     setActiveKeys(keys);
   };
 
-  const handleApplyFilters = async () => {
-    setIsApplyingFilters(true);
-    
-    // Simulate filter processing time for better UX
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    setIsApplyingFilters(false);
-    onClose();
-  };
-
+  // Filters apply live as values change (the list updates underneath the drawer),
+  // so quick filters just toggle the value instantly — no artificial delay.
   const handleQuickFilterChange = (filterType, value) => {
-    // Add visual feedback for quick filter changes
-    setIsApplyingFilters(true);
-    
-    setTimeout(() => {
-      switch (filterType) {
-        case 'zone':
-          setSelectedZone(selectedZone === value ? '' : value);
-          break;
-        case 'fireNoc':
-          setFireNocFilter(fireNocFilter === value ? '' : value);
-          break;
-        case 'broker':
-          setSelectedBroker(selectedBroker === value ? '' : value);
-          break;
-        case 'visibility':
-          setSelectedVisibility(selectedVisibility === value ? '' : value);
-          break;
-        default:
-          break;
-      }
-      setIsApplyingFilters(false);
-    }, 150);
+    switch (filterType) {
+      case 'zone':
+        setSelectedZone(selectedZone === value ? '' : value);
+        break;
+      case 'fireNoc':
+        setFireNocFilter(fireNocFilter === value ? '' : value);
+        break;
+      case 'broker':
+        setSelectedBroker(selectedBroker === value ? '' : value);
+        break;
+      case 'visibility':
+        setSelectedVisibility(selectedVisibility === value ? '' : value);
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -193,24 +178,6 @@ const MobileFilterDrawer = ({
         flexDirection: 'column',
         position: 'relative'
       }}>
-        {/* Loading overlay */}
-        {isApplyingFilters && (
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            borderRadius: '8px'
-          }}>
-            <Spin size="large" />
-          </div>
-        )}
         {/* Search Section - Always visible */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ 
@@ -265,67 +232,39 @@ const MobileFilterDrawer = ({
             scrollbarWidth: 'thin',
             scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
           }}>
-            {/* Zone Quick Filters */}
-            {['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'].map(zone => (
-              <Button
-                key={zone}
-                size="small"
-                type={selectedZone === zone ? 'primary' : 'default'}
-                onClick={() => handleQuickFilterChange('zone', zone)}
-                loading={isApplyingFilters}
-                style={{
-                  minWidth: 'auto',
-                  whiteSpace: 'nowrap',
-                  height: '36px',
-                  fontSize: '14px',
-                  borderRadius: '18px',
-                  padding: '0 20px',
-                  background: selectedZone === zone ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
-                  borderColor: selectedZone === zone ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
-                  color: selectedZone === zone ? '#000' : '#fff'
-                }}
-              >
-                {zone}
-              </Button>
-            ))}
-            
             {/* Fire NOC Quick Filters */}
             <Button
               size="small"
               type={fireNocFilter === 'available' ? 'primary' : 'default'}
-              onClick={() => handleQuickFilterChange('fireNoc', 'available')}
-              loading={isApplyingFilters}
-              style={{
+              onClick={() => handleQuickFilterChange('fireNoc', 'available')}              style={{
                 minWidth: 'auto',
                 whiteSpace: 'nowrap',
                 height: '36px',
                 fontSize: '14px',
                 borderRadius: '18px',
                 padding: '0 20px',
-                background: fireNocFilter === 'available' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
-                borderColor: fireNocFilter === 'available' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
-                color: fireNocFilter === 'available' ? '#000' : '#fff'
+                background: fireNocFilter === 'available' ? 'rgba(82, 196, 26, 0.22)' : 'rgba(255, 255, 255, 0.08)',
+                borderColor: fireNocFilter === 'available' ? '#52c41a' : 'rgba(255, 255, 255, 0.12)',
+                color: fireNocFilter === 'available' ? '#b7eb8f' : '#fff'
               }}
             >
-              Fire NOC ✓
+              Fire NOC
             </Button>
             
             {/* Broker Status Quick Filters */}
             <Button
               size="small"
               type={selectedBroker === 'y' ? 'primary' : 'default'}
-              onClick={() => handleQuickFilterChange('broker', 'y')}
-              loading={isApplyingFilters}
-              style={{
+              onClick={() => handleQuickFilterChange('broker', 'y')}              style={{
                 minWidth: 'auto',
                 whiteSpace: 'nowrap',
                 height: '36px',
                 fontSize: '14px',
                 borderRadius: '18px',
                 padding: '0 20px',
-                background: selectedBroker === 'y' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
-                borderColor: selectedBroker === 'y' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
-                color: selectedBroker === 'y' ? '#000' : '#fff'
+                background: selectedBroker === 'y' ? 'rgba(82, 196, 26, 0.22)' : 'rgba(255, 255, 255, 0.08)',
+                borderColor: selectedBroker === 'y' ? '#52c41a' : 'rgba(255, 255, 255, 0.12)',
+                color: selectedBroker === 'y' ? '#b7eb8f' : '#fff'
               }}
             >
               Broker
@@ -335,18 +274,16 @@ const MobileFilterDrawer = ({
             <Button
               size="small"
               type={selectedVisibility === 'visible' ? 'primary' : 'default'}
-              onClick={() => handleQuickFilterChange('visibility', 'visible')}
-              loading={isApplyingFilters}
-              style={{
+              onClick={() => handleQuickFilterChange('visibility', 'visible')}              style={{
                 minWidth: 'auto',
                 whiteSpace: 'nowrap',
                 height: '36px',
                 fontSize: '14px',
                 borderRadius: '18px',
                 padding: '0 20px',
-                background: selectedVisibility === 'visible' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.08)',
-                borderColor: selectedVisibility === 'visible' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.12)',
-                color: selectedVisibility === 'visible' ? '#000' : '#fff'
+                background: selectedVisibility === 'visible' ? 'rgba(82, 196, 26, 0.22)' : 'rgba(255, 255, 255, 0.08)',
+                borderColor: selectedVisibility === 'visible' ? '#52c41a' : 'rgba(255, 255, 255, 0.12)',
+                color: selectedVisibility === 'visible' ? '#b7eb8f' : '#fff'
               }}
             >
               Visible
@@ -970,7 +907,8 @@ const MobileFilterDrawer = ({
           <Button
             onClick={clearFilters}
             icon={<ClearOutlined />}
-            style={{ 
+            disabled={activeFilterCount === 0}
+            style={{
               flex: 1,
               height: '48px',
               background: 'rgba(255, 255, 255, 0.08)',
@@ -980,20 +918,19 @@ const MobileFilterDrawer = ({
               fontSize: '16px'
             }}
           >
-            Clear All
+            Clear{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </Button>
           <Button
             type="primary"
-            onClick={handleApplyFilters}
-            loading={isApplyingFilters}
-            style={{ 
+            onClick={onClose}
+            style={{
               flex: 2,
               height: '48px',
               borderRadius: '8px',
               fontSize: '16px'
             }}
           >
-            {isApplyingFilters ? 'Applying...' : 'Apply Filters'}
+            Show {filtered.length} result{filtered.length !== 1 ? 's' : ''}
           </Button>
         </div>
       </div>
