@@ -1,6 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { Layout, ConfigProvider, theme, App as AntApp } from 'antd'
-import { Dashboard, ErrorBoundary, MobileHeader, MobileNavigation, ProtectedRoute, ReviewQueue, SignInScreen } from './components'
+import { Layout, ConfigProvider, theme, App as AntApp, Spin } from 'antd'
+// Import shell components directly (not via the ./components barrel) so the initial
+// bundle isn't forced to pull the whole barrel graph.
+import ErrorBoundary from './components/ErrorBoundary'
+import MobileHeader from './components/MobileHeader'
+import MobileNavigation from './components/MobileNavigation'
+import ProtectedRoute from './components/ProtectedRoute'
+import SignInScreen from './components/SignInScreen'
 import { AboveFoldOptimizer } from './components/CriticalContentLoader'
 import { CompatibilityProvider } from './components/CompatibilityProvider'
 import AuthErrorBoundary from './components/AuthErrorBoundary'
@@ -9,12 +15,23 @@ import SessionExpired from './components/SessionExpired'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { useViewport } from './hooks'
 import { useTokenExpiryWatcher } from './hooks/useTokenExpiryWatcher'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import performanceService from './services/performanceService'
 import './App.css'
 import './styles/compatibility.css'
 
 const { Content } = Layout
+
+// Route-level code-splitting: Dashboard pulls in the heavy warehouse UI and ReviewQueue
+// is admin-only, so neither needs to be in the initial (sign-in) bundle.
+const Dashboard = lazy(() => import('./components/Dashboard'))
+const ReviewQueue = lazy(() => import('./components/ReviewQueue'))
+
+const RouteFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+    <Spin size="large" />
+  </div>
+)
 
 /**
  * Main App Content Component
@@ -87,6 +104,7 @@ function AppContent() {
   // Main app with router (includes both auth and non-auth routes)
   return (
     <Router>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         {/* OAuth callback route - accessible without authentication */}
         <Route path="/auth/callback" element={<AuthCallback />} />
@@ -169,6 +187,7 @@ function AppContent() {
           </Layout>
         } />
       </Routes>
+      </Suspense>
     </Router>
   );
 }

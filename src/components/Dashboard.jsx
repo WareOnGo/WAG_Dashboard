@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import {
   Table,
   Button,
@@ -30,14 +30,18 @@ import {
 } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
 import {
-  WarehouseForm,
   ContextMenu,
   ResponsiveTable,
   CardView,
   ViewSwitcher,
-  MobileFilterDrawer,
-  MapView
+  MobileFilterDrawer
 } from './index';
+
+// Lazy-loaded heavy components:
+//  - MapView pulls in mapbox-gl (~1MB), only needed when the map/split view is open.
+//  - WarehouseForm is ~1k lines, only needed when creating/editing a warehouse.
+const MapView = React.lazy(() => import('./MapView'));
+const WarehouseForm = React.lazy(() => import('./WarehouseForm'));
 import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
 import WarehouseFilterBar from './WarehouseFilterBar';
@@ -154,7 +158,7 @@ const Dashboard = () => {
     setCurrentPage(1);
   }, [filteredWarehouses]);
 
-  const handleDelete = (warehouse) => {
+  const handleDelete = useCallback((warehouse) => {
     modal.confirm({
       title: 'Delete Warehouse',
       icon: <ExclamationCircleOutlined />,
@@ -191,9 +195,9 @@ const Dashboard = () => {
         }
       },
     });
-  };
+  }, [modal]);
 
-  const handleEdit = (warehouse) => {
+  const handleEdit = useCallback((warehouse) => {
     setEditingWarehouse(warehouse);
     setFormVisible(true);
 
@@ -207,7 +211,7 @@ const Dashboard = () => {
         );
       })
       .catch(() => {});
-  };
+  }, []);
 
   const handleCreate = () => {
     setEditingWarehouse(null);
@@ -341,13 +345,13 @@ const Dashboard = () => {
   };
 
   // Handle view details
-  const handleViewDetails = (warehouse) => {
+  const handleViewDetails = useCallback((warehouse) => {
     setSelectedWarehouse(warehouse);
     setViewDetailsVisible(true);
-  };
+  }, []);
 
   // Handle toggle visibility
-  const handleToggleVisibility = async (warehouse, newVisibility) => {
+  const handleToggleVisibility = useCallback(async (warehouse, newVisibility) => {
     try {
       const visibilityBoolean = newVisibility === 'visible';
 
@@ -378,7 +382,7 @@ const Dashboard = () => {
       );
       // Error already handled by withRetry
     }
-  };
+  }, [message]);
 
   // Right-click context menu
   const handleRowContextMenu = (record, event) => {
@@ -819,6 +823,7 @@ const Dashboard = () => {
               <div style={{
                 flex: 1,
                 overflow: 'auto',
+                height: isMobile ? '400px' : 'auto',
                 minHeight: isMobile ? '400px' : 'auto'
               }}>
                 <CardView
@@ -835,17 +840,24 @@ const Dashboard = () => {
               {/* Map View */}
               <div style={{
                 flex: 1,
+                height: isMobile ? '400px' : 'auto',
                 minHeight: isMobile ? '400px' : 'auto',
                 background: 'rgba(0, 0, 0, 0.3)',
                 borderRadius: '8px',
                 overflow: 'hidden'
               }}>
-                <MapView
-                  warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onViewDetails={handleViewDetails}
-                />
+                <Suspense fallback={
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'rgba(255,255,255,0.65)' }}>
+                    Loading map…
+                  </div>
+                }>
+                  <MapView
+                    warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onViewDetails={handleViewDetails}
+                  />
+                </Suspense>
               </div>
             </div>
           ) : currentView === 'table' ? (
@@ -908,14 +920,18 @@ const Dashboard = () => {
         </div>
       </Card>
 
-      {/* Warehouse Form Modal */}
-      <WarehouseForm
-        visible={formVisible}
-        onCancel={handleFormCancel}
-        onSubmit={handleFormSubmit}
-        initialData={editingWarehouse}
-        loading={formLoading}
-      />
+      {/* Warehouse Form Modal — lazy: only mount (and fetch its chunk) when opened */}
+      {formVisible && (
+        <Suspense fallback={null}>
+          <WarehouseForm
+            visible={formVisible}
+            onCancel={handleFormCancel}
+            onSubmit={handleFormSubmit}
+            initialData={editingWarehouse}
+            loading={formLoading}
+          />
+        </Suspense>
+      )}
 
       {/* View Details Modal */}
       <WarehouseDetailsModal
