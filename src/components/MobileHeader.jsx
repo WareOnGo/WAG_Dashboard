@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, message } from 'antd';
+import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, Checkbox, message } from 'antd';
 import {
   UserOutlined,
   FileTextOutlined,
@@ -22,6 +22,59 @@ const { Header } = Layout;
 const { Text } = Typography;
 const { TextArea } = Input;
 
+// Build the formatted itinerary text from the resolved warehouses.
+// When hideOwner is true, the contact person name and phone number are omitted.
+// When hideRent is true, the rate line is omitted.
+const buildItineraryText = (foundWarehouses, contactMap, hideOwner, hideRent) => {
+  const itineraryLines = foundWarehouses.map((wh, index) => {
+    // Handle totalSpaceSqft (can be array or single value)
+    const totalSpace = Array.isArray(wh.totalSpaceSqft)
+      ? wh.totalSpaceSqft.join(' + ')
+      : wh.totalSpaceSqft || 'N/A';
+
+    // Read fields from both root and nested shapes for backward compatibility.
+    const complianceValue = wh.compliances || wh.WarehouseData?.compliances || wh.warehouseData?.compliances;
+    const otherSpecsValue = wh.otherSpecifications || wh.WarehouseData?.otherSpecifications || wh.warehouseData?.otherSpecifications;
+    const compliances = typeof complianceValue === 'string' ? complianceValue.trim() : complianceValue;
+    const otherSpecifications = typeof otherSpecsValue === 'string' ? otherSpecsValue.trim() : otherSpecsValue;
+
+    // Render rate as-is from DB for now.
+    const rate = wh.ratePerSqft;
+
+    // Use unmasked phone number if available, fall back to masked
+    const phone = contactMap[wh.id] || wh.contactNumber || 'N/A';
+
+    // Format address
+    const addressParts = [
+      wh.address,
+      wh.city,
+      wh.state,
+      wh.postalCode
+    ].filter(part => part); // Remove empty/null values
+    const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'N/A';
+
+    // Header line — drop owner name/number when the user opts to hide owner details.
+    const header = hideOwner
+      ? `${index + 1}. WH-${wh.id}`
+      : `${index + 1}. WH-${wh.id} - ${wh.contactPerson || 'N/A'} (${phone})`;
+
+    const lines = [
+      header,
+      `   Address: ${fullAddress}`,
+      `   Total Space: ${totalSpace} sq ft`,
+      `   Docks: ${wh.numberOfDocks || 0}`,
+      `  Compliances: ${compliances || 'N/A'}`,
+      `  Other Specs: ${otherSpecifications || 'N/A'}`,
+      ...(hideRent ? [] : [`  Rate: ${rate ?? ''}`]),
+      `   Location: ${wh.googleLocation || 'No location available'}`,
+    ];
+
+    return lines.join('\n');
+  });
+
+  return itineraryLines.join('\n\n');
+};
+
 const MobileHeader = ({ onMenuToggle }) => {
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
@@ -37,6 +90,12 @@ const MobileHeader = ({ onMenuToggle }) => {
   const [generatedItinerary, setGeneratedItinerary] = useState('');
   const [warehouses, setWarehouses] = useState(null);
   const [generatingItinerary, setGeneratingItinerary] = useState(false);
+  // Resolved data backing the current itinerary result, so it can be re-rendered
+  // (e.g. when toggling "hide owner detail") without re-fetching.
+  const [itineraryWarehouses, setItineraryWarehouses] = useState([]);
+  const [itineraryContactMap, setItineraryContactMap] = useState({});
+  const [hideOwnerDetail, setHideOwnerDetail] = useState(false);
+  const [hideRent, setHideRent] = useState(false);
 
   // PPT generator state
   const [pptWarehouseIds, setPptWarehouseIds] = useState('');
@@ -125,45 +184,14 @@ const MobileHeader = ({ onMenuToggle }) => {
         }
       });
 
-      // Generate formatted itinerary
-      const itineraryLines = foundWarehouses.map((wh, index) => {
-        // Handle totalSpaceSqft (can be array or single value)
-        const totalSpace = Array.isArray(wh.totalSpaceSqft)
-          ? wh.totalSpaceSqft.join(' + ')
-          : wh.totalSpaceSqft || 'N/A';
+      // Reset the toggle for each fresh generation, then build the formatted text.
+      // Keep the resolved data around so the modal can re-render on toggle.
+      setItineraryWarehouses(foundWarehouses);
+      setItineraryContactMap(contactMap);
+      setHideOwnerDetail(false);
+      setHideRent(false);
 
-        // Read fields from both root and nested shapes for backward compatibility.
-        const complianceValue = wh.compliances || wh.WarehouseData?.compliances || wh.warehouseData?.compliances;
-        const otherSpecsValue = wh.otherSpecifications || wh.WarehouseData?.otherSpecifications || wh.warehouseData?.otherSpecifications;
-        const compliances = typeof complianceValue === 'string' ? complianceValue.trim() : complianceValue;
-        const otherSpecifications = typeof otherSpecsValue === 'string' ? otherSpecsValue.trim() : otherSpecsValue;
-
-        // Render rate as-is from DB for now.
-        const rate = wh.ratePerSqft;
-
-        // Use unmasked phone number if available, fall back to masked
-        const phone = contactMap[wh.id] || wh.contactNumber || 'N/A';
-
-        // Format address
-        const addressParts = [
-          wh.address,
-          wh.city,
-          wh.state,
-          wh.postalCode
-        ].filter(part => part); // Remove empty/null values
-        const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'N/A';
-
-        return `${index + 1}. WH-${wh.id} - ${wh.contactPerson || 'N/A'} (${phone})
-   Address: ${fullAddress}
-   Total Space: ${totalSpace} sq ft
-   Docks: ${wh.numberOfDocks || 0}
-  Compliances: ${compliances || 'N/A'}
-  Other Specs: ${otherSpecifications || 'N/A'}
-  Rate: ${rate ?? ''}
-   Location: ${wh.googleLocation || 'No location available'}`;
-      });
-
-      const itinerary = itineraryLines.join('\n\n');
+      const itinerary = buildItineraryText(foundWarehouses, contactMap, false, false);
       setGeneratedItinerary(itinerary);
       setItineraryResultOpen(true);
       message.success(`Generated itinerary for ${foundWarehouses.length} warehouse(s)`);
@@ -195,6 +223,18 @@ const MobileHeader = ({ onMenuToggle }) => {
       console.error('Failed to copy:', error);
       message.error('Failed to copy to clipboard');
     }
+  };
+
+  // Re-render the itinerary text when the user toggles field visibility.
+  // Note: this regenerates from the resolved data, so any manual edits are reset.
+  const handleToggleHideOwner = (checked) => {
+    setHideOwnerDetail(checked);
+    setGeneratedItinerary(buildItineraryText(itineraryWarehouses, itineraryContactMap, checked, hideRent));
+  };
+
+  const handleToggleHideRent = (checked) => {
+    setHideRent(checked);
+    setGeneratedItinerary(buildItineraryText(itineraryWarehouses, itineraryContactMap, hideOwnerDetail, checked));
   };
 
   // Close only the result modal — don't reset input so context is preserved
@@ -678,7 +718,8 @@ const MobileHeader = ({ onMenuToggle }) => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '8px'
+              gap: '8px',
+              marginBottom: '10px'
             }}>
               <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)' }}>
                 Generated Itinerary (editable)
@@ -687,9 +728,33 @@ const MobileHeader = ({ onMenuToggle }) => {
                 icon={<CopyOutlined />}
                 onClick={handleCopyItinerary}
                 size="small"
+                style={{ flexShrink: 0 }}
               >
                 Copy
               </Button>
+            </div>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              columnGap: isMobile ? '20px' : '16px',
+              rowGap: '8px',
+              marginBottom: '10px'
+            }}>
+              <Checkbox
+                checked={hideOwnerDetail}
+                onChange={(e) => handleToggleHideOwner(e.target.checked)}
+                style={isMobile ? { padding: '4px 0' } : undefined}
+              >
+                Hide owner detail
+              </Checkbox>
+              <Checkbox
+                checked={hideRent}
+                onChange={(e) => handleToggleHideRent(e.target.checked)}
+                style={isMobile ? { padding: '4px 0' } : undefined}
+              >
+                Hide rent
+              </Checkbox>
             </div>
             <TextArea
               value={generatedItinerary}
