@@ -61,6 +61,9 @@ const ReviewQueue = () => {
 
   const filters = useWarehouseFilters(rows);
   const isAdmin = !!user?.isAdmin;
+  const isReviewer = !!user?.isReviewer;
+  // Admins and reviewers can both open the panel; only admins get delete.
+  const canReview = isAdmin || isReviewer;
 
   // Pending rows open the editable form; finalized rows open the read-only details modal.
   const openRow = (row) => {
@@ -82,8 +85,8 @@ const ReviewQueue = () => {
   }, [status, message]);
 
   useEffect(() => {
-    if (isAdmin) load();
-  }, [isAdmin, load]);
+    if (canReview) load();
+  }, [canReview, load]);
 
   const handleEditSubmit = async (payload) => {
     try {
@@ -325,8 +328,11 @@ const ReviewQueue = () => {
         onClick={() => approve(editingRow)} style={btnStyle}>Accept</Button>
       <Button size="large" danger icon={<CloseOutlined />} loading={acting}
         onClick={() => reject(editingRow)} style={btnStyle}>Reject</Button>
-      <Button size="large" danger icon={<DeleteOutlined />} loading={acting}
-        onClick={() => deleteRow(editingRow)} style={btnStyle}>Delete</Button>
+      {/* Delete is admin-only; reviewers can approve/reject but not delete. */}
+      {isAdmin && (
+        <Button size="large" danger icon={<DeleteOutlined />} loading={acting}
+          onClick={() => deleteRow(editingRow)} style={btnStyle}>Delete</Button>
+      )}
     </>
   ) : null;
 
@@ -337,14 +343,17 @@ const ReviewQueue = () => {
         onClick={() => reopen(viewingRow)} style={btnStyle}>
         {viewingRow.reviewStatus === 'APPROVED' ? 'Revoke approval' : 'Move to Pending'}
       </Button>
-      <Button size="large" danger icon={<DeleteOutlined />} loading={acting}
-        onClick={() => deleteRow(viewingRow)} style={btnStyle}>Delete</Button>
+      {/* Delete is admin-only; reviewers can reopen/revoke but not delete. */}
+      {isAdmin && (
+        <Button size="large" danger icon={<DeleteOutlined />} loading={acting}
+          onClick={() => deleteRow(viewingRow)} style={btnStyle}>Delete</Button>
+      )}
     </>
   ) : null;
 
-  if (!isAdmin) {
+  if (!canReview) {
     return (
-      <Result status="403" title="Admins only" subTitle="The review queue is restricted to administrators." />
+      <Result status="403" title="Reviewers only" subTitle="The review queue is restricted to reviewers and administrators." />
     );
   }
 
