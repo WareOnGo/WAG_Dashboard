@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Radio, Input, Button, Space, Spin, Typography, Image, message } from 'antd';
+import { Modal, Radio, Input, Button, Space, Spin, Typography, Image, Checkbox, message } from 'antd';
 import {
   FileTextOutlined,
   EnvironmentOutlined,
@@ -83,6 +83,11 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const [pocName, setPocName] = useState('');
   const [pocContact, setPocContact] = useState('');
 
+  // v2 redaction flags — default enabled (full, unredacted deck)
+  const [commercials, setCommercials] = useState(true);
+  const [mapsLocation, setMapsLocation] = useState(true);
+  const [pocSlide, setPocSlide] = useState(true);
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (open) {
@@ -94,6 +99,9 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setClientRequirement('');
       setPocName('');
       setPocContact('');
+      setCommercials(true);
+      setMapsLocation(true);
+      setPocSlide(true);
     }
   }, [open]);
 
@@ -160,6 +168,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           clientRequirement: clientRequirement.trim(),
           pocName: pocName.trim(),
           pocContact: pocContact.trim() ? `+91${pocContact.trim()}` : '',
+          // v2-only redaction flags (deck-level); unchecked → false redacts content
+          ...(pptType === 'v2' && { commercials, mapsLocation, pocSlide }),
         };
 
     onGenerate({ pptType, customDetails, selectedImages });
@@ -409,6 +419,32 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
             </Space.Compact>
           </div>
         )}
+
+        {pptType === 'v2' && (
+          <div>
+            <label style={labelStyle}>Deck Content</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <Checkbox checked={commercials} onChange={(e) => setCommercials(e.target.checked)}>
+                <span style={checkboxLabelStyle}>
+                  Include rent / commercials
+                  <span style={checkboxHintStyle}>Unchecked shows “Available on Demand”</span>
+                </span>
+              </Checkbox>
+              <Checkbox checked={mapsLocation} onChange={(e) => setMapsLocation(e.target.checked)}>
+                <span style={checkboxLabelStyle}>
+                  Include Google Maps location
+                  <span style={checkboxHintStyle}>Unchecked shows “Available on Demand”</span>
+                </span>
+              </Checkbox>
+              <Checkbox checked={pocSlide} onChange={(e) => setPocSlide(e.target.checked)}>
+                <span style={checkboxLabelStyle}>
+                  Include WareOnGo POC slide
+                  <span style={checkboxHintStyle}>Unchecked drops the final contact slide</span>
+                </span>
+              </Checkbox>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -492,6 +528,20 @@ const labelStyle = {
   fontWeight: 500,
   color: 'rgba(255,255,255,0.6)',
   fontFamily: 'Verdana, sans-serif',
+};
+
+const checkboxLabelStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '2px',
+  fontSize: '13px',
+  color: 'rgba(255,255,255,0.85)',
+  fontFamily: 'Verdana, sans-serif',
+};
+
+const checkboxHintStyle = {
+  fontSize: '11px',
+  color: 'rgba(255,255,255,0.4)',
 };
 
 export default PptConfigModal;
