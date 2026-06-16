@@ -75,8 +75,8 @@ const MobileNavigation = ({ visible, onClose }) => {
       label: 'Dashboard',
       href: '/dashboard'
     },
-    // Admin-only: staged submission review queue
-    ...(user?.isAdmin ? [{
+    // Reviewers + admins: staged submission review queue
+    ...((user?.isAdmin || user?.isReviewer) ? [{
       key: 'review',
       icon: <SafetyCertificateOutlined />,
       label: 'Review Queue',

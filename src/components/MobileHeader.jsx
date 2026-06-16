@@ -261,7 +261,7 @@ const MobileHeader = ({ onMenuToggle }) => {
       icon: <DashboardOutlined />,
       tooltip: 'Back to dashboard',
     },
-    ...(user?.isAdmin
+    ...((user?.isAdmin || user?.isReviewer)
       ? [{
           key: 'review',
           label: 'Review Queue',
