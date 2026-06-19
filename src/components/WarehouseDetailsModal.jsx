@@ -266,7 +266,7 @@ const WarehouseDetailsModal = ({
             {col(
               <Field label="Contact Number" mobile={m}>
                 <div style={valueBase(m)}>
-                  <RedactedPhone warehouseId={warehouse.id} />
+                  <RedactedPhone warehouseId={warehouse.id} contactNumber={warehouse.contactNumber} />
                 </div>
               </Field>,
             true)}
