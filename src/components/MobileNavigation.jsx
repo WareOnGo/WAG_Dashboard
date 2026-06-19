@@ -82,6 +82,13 @@ const MobileNavigation = ({ visible, onClose }) => {
       label: 'Review Queue',
       href: '/review'
     }] : []),
+    // Reviewers + admins: micro-market polygon mapping tool
+    ...((user?.isAdmin || user?.isReviewer) ? [{
+      key: 'micro-markets',
+      icon: <EnvironmentOutlined />,
+      label: 'Micro-Markets',
+      href: '/micro-markets'
+    }] : []),
     // In-app tools (rendered by MobileHeader, opened via shared MobileTools context)
     {
       key: 'ppt-generator',

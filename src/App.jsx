@@ -27,6 +27,7 @@ const { Content } = Layout
 // is admin-only, so neither needs to be in the initial (sign-in) bundle.
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const ReviewQueue = lazy(() => import('./components/ReviewQueue'))
+const MicroMarkets = lazy(() => import('./components/MicroMarkets'))
 
 const RouteFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
@@ -184,6 +185,29 @@ function AppContent() {
             }}>
               <ProtectedRoute>
                 <ReviewQueue />
+              </ProtectedRoute>
+            </Content>
+          </Layout>
+        } />
+
+        {/* Micro-market mapping route (reviewer-only; MicroMarkets renders a 403 for non-reviewers) */}
+        <Route path="/micro-markets" element={
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+            <MobileHeader
+              onMenuToggle={handleMenuToggle}
+              isMenuOpen={mobileMenuOpen}
+            />
+            <MobileNavigation
+              visible={mobileMenuOpen}
+              onClose={handleMenuClose}
+            />
+            <Content style={{
+              background: 'var(--bg-primary)',
+              minHeight: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
+              padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
+            }}>
+              <ProtectedRoute>
+                <MicroMarkets />
               </ProtectedRoute>
             </Content>
           </Layout>

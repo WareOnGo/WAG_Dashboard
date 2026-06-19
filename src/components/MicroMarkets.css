@@ -1,0 +1,315 @@
+/* Micro-markets page — dark theme matching the dashboard. Uses the dashboard's
+   CSS tokens (--bg-*, --border-*, --text-*) and the MapView section look.
+   Scoped with .mm- prefixes so nothing leaks. */
+.mm-page {
+  display: flex;
+  height: calc(100vh - 96px);
+  min-height: 480px;
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(31, 31, 31, 0.6);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+/* ---- Sidebar ---- */
+.mm-sidebar {
+  width: 340px;
+  flex: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-right: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mm-sidebar-head {
+  flex: none;
+  padding: 16px 18px 12px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.mm-sidebar-head h2 {
+  font-size: 16px;
+  font-weight: 650;
+  margin: 0 0 6px;
+  color: var(--text-primary);
+}
+
+.mm-hint {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.mm-stats {
+  flex: none;
+  padding: 12px 18px 14px;
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mm-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mm-stat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mm-stat-count {
+  min-width: 18px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  /* push the eye toggle to the far right */
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.mm-eye-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.mm-eye-toggle:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-primary); border-color: rgba(255, 255, 255, 0.18); }
+.mm-eye-toggle.off { background: rgba(255, 255, 255, 0.04); color: var(--text-muted); }
+
+.mm-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #1890ff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: mm-spin 0.7s linear infinite;
+}
+
+@keyframes mm-spin { to { transform: rotate(360deg); } }
+
+.mm-area-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 14px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mm-area-list::-webkit-scrollbar { width: 8px; }
+.mm-area-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+.mm-area-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }
+
+/* ---- Search ---- */
+.mm-search { flex: none; padding: 12px 18px 0; }
+
+.mm-search-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  color: var(--text-primary);
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.mm-search-input::placeholder { color: var(--text-muted); }
+.mm-search-input:focus { outline: none; border-color: #1890ff; box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2); }
+
+/* ---- Collapsible city groups ---- */
+.mm-group + .mm-group { margin-top: 2px; }
+
+.mm-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 6px;
+  border-radius: 6px;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-secondary);
+}
+
+.mm-group-head::-webkit-details-marker { display: none; }
+.mm-group-head:hover { background: rgba(255, 255, 255, 0.05); }
+
+.mm-group-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mm-group-count {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mm-chevron {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+
+.mm-group[open] > .mm-group-head .mm-chevron { transform: rotate(90deg); }
+
+.mm-group-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mm-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 16px;
+  border: 1px dashed var(--border-primary);
+  border-radius: 10px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mm-area {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.mm-area:hover { border-color: rgba(255, 255, 255, 0.18); }
+.mm-area.selected { border-color: #1890ff; box-shadow: 0 0 0 1px #1890ff, 0 2px 8px rgba(24, 144, 255, 0.18); }
+
+.mm-area-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mm-area-head strong { font-weight: 600; color: var(--text-primary); }
+.mm-area-head .mm-dot { width: 9px; height: 9px; border-radius: 50%; background: #1890ff; flex: none; }
+.mm-area-head .mm-muted { color: var(--text-muted); font-weight: 400; }
+
+.mm-field {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-primary);
+  border-radius: 7px;
+  color: var(--text-primary);
+  padding: 7px 9px;
+  font-size: 13px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.mm-field::placeholder { color: var(--text-muted); }
+.mm-field:focus { outline: none; border-color: #1890ff; box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2); }
+
+.mm-reviewer { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+.mm-del {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: #ff4d4f;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.mm-del:hover { text-decoration: underline; }
+
+/* ---- Map ---- */
+.mm-map { flex: 1; position: relative; background: rgba(0, 0, 0, 0.3); }
+.mm-map-canvas { position: absolute; inset: 0; }
+
+/* Warehouse popup — kill Mapbox's default white container so only our dark card
+   shows. Scoped to this page so it can't affect other maps. */
+.mm-page .mapboxgl-popup-content {
+  background: rgba(26, 26, 26, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 0 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  max-width: 260px;
+}
+.mm-page .mapboxgl-popup-close-button { display: none !important; }
+.mm-page .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: rgba(26, 26, 26, 0.98) !important; }
+.mm-page .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: rgba(26, 26, 26, 0.98) !important; }
+.mm-page .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: rgba(26, 26, 26, 0.98) !important; }
+.mm-page .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: rgba(26, 26, 26, 0.98) !important; }
+
+.mm-banner {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 20px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+
+.mm-banner.warn { background: #614700; color: #ffe7a3; }
+.mm-banner code { background: rgba(255, 255, 255, 0.12); padding: 1px 4px; border-radius: 4px; }
+
+/* ---- Mobile: stack ---- */
+@media (max-width: 768px) {
+  .mm-page { flex-direction: column; height: calc(100vh - 120px); }
+  .mm-sidebar { width: 100%; max-height: 45%; border-right: none; border-bottom: 1px solid var(--border-primary); }
+}

@@ -16,6 +16,7 @@
     "test:coverage": "vitest --run --coverage"
   },
   "dependencies": {
+    "@mapbox/mapbox-gl-draw": "^1.5.1",
     "antd": "^5.27.6",
     "axios": "^1.12.2",
     "js-cookie": "^3.0.5",
