@@ -270,6 +270,15 @@ const MobileHeader = ({ onMenuToggle }) => {
           tooltip: 'Review staged warehouse submissions',
         }]
       : []),
+    ...((user?.isAdmin || user?.isReviewer)
+      ? [{
+          key: 'micro-markets',
+          label: 'Micro-Markets',
+          href: '/micro-markets',
+          icon: <EnvironmentOutlined />,
+          tooltip: 'Draw and name micro-market areas',
+        }]
+      : []),
   ];
 
   const pptTooltip = 'Generate warehouse presentation (PPT)';
