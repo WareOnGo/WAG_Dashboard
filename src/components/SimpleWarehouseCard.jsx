@@ -162,7 +162,7 @@ const SimpleWarehouseCard = ({
             <UserOutlined className="simple-warehouse-card__icon" />
             <span>{warehouse.contactPerson}</span>
             <PhoneOutlined className="simple-warehouse-card__icon simple-warehouse-card__icon--secondary" />
-            <RedactedPhone warehouseId={warehouse.id} />
+            <RedactedPhone warehouseId={warehouse.id} contactNumber={warehouse.contactNumber} />
           </div>
         </div>
 
