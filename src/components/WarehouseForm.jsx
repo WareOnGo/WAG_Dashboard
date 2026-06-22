@@ -9,10 +9,13 @@ import './WarehouseForm.css';
 import { clearErrors } from '../utils/errorHandler';
 import { useViewport } from '../hooks/useViewport';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { deriveZone } from '../utils/deriveZone';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 
-const ZONES = ['North', 'South', 'East', 'West', 'Central'];
+// Canonical zone values, matching what deriveZone (and the backend) produce, so
+// an autofilled zone lines up cleanly with a dropdown option.
+const ZONES = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'];
 const LAND_TYPES = ['Commercial', 'Industrial', 'Others'];
 const POLLUTION_ZONES = ['Green', 'Yellow', 'Red'];
 const BROKER_OPTIONS = ['Yes', 'No'];
@@ -57,7 +60,9 @@ const toFormValues = (d) => {
   return {
     warehouseOwnerType: d.warehouseOwnerType || '',
     warehouseType: d.warehouseType || '',
-    zone: d.zone || '',
+    // Autofill zone from state at edit time when the record has none. An existing
+    // zone is preserved (the user can still change it via the dropdown).
+    zone: d.zone || (d.state ? deriveZone(d.state) : ''),
     address: d.address || '',
     city: d.city || '',
     state: d.state || '',
@@ -318,12 +323,15 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   // Reset form when modal opens
   const [initialSnapshot, setInitialSnapshot] = useState(null);
   const [contactTouched, setContactTouched] = useState(false);
+  // Once the user manually picks a zone, stop autofilling it from the state.
+  const [zoneTouched, setZoneTouched] = useState(false);
   useEffect(() => {
     if (visible) {
       setValues(toFormValues(initialData));
       setErrors({});
       setInitialSnapshot(initialData);
       setContactTouched(false);
+      setZoneTouched(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -341,8 +349,18 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   const set = (field) => (val) => {
     setValues(prev => ({ ...prev, [field]: val }));
     if (field === 'contactNumber') setContactTouched(true);
+    if (field === 'zone') setZoneTouched(true);
     // Clear error on change
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+  };
+
+  // Autofill zone from state once the user finishes editing the State field (on
+  // blur — when it goes inactive), rather than on every keystroke. Skipped once
+  // the user has manually picked a zone.
+  const syncZoneFromState = () => {
+    if (zoneTouched) return;
+    setValues(prev => ({ ...prev, zone: prev.state?.trim() ? deriveZone(prev.state) : '' }));
+    if (errors.zone) setErrors(prev => ({ ...prev, zone: null }));
   };
 
   // ── Validation ──────────────────────────────────────────────────────────────
@@ -351,7 +369,6 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     const e = {};
     if (!values.listing_type) e.listing_type = 'Listing type is required';
     if (!values.warehouseType?.trim()) e.warehouseType = 'Warehouse type is required';
-    if (!values.zone) e.zone = 'Zone is required';
     if (!values.address?.trim()) e.address = 'Address is required';
     if (!values.city?.trim()) e.city = 'City is required';
     if (!values.state?.trim()) e.state = 'State is required';
@@ -677,7 +694,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
               {col(
                 <Field label="State" required error={errors.state}>
-                  <TextInput mobile={m} value={values.state} onChange={set('state')} placeholder="Enter state" autoComplete="address-level1" data-field="state" />
+                  <TextInput mobile={m} value={values.state} onChange={set('state')} onBlur={syncZoneFromState} placeholder="Enter state" autoComplete="address-level1" data-field="state" />
                 </Field>,
                 true)}
             </>)}
@@ -689,8 +706,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
               {col(
-                <Field label="Zone" required error={errors.zone}>
-                  <SelectInput mobile={m} value={values.zone} onChange={set('zone')} placeholder="Select zone" options={ZONES} data-field="zone" />
+                <Field label="Zone" error={errors.zone} tooltip="Auto-filled from the State — pick a value here to override it.">
+                  <SelectInput mobile={m} value={values.zone} onChange={set('zone')} placeholder="Auto-filled from State" options={ZONES} data-field="zone" />
                 </Field>,
                 true)}
             </>)}
