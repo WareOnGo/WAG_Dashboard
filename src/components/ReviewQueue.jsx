@@ -404,7 +404,7 @@ const ReviewQueue = () => {
           </div>
         </div>
 
-        {filtersVisible && !isMobile && <WarehouseFilterBar filters={filters} />}
+        {filtersVisible && !isMobile && <WarehouseFilterBar filters={filters} showDateFilter />}
 
         <div style={{ padding: isMobile ? '4px' : '16px' }}>
           <CardView

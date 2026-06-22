@@ -25,6 +25,10 @@ export function useWarehouseFilters(items = []) {
   const [selectedVisibility, setSelectedVisibility] = useState('');
   const [areaRange, setAreaRange] = useState([0, 100000]);
   const [budgetRange, setBudgetRange] = useState([0, 1000]);
+  // [from, to] as 'YYYY-MM-DD' strings (null when unset). Used by the review queue
+  // to filter staged rows by submission date (submittedAt) / approval date (reviewedAt).
+  const [submittedDateRange, setSubmittedDateRange] = useState([null, null]);
+  const [reviewedDateRange, setReviewedDateRange] = useState([null, null]);
 
   const clearFilters = () => {
     setSearchText('');
@@ -41,6 +45,20 @@ export function useWarehouseFilters(items = []) {
     setSelectedVisibility('');
     setAreaRange([0, 100000]);
     setBudgetRange([0, 1000]);
+    setSubmittedDateRange([null, null]);
+    setReviewedDateRange([null, null]);
+  };
+
+  // True when `value` (a DateTime) falls within [from, to] (inclusive, day-granular).
+  // Empty range → always passes; missing value against a set range → excluded.
+  const matchesDateRange = (value, [from, to]) => {
+    if (!from && !to) return true;
+    if (!value) return false;
+    const t = new Date(value).getTime();
+    if (Number.isNaN(t)) return false;
+    if (from && t < new Date(`${from}T00:00:00`).getTime()) return false;
+    if (to && t > new Date(`${to}T23:59:59.999`).getTime()) return false;
+    return true;
   };
 
   const filtered = useMemo(() => {
@@ -155,11 +173,20 @@ export function useWarehouseFilters(items = []) {
       });
     }
 
+    if (submittedDateRange[0] || submittedDateRange[1]) {
+      result = result.filter(warehouse => matchesDateRange(warehouse.submittedAt, submittedDateRange));
+    }
+
+    if (reviewedDateRange[0] || reviewedDateRange[1]) {
+      result = result.filter(warehouse => matchesDateRange(warehouse.reviewedAt, reviewedDateRange));
+    }
+
     return result;
   }, [
     items, searchText, selectedOwnerType, selectedType, selectedCity, selectedState,
     selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType,
     selectedUploadedBy, selectedVisibility, areaRange, budgetRange,
+    submittedDateRange, reviewedDateRange,
   ]);
 
   return {
@@ -178,6 +205,8 @@ export function useWarehouseFilters(items = []) {
     selectedVisibility, setSelectedVisibility,
     areaRange, setAreaRange,
     budgetRange, setBudgetRange,
+    submittedDateRange, setSubmittedDateRange,
+    reviewedDateRange, setReviewedDateRange,
     clearFilters,
   };
 }
