@@ -1,13 +1,31 @@
-import { Card, Row, Col, Input, Select, Slider, Button } from 'antd';
+import { Card, Row, Col, Input, Select, Slider, Button, DatePicker } from 'antd';
+import dayjs from 'dayjs';
 
 const { Option } = Select;
+
+// Calendar date picker, mirroring WarehouseForm's DateInput: value is a plain
+// 'YYYY-MM-DD' string, displayed as DD/MM/YYYY. onChange receives '' when cleared.
+const DateInput = ({ value, onChange, placeholder }) => (
+  <DatePicker
+    value={value ? dayjs(value, 'YYYY-MM-DD') : null}
+    onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : '')}
+    format="DD/MM/YYYY"
+    placeholder={placeholder || 'DD/MM/YYYY'}
+    style={{ width: '100%' }}
+    styles={{ popup: { root: { zIndex: 2000 } } }}
+    allowClear
+  />
+);
 
 /**
  * WarehouseFilterBar — the desktop filter panel, shared by the dashboard and the
  * review queue. Presentational: all state lives in useWarehouseFilters, passed in
  * via the `filters` bundle.
+ *
+ * @param {boolean} showDateFilter - when true, render the submission/approval date
+ *   filters (review queue only; staged rows carry submittedAt/reviewedAt).
  */
-const WarehouseFilterBar = ({ filters }) => {
+const WarehouseFilterBar = ({ filters, showDateFilter = false }) => {
   const {
     selectedOwnerType, setSelectedOwnerType,
     selectedType, setSelectedType,
@@ -22,6 +40,8 @@ const WarehouseFilterBar = ({ filters }) => {
     selectedVisibility, setSelectedVisibility,
     areaRange, setAreaRange,
     budgetRange, setBudgetRange,
+    submittedDateRange, setSubmittedDateRange,
+    reviewedDateRange, setReviewedDateRange,
     clearFilters,
   } = filters;
 
@@ -142,6 +162,42 @@ const WarehouseFilterBar = ({ filters }) => {
             <Option value="hidden">Hidden</Option>
           </Select>
         </Col>
+
+        {showDateFilter && (
+          <>
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <div style={labelStyle}>Submission Date (From)</div>
+              <DateInput
+                value={submittedDateRange[0]}
+                onChange={(v) => setSubmittedDateRange([v || null, submittedDateRange[1]])}
+              />
+            </Col>
+
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <div style={labelStyle}>Submission Date (To)</div>
+              <DateInput
+                value={submittedDateRange[1]}
+                onChange={(v) => setSubmittedDateRange([submittedDateRange[0], v || null])}
+              />
+            </Col>
+
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <div style={labelStyle}>Approval Date (From)</div>
+              <DateInput
+                value={reviewedDateRange[0]}
+                onChange={(v) => setReviewedDateRange([v || null, reviewedDateRange[1]])}
+              />
+            </Col>
+
+            <Col xs={24} sm={12} md={8} lg={6}>
+              <div style={labelStyle}>Approval Date (To)</div>
+              <DateInput
+                value={reviewedDateRange[1]}
+                onChange={(v) => setReviewedDateRange([reviewedDateRange[0], v || null])}
+              />
+            </Col>
+          </>
+        )}
 
         <Col xs={24} sm={12} md={8} lg={6}>
           <Button onClick={clearFilters} style={{ marginTop: '20px' }}>
