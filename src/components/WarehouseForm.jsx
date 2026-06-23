@@ -486,15 +486,6 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     setErrors(prev => ({ ...prev, state: null, city: null }));
   };
 
-  // Autofill zone from state once the user finishes editing the State field (on
-  // blur — when it goes inactive), rather than on every keystroke. Skipped once
-  // the user has manually picked a zone.
-  const syncZoneFromState = () => {
-    if (zoneTouched) return;
-    setValues(prev => ({ ...prev, zone: prev.state?.trim() ? deriveZone(prev.state) : '' }));
-    if (errors.zone) setErrors(prev => ({ ...prev, zone: null }));
-  };
-
   // ── Validation ──────────────────────────────────────────────────────────────
 
   const validate = () => {
