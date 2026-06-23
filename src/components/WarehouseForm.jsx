@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button, Switch, Spin, Tooltip, message, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
@@ -23,6 +23,47 @@ const STATUS_OPTIONS = ['Under construction', 'Build to suit', 'Ready to move'];
 const OWNER_TYPES = ['Individual', 'Company', '3PL'];
 const OWNER_WARMTH_OPTIONS = ['Green', 'Yellow', 'Red'];
 const WAREHOUSE_TYPES = ['PEB', 'RCC', 'Shed', 'BTS'];
+
+const INDIA_STATE_CITIES = {
+  'Andhra Pradesh': ['Visakhapatnam', 'Vijayawada', 'Guntur', 'Nellore', 'Kurnool', 'Rajahmundry', 'Tirupati', 'Kakinada', 'Anantapur', 'Kadapa', 'Vizianagaram', 'Eluru', 'Ongole', 'Nandyal', 'Chittoor', 'Machilipatnam', 'Srikakulam', 'Hindupur', 'Tenali', 'Bhimavaram'],
+  'Arunachal Pradesh': ['Itanagar', 'Naharlagun', 'Pasighat', 'Tawang', 'Ziro', 'Along', 'Bomdila'],
+  'Assam': ['Guwahati', 'Silchar', 'Dibrugarh', 'Jorhat', 'Nagaon', 'Tinsukia', 'Tezpur', 'Bongaigaon', 'Dhubri', 'Sivasagar', 'Goalpara', 'Golaghat', 'Karimganj', 'Lakhimpur'],
+  'Bihar': ['Patna', 'Gaya', 'Bhagalpur', 'Muzaffarpur', 'Purnia', 'Darbhanga', 'Ara', 'Begusarai', 'Katihar', 'Munger', 'Chapra', 'Samastipur', 'Hajipur', 'Bihar Sharif', 'Sitamarhi', 'Motihari', 'Siwan', 'Bettiah', 'Sasaram', 'Aurangabad'],
+  'Chhattisgarh': ['Raipur', 'Bhilai', 'Bilaspur', 'Durg', 'Korba', 'Rajnandgaon', 'Jagdalpur', 'Raigarh', 'Ambikapur', 'Dhamtari', 'Kawardha', 'Mahasamund'],
+  'Goa': ['Panaji', 'Margao', 'Vasco da Gama', 'Mapusa', 'Ponda', 'Bicholim', 'Calangute', 'Mormugao', 'Sanquelim'],
+  'Gujarat': ['Ahmedabad', 'Surat', 'Vadodara', 'Rajkot', 'Bhavnagar', 'Jamnagar', 'Junagadh', 'Gandhinagar', 'Anand', 'Nadiad', 'Mehsana', 'Bharuch', 'Valsad', 'Navsari', 'Morbi', 'Surendranagar', 'Amreli', 'Botad', 'Porbandar', 'Dwarka', 'Gandhidham', 'Mundra', 'Halol', 'Sanand', 'Dahej'],
+  'Haryana': ['Faridabad', 'Gurugram', 'Panipat', 'Ambala', 'Yamunanagar', 'Rohtak', 'Hisar', 'Karnal', 'Sonipat', 'Panchkula', 'Bhiwani', 'Sirsa', 'Bahadurgarh', 'Jhajjar', 'Rewari', 'Palwal', 'Manesar', 'Kundli', 'Bawal', 'Narnaul'],
+  'Himachal Pradesh': ['Shimla', 'Dharamshala', 'Solan', 'Mandi', 'Kullu', 'Hamirpur', 'Una', 'Baddi', 'Paonta Sahib', 'Nahan', 'Nalagarh', 'Bilaspur'],
+  'Jharkhand': ['Ranchi', 'Jamshedpur', 'Dhanbad', 'Bokaro', 'Deoghar', 'Phusro', 'Hazaribagh', 'Giridih', 'Ramgarh', 'Medininagar', 'Chirkunda', 'Chaibasa'],
+  'Karnataka': ['Bangalore', 'Mysuru', 'Hubballi', 'Dharwad', 'Mangaluru', 'Belagavi', 'Kalaburagi', 'Tumakuru', 'Davanagere', 'Ballari', 'Vijayapura', 'Shivamogga', 'Udupi', 'Hassan', 'Mandya', 'Hosapete', 'Bidar', 'Chitradurga', 'Raichur', 'Bagalkot', 'Gadag', 'Chikkamagaluru', 'Kolar', 'Robertsonpet', 'Vijayanagara'],
+  'Kerala': ['Thiruvananthapuram', 'Kochi', 'Kozhikode', 'Thrissur', 'Kollam', 'Palakkad', 'Alappuzha', 'Malappuram', 'Kottayam', 'Kannur', 'Kasaragod', 'Punalur', 'Attingal', 'Thrippunithura', 'Irinjalakuda'],
+  'Madhya Pradesh': ['Bhopal', 'Indore', 'Jabalpur', 'Gwalior', 'Ujjain', 'Sagar', 'Dewas', 'Satna', 'Ratlam', 'Rewa', 'Murwara', 'Singrauli', 'Burhanpur', 'Khandwa', 'Bhind', 'Chhindwara', 'Guna', 'Shivpuri', 'Vidisha', 'Pithampur', 'Mandsaur', 'Neemuch', 'Hoshangabad', 'Itarsi', 'Morena'],
+  'Maharashtra': ['Mumbai', 'Pune', 'Nagpur', 'Nashik', 'Thane', 'Chhatrapati Sambhajinagar / Aurangabad', 'Solapur', 'Kalyan', 'Dombivli', 'Vasai-Virar', 'Navi Mumbai', 'Bhiwandi', 'Amravati', 'Kolhapur', 'Akola', 'Latur', 'Dhule', 'Ahilyanagar / Ahmednagar', 'Chandrapur', 'Jalgaon', 'Sangli', 'Malegaon', 'Panvel', 'Pimpri-Chinchwad', 'Nanded', 'Wardha', 'Dharashiv / Osmanabad', 'Beed', 'Satara', 'Ratnagiri'],
+  'Manipur': ['Imphal', 'Thoubal', 'Bishnupur', 'Churachandpur', 'Senapati', 'Ukhrul'],
+  'Meghalaya': ['Shillong', 'Tura', 'Jowai', 'Nongstoin', 'Williamnagar', 'Baghmara'],
+  'Mizoram': ['Aizawl', 'Lunglei', 'Champhai', 'Serchhip', 'Kolasib', 'Mamit'],
+  'Nagaland': ['Kohima', 'Dimapur', 'Mokokchung', 'Tuensang', 'Wokha', 'Phek', 'Zunheboto'],
+  'Odisha': ['Bhubaneswar', 'Cuttack', 'Rourkela', 'Brahmapur', 'Sambalpur', 'Puri', 'Balasore', 'Bhadrak', 'Baripada', 'Jharsuguda', 'Angul', 'Dhenkanal', 'Paradip', 'Bhawanipatna', 'Rayagada', 'Kendrapara', 'Barbil', 'Talcher'],
+  'Punjab': ['Ludhiana', 'Amritsar', 'Jalandhar', 'Patiala', 'Bathinda', 'Hoshiarpur', 'Mohali', 'Pathankot', 'Moga', 'Firozpur', 'Rajpura', 'Phagwara', 'Abohar', 'Muktsar', 'Kapurthala', 'Sangrur', 'Fatehgarh Sahib', 'Ropar'],
+  'Rajasthan': ['Jaipur', 'Jodhpur', 'Kota', 'Bikaner', 'Ajmer', 'Udaipur', 'Bhilwara', 'Alwar', 'Bharatpur', 'Sikar', 'Pali', 'Sri Ganganagar', 'Tonk', 'Nagaur', 'Barmer', 'Jaisalmer', 'Churu', 'Jhunjhunu', 'Neemrana', 'Bhiwadi', 'Sawai Madhopur', 'Hanumangarh', 'Kishangarh', 'Balotra'],
+  'Sikkim': ['Gangtok', 'Namchi', 'Mangan', 'Gyalshing', 'Rangpo', 'Jorethang'],
+  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai', 'Tiruchirappalli', 'Salem', 'Tiruppur', 'Erode', 'Vellore', 'Thoothukudi', 'Dindigul', 'Thanjavur', 'Ranipet', 'Sivakasi', 'Karur', 'Ooty', 'Hosur', 'Nagercoil', 'Kanchipuram', 'Kumbakonam', 'Sriperumbudur', 'Ambattur', 'Tambaram', 'Chengalpattu', 'Avadi'],
+  'Telangana': ['Hyderabad', 'Warangal', 'Nizamabad', 'Karimnagar', 'Khammam', 'Ramagundam', 'Mahbubnagar', 'Nalgonda', 'Adilabad', 'Suryapet', 'Miryalaguda', 'Siddipet', 'Sangareddy', 'Mancherial', 'Medchal', 'Shamirpet', 'Zaheerabad', 'Bhongir'],
+  'Tripura': ['Agartala', 'Dharmanagar', 'Udaipur', 'Kailasahar', 'Belonia', 'Ambassa', 'Sabroom'],
+  'Uttar Pradesh': ['Lucknow', 'Kanpur', 'Agra', 'Varanasi', 'Meerut', 'Prayagraj', 'Ghaziabad', 'Noida', 'Mathura', 'Aligarh', 'Bareilly', 'Moradabad', 'Gorakhpur', 'Firozabad', 'Jhansi', 'Muzaffarnagar', 'Saharanpur', 'Rampur', 'Hapur', 'Etawah', 'Faizabad', 'Mirzapur', 'Bulandshahr', 'Lakhimpur', 'Greater Noida', 'Vrindavan', 'Shahjahanpur', 'Sitapur', 'Hardoi', 'Unnao', 'Rae Bareli', 'Sultanpur'],
+  'Uttarakhand': ['Dehradun', 'Haridwar', 'Roorkee', 'Haldwani', 'Rudrapur', 'Kashipur', 'Rishikesh', 'Kotdwar', 'Sitarganj', 'Ramnagar', 'Nainital', 'Udham Singh Nagar'],
+  'West Bengal': ['Kolkata', 'Asansol', 'Siliguri', 'Durgapur', 'Bardhaman', 'Malda', 'Barasat', 'Kharagpur', 'Haldia', 'Raiganj', 'Howrah', 'Bally', 'Krishnanagar', 'Kalyani', 'Darjeeling', 'Cooch Behar', 'Jalpaiguri', 'Shantipur', 'Barrackpore', 'Uluberia', 'Serampore', 'Rishra'],
+  // Union Territories
+  'Andaman and Nicobar Islands': ['Port Blair', 'Diglipur', 'Rangat', 'Mayabunder', 'Car Nicobar'],
+  'Chandigarh': ['Chandigarh'],
+  'Dadra and Nagar Haveli and Daman and Diu': ['Daman', 'Diu', 'Silvassa', 'Amli'],
+  'Delhi': ['Delhi', 'New Delhi'],
+  'Jammu and Kashmir': ['Srinagar', 'Jammu', 'Anantnag', 'Baramulla', 'Sopore', 'Kathua', 'Udhampur', 'Poonch', 'Rajouri', 'Kupwara'],
+  'Ladakh': ['Leh', 'Kargil'],
+  'Lakshadweep': ['Kavaratti', 'Agatti', 'Minicoy', 'Andrott'],
+  'Puducherry': ['Puducherry', 'Karaikal', 'Mahe', 'Yanam'],
+};
+const INDIA_STATES = Object.keys(INDIA_STATE_CITIES).sort();
 
 const INITIAL_VALUES = {
   warehouseOwnerType: '', warehouseType: '', zone: '', address: '',
@@ -275,6 +316,86 @@ const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest })
   );
 };
 
+const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...rest }) => {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const hasCustomValue = value != null && value !== '' && !options.includes(value);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
+
+  const select = (opt) => {
+    onChange(opt);
+    setOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <input
+        value={open ? query : (value || '')}
+        placeholder={disabled ? 'Select state first' : placeholder}
+        disabled={!!disabled}
+        onFocus={() => { if (!disabled) { setOpen(true); setQuery(''); } }}
+        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+        autoComplete="off"
+        style={{ ...inputBase(mobile), cursor: disabled ? 'not-allowed' : 'text' }}
+        {...rest}
+      />
+      {open && (
+        <ul style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 200,
+          maxHeight: 220, overflowY: 'auto', margin: 0, padding: '4px 0', listStyle: 'none',
+          background: 'var(--bg-secondary, #1f1f1f)',
+          border: '1px solid var(--border-primary, #303030)',
+          borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          scrollbarWidth: 'thin',
+        }}>
+          {hasCustomValue && !query && (
+            <li
+              onMouseDown={() => select(value)}
+              style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', color: 'var(--text-secondary, #888)', fontStyle: 'italic' }}
+            >
+              {value} (current)
+            </li>
+          )}
+          {filtered.length > 0 ? filtered.map(o => (
+            <li
+              key={o}
+              onMouseDown={() => select(o)}
+              style={{
+                padding: mobile ? '11px 14px' : '8px 12px',
+                fontSize: mobile ? 15 : 14,
+                cursor: 'pointer',
+                color: o === value ? 'var(--text-primary, #fff)' : 'var(--text-primary, #ddd)',
+                fontWeight: o === value ? 700 : 400,
+                background: o === value ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.06))'}
+              onMouseLeave={e => e.currentTarget.style.background = o === value ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent'}
+            >
+              {o}
+            </li>
+          )) : (
+            <li style={{ padding: '8px 12px', fontSize: 13, color: 'var(--text-secondary, #888)' }}>
+              No matches{query ? ` for "${query}"` : ''}
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+};
+
 const DateInput = ({ value, onChange, mobile, placeholder }) => (
   <DatePicker
     value={value ? dayjs(value, 'YYYY-MM-DD') : null}
@@ -352,6 +473,17 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     if (field === 'zone') setZoneTouched(true);
     // Clear error on change
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+  };
+
+  const setStateField = (val) => {
+    const autoCity = val === 'Delhi' ? 'New Delhi' : val === 'Chandigarh' ? 'Chandigarh' : '';
+    setValues(prev => ({
+      ...prev,
+      state: val,
+      city: autoCity,
+      zone: !zoneTouched && val ? deriveZone(val) : prev.zone,
+    }));
+    setErrors(prev => ({ ...prev, state: null, city: null }));
   };
 
   // Autofill zone from state once the user finishes editing the State field (on
@@ -694,13 +826,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="City" required error={errors.city}>
-                  <TextInput mobile={m} value={values.city} onChange={set('city')} placeholder="Enter city" autoComplete="address-level2" data-field="city" />
+                <Field label="State" required error={errors.state}>
+                  <ComboBox mobile={m} value={values.state} onChange={setStateField} options={INDIA_STATES} placeholder="Select state" data-field="state" />
                 </Field>,
                 true)}
               {col(
-                <Field label="State" required error={errors.state}>
-                  <TextInput mobile={m} value={values.state} onChange={set('state')} onBlur={syncZoneFromState} placeholder="Enter state" autoComplete="address-level1" data-field="state" />
+                <Field label="City" required error={errors.city}>
+                  <ComboBox mobile={m} value={values.city} onChange={set('city')} options={INDIA_STATE_CITIES[values.state] || []} placeholder="Select city" disabled={!values.state} data-field="city" />
                 </Field>,
                 true)}
             </>)}
