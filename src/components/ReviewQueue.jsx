@@ -271,7 +271,13 @@ const ReviewQueue = () => {
             <CheckCircleOutlined /> Approved by {row.reviewedBy || '—'} · {fmtDate(row.reviewedAt)}
           </div>
           {row.warehouseId && (
-            <div style={{ ...line, color: muted }}><ShopOutlined /> Published as warehouse #{row.warehouseId}</div>
+            row.warehouseDeleted ? (
+              <div style={{ ...line, color: '#faad14' }}>
+                <ShopOutlined /> Published warehouse #{row.warehouseId} was deleted
+              </div>
+            ) : (
+              <div style={{ ...line, color: muted }}><ShopOutlined /> Published as warehouse #{row.warehouseId}</div>
+            )
           )}
         </>
       );
@@ -295,7 +301,12 @@ const ReviewQueue = () => {
   // Single "Review" button per card (matches the dashboard's View/Edit button style).
   const getCardProps = (row) => ({
     idLabel: sourceLabel(row.source),
-    statusContent: <Tag color={STATUS_COLOR[row.reviewStatus]} style={{ margin: 0 }}>{row.reviewStatus}</Tag>,
+    statusContent: (
+      <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+        <Tag color={STATUS_COLOR[row.reviewStatus]} style={{ margin: 0 }}>{row.reviewStatus}</Tag>
+        {row.warehouseDeleted && <Tag color="volcano" style={{ margin: 0 }}>Deleted</Tag>}
+      </span>
+    ),
     metaInfo: metaInfoFor(row),
     actions: (
       <button className="simple-warehouse-card__action-btn" onClick={(e) => { e.stopPropagation(); openRow(row); }}>
@@ -308,13 +319,19 @@ const ReviewQueue = () => {
   const viewStatusBanner = viewingRow ? (
     viewingRow.reviewStatus === 'APPROVED' ? (
       <Alert
-        type="success"
+        type={viewingRow.warehouseDeleted ? 'warning' : 'success'}
         showIcon
-        message={`Approved by ${viewingRow.reviewedBy || '—'}`}
+        message={viewingRow.warehouseDeleted
+          ? `Approved by ${viewingRow.reviewedBy || '—'} — published warehouse since deleted`
+          : `Approved by ${viewingRow.reviewedBy || '—'}`}
         description={
           <span>
             On {fmtDate(viewingRow.reviewedAt)}
-            {viewingRow.warehouseId ? ` · published as warehouse #${viewingRow.warehouseId}` : ''}.
+            {viewingRow.warehouseId
+              ? (viewingRow.warehouseDeleted
+                ? ` · warehouse #${viewingRow.warehouseId} was deleted from the master list`
+                : ` · published as warehouse #${viewingRow.warehouseId}`)
+              : ''}.
             <br />Source: {sourceLabel(viewingRow.source)} · submitted by {viewingRow.submittedBy} on {fmtDate(viewingRow.submittedAt)}.
           </span>
         }
