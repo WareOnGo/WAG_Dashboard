@@ -406,21 +406,20 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
   // ── Submit ──────────────────────────────────────────────────────────────────
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validate()) return;
+  // Build the warehouse payload from the current form values. Extracted from
+  // handleSubmit so the review actions (Accept/Reject) can persist any in-form
+  // edits before approving/rejecting — otherwise unsaved edits never reach the
+  // promoted warehouse or the submitter's WhatsApp notification.
+  const buildPayload = () => {
+    // Build media from form state (the FileUpload now manages a media object)
+    const media = values.media || { images: [], videos: [], docs: [] };
+    const hasMedia = (media.images?.length || 0) + (media.videos?.length || 0) + (media.docs?.length || 0) > 0;
 
-    setSubmitting(true);
-    try {
-      // Build media from form state (the FileUpload now manages a media object)
-      const media = values.media || { images: [], videos: [], docs: [] };
-      const hasMedia = (media.images?.length || 0) + (media.videos?.length || 0) + (media.docs?.length || 0) > 0;
+    // Double-write: flatten media back to photos CSV for legacy column
+    const allUrls = [...(media.images || []), ...(media.videos || []), ...(media.docs || [])];
+    const photosValue = allUrls.length > 0 ? allUrls.join(',') : null;
 
-      // Double-write: flatten media back to photos CSV for legacy column
-      const allUrls = [...(media.images || []), ...(media.videos || []), ...(media.docs || [])];
-      const photosValue = allUrls.length > 0 ? allUrls.join(',') : null;
-
-      const payload = {
+    return {
         warehouseOwnerType: values.warehouseOwnerType || null,
         warehouseType: values.warehouseType,
         address: values.address,
@@ -507,8 +506,15 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             : (values.vaastuCompliance || null),
         },
       };
+  };
 
-      await onSubmit(payload);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
+
+    setSubmitting(true);
+    try {
+      await onSubmit(buildPayload());
       setValues(INITIAL_VALUES);
     } catch (err) {
       if (import.meta.env.DEV) console.error('Form submission error:', err);
@@ -1114,7 +1120,9 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
           >
             {reviewActions && (
               <div style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto', order: m ? 3 : 0 }}>
-                {reviewActions}
+                {typeof reviewActions === 'function'
+                  ? reviewActions({ getPayload: buildPayload })
+                  : reviewActions}
               </div>
             )}
             <Button

@@ -99,7 +99,17 @@ const ReviewQueue = () => {
     }
   };
 
-  const approve = (row) => {
+  // The approve/reject responses carry a `notification` summary for the WhatsApp
+  // message to the submitter. When the feature is on but the message couldn't be
+  // delivered (no number on file, send failed), surface it without blocking — a
+  // 'disabled' status (feature flag off) is silent.
+  const warnIfNotNotified = (notification) => {
+    if (notification && !notification.sent && notification.status !== 'disabled') {
+      message.warning(notification.reason || 'Submitter was not notified on WhatsApp');
+    }
+  };
+
+  const approve = (row, getPayload) => {
     modal.confirm({
       title: 'Approve & publish this warehouse?',
       content: 'It will be added to the master list and made visible to users.',
@@ -107,8 +117,12 @@ const ReviewQueue = () => {
       onOk: async () => {
         setActing(true);
         try {
+          // Persist any unsaved in-form edits before promoting, so the published
+          // warehouse — and the submitter's WhatsApp message — reflect the changes.
+          if (getPayload) await warehouseService.updateStaged(row.id, getPayload());
           const wh = await warehouseService.approveStaged(row.id);
           message.success(`Approved — warehouse #${wh.id} published`);
+          warnIfNotNotified(wh?.notification);
           setEditingRow(null);
           load();
         } catch (err) {
@@ -138,7 +152,7 @@ const ReviewQueue = () => {
     });
   };
 
-  const reject = (row) => {
+  const reject = (row, getPayload) => {
     let reason = '';
     modal.confirm({
       title: 'Reject this submission?',
@@ -159,8 +173,12 @@ const ReviewQueue = () => {
         }
         setActing(true);
         try {
-          await warehouseService.rejectStaged(row.id, reason.trim());
+          // Persist any unsaved in-form edits first so the rejection record and the
+          // submitter's WhatsApp message reflect the reviewer's changes.
+          if (getPayload) await warehouseService.updateStaged(row.id, getPayload());
+          const rejected = await warehouseService.rejectStaged(row.id, reason.trim());
           message.success('Submission rejected');
+          warnIfNotNotified(rejected?.notification);
           setEditingRow(null);
           load();
         } catch (err) {
@@ -322,12 +340,12 @@ const ReviewQueue = () => {
   const btnStyle = { minWidth: 120, minHeight: isMobile ? 44 : 'auto' };
 
   // Edit modal (PENDING): Accept (primary) + destructive Reject / Delete (outlined danger).
-  const editFooterActions = editingRow ? (
+  const editFooterActions = editingRow ? ({ getPayload } = {}) => (
     <>
       <Button size="large" type="primary" icon={<CheckOutlined />} loading={acting}
-        onClick={() => approve(editingRow)} style={btnStyle}>Accept</Button>
+        onClick={() => approve(editingRow, getPayload)} style={btnStyle}>Accept</Button>
       <Button size="large" danger icon={<CloseOutlined />} loading={acting}
-        onClick={() => reject(editingRow)} style={btnStyle}>Reject</Button>
+        onClick={() => reject(editingRow, getPayload)} style={btnStyle}>Reject</Button>
       {/* Delete is admin-only; reviewers can approve/reject but not delete. */}
       {isAdmin && (
         <Button size="large" danger icon={<DeleteOutlined />} loading={acting}
