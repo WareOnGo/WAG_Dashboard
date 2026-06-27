@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import {
   Table,
   Button,
@@ -12,7 +12,8 @@ import {
   Col,
   Image,
   Slider,
-  Tag
+  Tag,
+  Pagination
 } from 'antd';
 
 const { Option } = Select;
@@ -81,7 +82,7 @@ const Dashboard = () => {
   // Filter and search state + logic (shared with the review queue)
   const filters = useWarehouseFilters(warehouses);
   const {
-    filtered: filteredWarehouses,
+    queryParams,
     searchText, setSearchText,
     selectedOwnerType,
     selectedType,
@@ -113,9 +114,22 @@ const Dashboard = () => {
     record: null
   });
 
-  // Pagination state
+  // Pagination state (server-side). `total` is the filtered total from the API;
+  // `warehouses` holds only the current page.
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
+  // Debounced copy of the filter query params so typing in search doesn't fire a
+  // request per keystroke. Drives the server-side fetch.
+  const [debouncedParams, setDebouncedParams] = useState({});
+
+  // Map markers for split view: all warehouses matching the current filters
+  // (fetched separately from the paged list so the map stays complete).
+  const [mapCoords, setMapCoords] = useState([]);
+
+  // Guards against out-of-order list responses (last request wins).
+  const reqIdRef = useRef(0);
 
   // Split view state
   const [splitViewEnabled, setSplitViewEnabled] = useState(false);
@@ -123,40 +137,86 @@ const Dashboard = () => {
   // Get modal instance from App context
   const { modal, message } = App.useApp();
 
+  // Fetch a page of warehouses with the current filters/page applied server-side.
   const fetchWarehouses = useCallback(async () => {
-    // Don't fetch if not authenticated
-    if (!isAuthenticated) {
-      return;
-    }
+    if (!isAuthenticated) return;
 
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     setError(null);
 
     try {
-      // Simple API call without complex caching/monitoring to avoid infinite loops
-      const data = await warehouseService.getAll();
-
-      // Ensure data is always an array
-      const warehouseData = Array.isArray(data) ? data : [];
-      setWarehouses(warehouseData);
+      const res = await warehouseService.list({
+        ...debouncedParams,
+        page: currentPage,
+        limit: pageSize,
+      });
+      // Ignore stale responses (a newer request has since been issued).
+      if (reqId !== reqIdRef.current) return;
+      setWarehouses(Array.isArray(res?.data) ? res.data : []);
+      setTotal(res?.pagination?.total ?? 0);
     } catch (err) {
-      setError(err.message);
+      if (reqId === reqIdRef.current) setError(err.message);
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
-  }, [isAuthenticated]); // Depend on authentication status
+  }, [isAuthenticated, debouncedParams, currentPage, pageSize]);
 
-  // Fetch warehouses when authenticated
+  // Fetch when authenticated and whenever the page/size/filters change.
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
       fetchWarehouses();
     }
   }, [authLoading, isAuthenticated, fetchWarehouses]);
 
-  // Reset table pagination whenever the filtered set changes
+  // Debounce filter changes into `debouncedParams` and reset to page 1. `queryParams`
+  // is a stable memo (only changes when a filter changes), so this fires once per change.
   useEffect(() => {
-    setCurrentPage(1);
-  }, [filteredWarehouses]);
+    const t = setTimeout(() => {
+      setDebouncedParams(queryParams);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [queryParams]);
+
+  // Keep the split-view map complete: fetch coordinates for ALL filtered rows
+  // (not just the current page) whenever the map is visible and filters change.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const mapVisible = splitViewEnabled && currentView === 'cards';
+    if (!mapVisible) return;
+    let active = true;
+    warehouseService.getCoordinates(debouncedParams)
+      .then((rows) => { if (active) setMapCoords(Array.isArray(rows) ? rows : []); })
+      .catch(() => { if (active) setMapCoords([]); });
+    return () => { active = false; };
+  }, [isAuthenticated, debouncedParams, splitViewEnabled, currentView]);
+
+  // MapView reads coordinates from top-level latitude/longitude; adapt the
+  // lightweight { id, lat, lng } payload from the coordinates endpoint.
+  const mapMarkers = useMemo(
+    () => mapCoords.map((c) => ({ id: c.id, latitude: c.lat, longitude: c.lng })),
+    [mapCoords],
+  );
+
+  // Shared pager for the card/grid views (the table has its own built-in pager).
+  // Server-driven: changing page/size triggers a refetch via the fetch effect.
+  const cardPager = total > pageSize ? (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: isMobile ? '12px 0' : '16px 0' }}>
+      <Pagination
+        current={currentPage}
+        pageSize={pageSize}
+        total={total}
+        showSizeChanger={!isMobile}
+        pageSizeOptions={['10', '20', '50', '100']}
+        showTotal={(t, range) => `${range[0]}-${range[1]} of ${t}`}
+        onChange={(page, size) => {
+          setCurrentPage(page);
+          if (size !== pageSize) setPageSize(size);
+        }}
+      />
+    </div>
+  ) : null;
 
   const handleDelete = useCallback((warehouse) => {
     modal.confirm({
@@ -746,7 +806,7 @@ const Dashboard = () => {
                 fontSize: '14px',
                 whiteSpace: 'nowrap'
               }}>
-                {filteredWarehouses.length} of {warehouses.length} results
+                {warehouses.length} of {total} results
               </div>
             )}
           </div>
@@ -812,7 +872,7 @@ const Dashboard = () => {
             fontSize: '12px',
             marginBottom: '12px'
           }}>
-            {filteredWarehouses.length} of {warehouses.length} results
+            {warehouses.length} of {total} results
           </div>
         )}
 
@@ -862,14 +922,16 @@ const Dashboard = () => {
                 height: 'auto'
               }}>
                 <CardView
-                  warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                  warehouses={warehouses}
                   loading={loading}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onViewDetails={handleViewDetails}
                   onToggleVisibility={handleToggleVisibility}
                   columnsPerRow={2}
+                  paginated={false}
                 />
+                {cardPager}
               </div>
 
               {/* Map View */}
@@ -891,7 +953,7 @@ const Dashboard = () => {
                   </div>
                 }>
                   <MapView
-                    warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                    warehouses={mapMarkers}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onViewDetails={handleViewDetails}
@@ -902,7 +964,7 @@ const Dashboard = () => {
           ) : currentView === 'table' ? (
             <ResponsiveTable
               columns={columns}
-              dataSource={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+              dataSource={Array.isArray(warehouses) ? warehouses : []}
               rowKey="id"
               onRow={(record) => ({
                 onContextMenu: (event) => handleRowContextMenu(record, event),
@@ -911,6 +973,7 @@ const Dashboard = () => {
               pagination={{
                 current: currentPage,
                 pageSize: pageSize,
+                total: total,
                 showSizeChanger: !isMobile,
                 showQuickJumper: !isMobile,
                 pageSizeOptions: ['10', '20', '50', '100'],
@@ -947,13 +1010,15 @@ const Dashboard = () => {
           ) : (
             <div style={{ padding: isMobile ? '4px' : '16px' }}>
               <CardView
-                warehouses={Array.isArray(filteredWarehouses) ? filteredWarehouses : []}
+                warehouses={warehouses}
                 loading={loading}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onViewDetails={handleViewDetails}
                 onToggleVisibility={handleToggleVisibility}
+                paginated={false}
               />
+              {cardPager}
             </div>
           )}
         </div>

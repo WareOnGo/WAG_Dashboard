@@ -189,8 +189,39 @@ export function useWarehouseFilters(items = []) {
     submittedDateRange, reviewedDateRange,
   ]);
 
+  // Serialize the active filters into backend query params for server-side
+  // fetching (Dashboard). Only non-default values are included. The date ranges
+  // are review-queue-only (client-side) and intentionally excluded — the warehouse
+  // list endpoint doesn't support them. The dashboard uses this; the review queue
+  // keeps using `filtered` (client-side) above.
+  const queryParams = useMemo(() => {
+    const p = {};
+    if (searchText) p.search = searchText;
+    if (selectedOwnerType) p.warehouseOwnerType = selectedOwnerType;
+    if (selectedType) p.warehouseType = selectedType;
+    if (selectedCity) p.city = selectedCity;
+    if (selectedState) p.state = selectedState;
+    if (selectedZone) p.zone = selectedZone;
+    if (selectedAvailability) p.availability = selectedAvailability;
+    if (selectedBroker) p.isBroker = selectedBroker;
+    if (fireNocFilter) p.fireNoc = fireNocFilter;
+    if (selectedLandType) p.landType = selectedLandType;
+    if (selectedUploadedBy) p.uploadedBy = selectedUploadedBy;
+    if (selectedVisibility) p.visibility = selectedVisibility;
+    if (areaRange[0] > 0) p.minArea = areaRange[0];
+    if (areaRange[1] < 100000) p.maxArea = areaRange[1];
+    if (budgetRange[0] > 0) p.minRate = budgetRange[0];
+    if (budgetRange[1] < 1000) p.maxRate = budgetRange[1];
+    return p;
+  }, [
+    searchText, selectedOwnerType, selectedType, selectedCity, selectedState,
+    selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType,
+    selectedUploadedBy, selectedVisibility, areaRange, budgetRange,
+  ]);
+
   return {
     filtered,
+    queryParams,
     searchText, setSearchText,
     selectedOwnerType, setSelectedOwnerType,
     selectedType, setSelectedType,

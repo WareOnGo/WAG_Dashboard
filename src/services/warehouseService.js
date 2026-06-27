@@ -3,11 +3,35 @@ import { apiClient } from './apiClient.js';
 
 export const warehouseService = {
   /**
-   * Get all warehouses
-   * @returns {Promise} Array of warehouse objects with nested WarehouseData
+   * Get a page of warehouses with server-side filtering/sorting/pagination.
+   * @param {Object} params - { page, limit, sortBy, sortOrder, search, city, state,
+   *   zone, warehouseType, warehouseOwnerType, availability, isBroker, uploadedBy,
+   *   landType, visibility, fireNoc, minArea, maxArea, minRate, maxRate }
+   * @returns {Promise<{ data: Array, pagination: { page, limit, total, totalPages } }>}
+   */
+  list: async (params = {}) => {
+    return apiClient.get('/warehouses', { params });
+  },
+
+  /**
+   * Get coordinates ({ id, lat, lng }) for ALL warehouses matching the given filters
+   * (no pagination) — used to keep the map complete while the list view pages.
+   * @param {Object} params - Same filter params as `list` (paging/sort ignored server-side)
+   * @returns {Promise<Array<{ id: number, lat: number, lng: number }>>}
+   */
+  getCoordinates: async (params = {}) => {
+    return apiClient.get('/warehouses/coordinates', { params });
+  },
+
+  /**
+   * Get ALL warehouses as a flat array (full objects, no pagination).
+   * For full-data consumers (itinerary/PPT builder, micro-market mapping). The
+   * Dashboard list uses `list()` instead. Unwraps the paginated envelope.
+   * @returns {Promise<Array>} Array of warehouse objects with nested WarehouseData
    */
   getAll: async () => {
-    return apiClient.get('/warehouses');
+    const res = await apiClient.get('/warehouses', { params: { all: 'true' } });
+    return Array.isArray(res) ? res : (res?.data ?? []);
   },
 
   /**
