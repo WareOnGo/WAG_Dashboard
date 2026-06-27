@@ -15,7 +15,8 @@ const CardView = ({
   onViewDetails,
   onToggleVisibility,
   columnsPerRow = null, // null means auto-detect based on screen size
-  getCardProps // optional (warehouse) => extra props spread onto each card (used by the review queue)
+  getCardProps, // optional (warehouse) => extra props spread onto each card (used by the review queue)
+  paginated = true, // when false, render all rows as-is (caller paginates server-side) and hide the internal pager
 }) => {
   const { isMobile } = useViewport();
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,11 +47,13 @@ const CardView = ({
     setCurrentPage(1);
   };
 
-  // Calculate pagination
+  // Calculate pagination. When `paginated` is false the caller already supplies a
+  // single page (server-side), so render the rows as-is and skip internal slicing.
   const paginatedData = useMemo(() => {
+    if (!paginated) return warehouses;
     const startIndex = (currentPage - 1) * pageSize;
     return warehouses.slice(startIndex, startIndex + pageSize);
-  }, [warehouses, currentPage, pageSize]);
+  }, [paginated, warehouses, currentPage, pageSize]);
 
   if (loading) {
     return (
@@ -99,8 +102,8 @@ const CardView = ({
         ))}
       </Row>
 
-      {/* Simple Pagination - separate handlers to avoid conflicts */}
-      {warehouses.length > pageSize && (
+      {/* Internal pagination (client-side). Skipped when the caller paginates server-side. */}
+      {paginated && warehouses.length > pageSize && (
         <div style={{
           display: 'flex',
           justifyContent: 'center',
