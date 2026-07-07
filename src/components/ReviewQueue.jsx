@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, App, Button, Card, Input, Result, Segmented, Tag, Tooltip, Typography,
+  Alert, App, Button, Card, Input, Result, Segmented, Switch, Tag, Tooltip, Typography,
 } from 'antd';
 import {
   CheckCircleOutlined, CheckOutlined, ClockCircleOutlined, CloseCircleOutlined, CloseOutlined,
-  DeleteOutlined, EyeOutlined, FilterOutlined, ReloadOutlined, SearchOutlined, ShopOutlined,
+  DeleteOutlined, EyeOutlined, FilterOutlined, ReloadOutlined, RobotOutlined, SearchOutlined, ShopOutlined,
   UndoOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../contexts';
@@ -59,6 +59,10 @@ const ReviewQueue = () => {
   const [acting, setActing] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
 
+  // Auto-approve ("autopilot") state — DB-backed, admin-togglable. null = not yet loaded.
+  const [autoApprove, setAutoApprove] = useState(null);
+  const [autoApproveSaving, setAutoApproveSaving] = useState(false);
+
   const filters = useWarehouseFilters(rows);
   const isAdmin = !!user?.isAdmin;
   const isReviewer = !!user?.isReviewer;
@@ -87,6 +91,28 @@ const ReviewQueue = () => {
   useEffect(() => {
     if (canReview) load();
   }, [canReview, load]);
+
+  // Load the current auto-approve state (visible to all reviewers).
+  useEffect(() => {
+    if (!canReview) return;
+    warehouseService.getAutoApprove()
+      .then((r) => setAutoApprove(!!r?.enabled))
+      .catch(() => { /* leave null; the control shows as unavailable */ });
+  }, [canReview]);
+
+  // Flip auto-approve (admin-only; the server also enforces this).
+  const toggleAutoApprove = async (checked) => {
+    setAutoApproveSaving(true);
+    try {
+      const r = await warehouseService.setAutoApprove(checked);
+      setAutoApprove(!!r?.enabled);
+      message.success(`Auto-approve ${r?.enabled ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      message.error(err.message || 'Failed to update auto-approve');
+    } finally {
+      setAutoApproveSaving(false);
+    }
+  };
 
   const handleEditSubmit = async (payload) => {
     try {
@@ -434,6 +460,29 @@ const ReviewQueue = () => {
           <Tooltip title="Refresh">
             <Button icon={<ReloadOutlined />} onClick={load} loading={loading} />
           </Tooltip>
+
+          {/* Auto-approve ("autopilot") toggle — interactive for admins, read-only for reviewers.
+              When ON, new submissions auto-publish without landing in this queue. */}
+          {autoApprove !== null && (
+            <Tooltip
+              title={isAdmin
+                ? 'Autopilot: when ON, new submissions auto-publish without review. Turn OFF to route them here for manual approval.'
+                : 'Autopilot is admin-controlled. When ON, new submissions auto-publish without review.'}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                <RobotOutlined style={{ color: autoApprove ? '#52c41a' : 'rgba(255, 255, 255, 0.45)' }} />
+                <span style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.65)' }}>Autopilot</span>
+                <Switch
+                  size="small"
+                  checked={autoApprove}
+                  loading={autoApproveSaving}
+                  disabled={!isAdmin}
+                  onChange={toggleAutoApprove}
+                />
+              </span>
+            </Tooltip>
+          )}
+
           <div style={{ marginLeft: 'auto', color: 'rgba(255, 255, 255, 0.55)', fontSize: 13, whiteSpace: 'nowrap' }}>
             {filters.filtered.length} of {rows.length}
           </div>

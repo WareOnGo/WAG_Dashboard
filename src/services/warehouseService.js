@@ -119,6 +119,23 @@ export const warehouseService = {
   },
 
   /**
+   * Get the auto-approve ("autopilot") state. Visible to any reviewer.
+   * @returns {Promise<{ enabled: boolean }>}
+   */
+  getAutoApprove: async () => {
+    return apiClient.get('/staging/settings/auto-approve');
+  },
+
+  /**
+   * Toggle auto-approve ("autopilot"). Admin-only on the server.
+   * @param {boolean} enabled
+   * @returns {Promise<{ enabled: boolean }>}
+   */
+  setAutoApprove: async (enabled) => {
+    return apiClient.patch('/staging/settings/auto-approve', { enabled });
+  },
+
+  /**
    * Get presigned URL for file upload
    * @param {string} contentType - MIME type of the file to upload
    * @returns {Promise} Object containing uploadUrl and imageUrl
