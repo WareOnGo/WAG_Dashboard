@@ -195,7 +195,9 @@ const Dashboard = () => {
   // MapView reads coordinates from top-level latitude/longitude; adapt the
   // lightweight { id, lat, lng } payload from the coordinates endpoint.
   const mapMarkers = useMemo(
-    () => mapCoords.map((c) => ({ id: c.id, latitude: c.lat, longitude: c.lng })),
+    () => mapCoords.map((c) => ({
+      id: c.id, latitude: c.lat, longitude: c.lng, availability: c.availability,
+    })),
     [mapCoords],
   );
 

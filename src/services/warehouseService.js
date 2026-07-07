@@ -74,6 +74,16 @@ export const warehouseService = {
     return apiClient.get(`/warehouses/${warehouseId}/contact-number`);
   },
 
+  /**
+   * Get a single full warehouse by id (with nested WarehouseData). Used to
+   * lazy-load detail for a map marker when its popup is opened.
+   * @param {number} id
+   * @returns {Promise<Object>} Full warehouse object
+   */
+  getById: async (id) => {
+    return apiClient.get(`/warehouses/${id}`);
+  },
+
   // --- Staging / review (admin-only) ---
 
   /**
