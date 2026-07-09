@@ -13,7 +13,8 @@ import {
   Image,
   Slider,
   Tag,
-  Pagination
+  Pagination,
+  Result
 } from 'antd';
 
 const { Option } = Select;
@@ -27,7 +28,9 @@ import {
   FilterOutlined,
   EyeOutlined,
   CloseOutlined,
-  EnvironmentOutlined
+  EnvironmentOutlined,
+  ReloadOutlined,
+  WifiOutlined
 } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
 import {
@@ -35,7 +38,7 @@ import {
   ResponsiveTable,
   CardView,
   ViewSwitcher,
-  MobileFilterDrawer
+  MobileFilterAccordion
 } from './index';
 
 // Lazy-loaded heavy components:
@@ -78,6 +81,11 @@ const Dashboard = () => {
     changeView,
     isTransitioning
   } = useViewPreference();
+
+  // The table view is desktop-only — its horizontal-scroll layout is clunky on
+  // phones. On mobile we always render cards regardless of the stored preference
+  // (which may be 'table' from a desktop session), and hide the view switcher.
+  const effectiveView = isMobile ? 'cards' : currentView;
 
   // Filter and search state + logic (shared with the review queue)
   const filters = useWarehouseFilters(warehouses);
@@ -162,6 +170,10 @@ const Dashboard = () => {
     }
   }, [isAuthenticated, debouncedParams, currentPage, pageSize]);
 
+  // Network/connection failures (no HTTP response) get a connection-specific
+  // message + icon; everything else is a generic error.
+  const isNetworkError = !!error && /network|connection/i.test(error);
+
   // Fetch when authenticated and whenever the page/size/filters change.
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -183,14 +195,14 @@ const Dashboard = () => {
   // (not just the current page) whenever the map is visible and filters change.
   useEffect(() => {
     if (!isAuthenticated) return;
-    const mapVisible = splitViewEnabled && currentView === 'cards';
+    const mapVisible = splitViewEnabled && effectiveView === 'cards';
     if (!mapVisible) return;
     let active = true;
     warehouseService.getCoordinates(debouncedParams)
       .then((rows) => { if (active) setMapCoords(Array.isArray(rows) ? rows : []); })
       .catch(() => { if (active) setMapCoords([]); });
     return () => { active = false; };
-  }, [isAuthenticated, debouncedParams, splitViewEnabled, currentView]);
+  }, [isAuthenticated, debouncedParams, splitViewEnabled, effectiveView]);
 
   // MapView reads coordinates from top-level latitude/longitude; adapt the
   // lightweight { id, lat, lng } payload from the coordinates endpoint.
@@ -833,16 +845,18 @@ const Dashboard = () => {
                 />
               )}
 
-              {/* View Switcher */}
-              <ViewSwitcher
-                currentView={currentView}
-                onViewChange={changeView}
-                disabled={loading}
-                showLabels={!isMobile}
-              />
+              {/* View Switcher — desktop only; mobile is always cards */}
+              {!isMobile && (
+                <ViewSwitcher
+                  currentView={currentView}
+                  onViewChange={changeView}
+                  disabled={loading}
+                  showLabels
+                />
+              )}
 
               {/* Split View Toggle - only show for cards view */}
-              {currentView === 'cards' && (
+              {effectiveView === 'cards' && (
                 <Tooltip title={splitViewEnabled ? "Close map" : "Show map"}>
                   <Button
                     icon={<EnvironmentOutlined />}
@@ -881,7 +895,33 @@ const Dashboard = () => {
         {/* Desktop Filter Panel (shared component) */}
         {filtersVisible && !isMobile && <WarehouseFilterBar filters={filters} />}
 
-        {error && (
+        {/* Mobile Filter Panel — inline single-open accordion (mobile only) */}
+        {filtersVisible && isMobile && (
+          <MobileFilterAccordion
+            {...filters}
+            resultCount={total}
+            activeFilterCount={
+              (searchText ? 1 : 0) +
+              (selectedOwnerType ? 1 : 0) +
+              (selectedType ? 1 : 0) +
+              (selectedCity ? 1 : 0) +
+              (selectedState ? 1 : 0) +
+              (selectedZone ? 1 : 0) +
+              (selectedAvailability ? 1 : 0) +
+              (selectedBroker ? 1 : 0) +
+              (fireNocFilter ? 1 : 0) +
+              (selectedLandType ? 1 : 0) +
+              (selectedUploadedBy ? 1 : 0) +
+              (selectedVisibility ? 1 : 0) +
+              (areaRange[0] > 0 || areaRange[1] < 100000 ? 1 : 0) +
+              (budgetRange[0] > 0 || budgetRange[1] < 1000 ? 1 : 0)
+            }
+          />
+        )}
+
+        {/* Thin banner only when we already have rows to show (a refresh failed):
+            the empty-load failure is surfaced inside the content box below instead. */}
+        {error && warehouses.length > 0 && (
           <div style={{
             marginBottom: '16px',
             padding: '12px',
@@ -904,8 +944,31 @@ const Dashboard = () => {
           transition: 'all 0.3s ease',
           opacity: isTransitioning ? 0.7 : 1
         }}>
-          {/* Split View Layout - only for cards view */}
-          {splitViewEnabled && currentView === 'cards' ? (
+          {/* Load failed with nothing to show (e.g. poor network): centered retry
+              in the space the cards/table normally occupy. Toolbar stays put. */}
+          {error && warehouses.length === 0 && !loading ? (
+            <Result
+              icon={
+                isNetworkError
+                  ? <WifiOutlined style={{ color: '#ff4d4f' }} />
+                  : <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+              }
+              title={isNetworkError ? 'Connection problem' : 'Something went wrong'}
+              subTitle={error}
+              extra={
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<ReloadOutlined />}
+                  loading={loading}
+                  onClick={fetchWarehouses}
+                >
+                  Retry
+                </Button>
+              }
+              style={{ padding: isMobile ? '48px 16px' : '64px 16px' }}
+            />
+          ) : splitViewEnabled && effectiveView === 'cards' ? (
             <div style={{
               display: 'flex',
               flexDirection: isMobile ? 'column' : 'row',
@@ -963,7 +1026,7 @@ const Dashboard = () => {
                 </Suspense>
               </div>
             </div>
-          ) : currentView === 'table' ? (
+          ) : effectiveView === 'table' ? (
             <ResponsiveTable
               columns={columns}
               dataSource={Array.isArray(warehouses) ? warehouses : []}
@@ -1057,28 +1120,6 @@ const Dashboard = () => {
         onDelete={() => handleDelete(contextMenu.record)}
       />
 
-      {/* Mobile Filter Drawer */}
-      <MobileFilterDrawer
-        visible={filtersVisible && isMobile}
-        onClose={() => setFiltersVisible(false)}
-        {...filters}
-        activeFilterCount={
-          (searchText ? 1 : 0) +
-          (selectedOwnerType ? 1 : 0) +
-          (selectedType ? 1 : 0) +
-          (selectedCity ? 1 : 0) +
-          (selectedState ? 1 : 0) +
-          (selectedZone ? 1 : 0) +
-          (selectedAvailability ? 1 : 0) +
-          (selectedBroker ? 1 : 0) +
-          (fireNocFilter ? 1 : 0) +
-          (selectedLandType ? 1 : 0) +
-          (selectedUploadedBy ? 1 : 0) +
-          (selectedVisibility ? 1 : 0) +
-          (areaRange[0] > 0 || areaRange[1] < 100000 ? 1 : 0) +
-          (budgetRange[0] > 0 || budgetRange[1] < 1000 ? 1 : 0)
-        }
-      />
     </div>
   );
 };
