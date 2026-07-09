@@ -122,7 +122,7 @@ function AppContent() {
               <SignInScreen />
             </AuthErrorBoundary>
           ) : (
-            <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+            <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
               <MobileHeader 
                 onMenuToggle={handleMenuToggle}
                 isMenuOpen={mobileMenuOpen}
@@ -146,7 +146,7 @@ function AppContent() {
         
         {/* Dashboard route */}
         <Route path="/dashboard" element={
-          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
             <MobileHeader 
               onMenuToggle={handleMenuToggle}
               isMenuOpen={mobileMenuOpen}
@@ -169,7 +169,7 @@ function AppContent() {
 
         {/* Review queue route (admin-only; ReviewQueue renders a 403 for non-admins) */}
         <Route path="/review" element={
-          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
             <MobileHeader
               onMenuToggle={handleMenuToggle}
               isMenuOpen={mobileMenuOpen}
@@ -192,7 +192,7 @@ function AppContent() {
 
         {/* Micro-market mapping route (reviewer-only; MicroMarkets renders a 403 for non-reviewers) */}
         <Route path="/micro-markets" element={
-          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-top safe-area-bottom">
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
             <MobileHeader
               onMenuToggle={handleMenuToggle}
               isMenuOpen={mobileMenuOpen}
