@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { LoadingOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { LoadingOutlined, LockOutlined, PhoneOutlined, CheckOutlined } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
+import { useViewport } from '../hooks';
 
 /**
  * RedactedPhone Component
@@ -17,11 +18,47 @@ import { warehouseService } from '../services/warehouseService';
  * @param {boolean} visible - Optional (default false). If true, auto-reveals on mount.
  */
 const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null, visible = false }) => {
+  const { isMobile } = useViewport();
   const [fetchedNumber, setFetchedNumber] = useState(null);
   const [loading, setLoading] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef(null);
 
   const contactNumber = inlineContactNumber || fetchedNumber;
+
+  // Reset the transient "Copied!" state on unmount so a pending timer never
+  // fires against an unmounted component.
+  useEffect(() => () => clearTimeout(copyTimerRef.current), []);
+
+  // Copy the revealed number to the clipboard, with a graceful fallback for
+  // browsers/contexts where the async Clipboard API is unavailable.
+  const handleCopy = useCallback(async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!contactNumber) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(contactNumber);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = contactNumber;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Copy failed (e.g. permissions) — leave the number visible so the user
+      // can still select it manually.
+    }
+  }, [contactNumber]);
 
   const fetchContactNumber = useCallback(async () => {
     // Already have a number (inline or previously fetched) — just reveal it.
@@ -70,15 +107,42 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
   }
 
   if (revealed && contactNumber) {
+    // Mobile: tap-to-call via a tel: link. Desktop: click-to-copy (dialing from
+    // a desktop isn't useful, but copying the number is).
+    if (isMobile) {
+      return (
+        <a
+          href={`tel:${contactNumber}`}
+          style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <PhoneOutlined style={{ marginRight: 4 }} />
+          {contactNumber}
+        </a>
+      );
+    }
+
     return (
-      <a
-        href={`tel:${contactNumber}`}
-        style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}
-        onClick={(e) => e.stopPropagation()}
+      <button
+        type="button"
+        onClick={handleCopy}
+        title={copied ? 'Copied!' : 'Click to copy'}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: 0,
+          border: 'none',
+          background: 'none',
+          cursor: 'pointer',
+          fontSize: 'inherit',
+          color: copied ? 'var(--accent-success, #52c41a)' : 'var(--accent-primary)',
+          transition: 'color 0.2s ease',
+        }}
       >
-        <PhoneOutlined style={{ marginRight: 4 }} />
-        {contactNumber}
-      </a>
+        {copied ? <CheckOutlined /> : <PhoneOutlined />}
+        {copied ? 'Copied!' : contactNumber}
+      </button>
     );
   }
 
