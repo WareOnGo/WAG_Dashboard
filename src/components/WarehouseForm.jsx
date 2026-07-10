@@ -92,6 +92,7 @@ const INITIAL_VALUES = {
   lightingDetails: '', wogVerified: false, centreHeight: '',
   status: '', handoverDate: '', lockInDate: '',
   cam: '', chargeableArea: '',
+  scoutNotes: '',
 };
 
 /** Flatten initialData (including nested WarehouseData) into form shape */
@@ -178,6 +179,7 @@ const toFormValues = (d) => {
     lockInDate: d.lockInDate ? String(d.lockInDate).slice(0, 10) : '',
     cam: d.cam || '',
     chargeableArea: d.chargeableArea ?? '',
+    scoutNotes: d.scoutNotes || '',
   };
 };
 
@@ -613,6 +615,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         chargeableArea: values.chargeableArea === '' || values.chargeableArea == null
           ? null
           : Number(values.chargeableArea),
+        scoutNotes: values.scoutNotes?.trim() || null,
         warehouseData: {
           latitude: values.latitude || null,
           longitude: values.longitude || null,
@@ -1196,6 +1199,19 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             <Field label="Upload Files">
               <FileUpload value={values.media} onChange={set('media')} />
+            </Field>
+          </Section>
+
+          {/* ── Scout Notes ─────────────────────────────────────── */}
+          <Section title="Scout Notes">
+            <Field label="Notes">
+              <TextAreaInput
+                mobile={m}
+                value={values.scoutNotes}
+                onChange={set('scoutNotes')}
+                placeholder="Extra notes from the scout — field observations, client suitability, or anything else worth mentioning."
+                rows={m ? 8 : 6}
+              />
             </Field>
           </Section>
 
