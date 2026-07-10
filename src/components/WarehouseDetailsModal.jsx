@@ -637,6 +637,13 @@ const WarehouseDetailsModal = ({
 
         </Section>
 
+        {/* ── Scout Notes ─────────────────────────────────────── */}
+        <Section title="Scout Notes">
+          <Field label="Notes" mobile={m}>
+            <TextAreaValue mobile={m} value={warehouse.scoutNotes} />
+          </Field>
+        </Section>
+
         {/* ── Actions ─────────────────────────────────────────── */}
         <div
           className={m ? 'warehouse-form-actions' : ''}
