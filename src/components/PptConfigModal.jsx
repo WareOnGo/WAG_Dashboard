@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Radio, Input, Button, Space, Spin, Typography, Image, Checkbox, message } from 'antd';
+import { Modal, Radio, Input, Button, Spin, Typography, Image, Checkbox, message } from 'antd';
+import { verifiedNumberService } from '../services/verifiedNumberService';
+import PocSelect from './PocSelect';
 import {
   FileTextOutlined,
   EnvironmentOutlined,
@@ -11,6 +13,7 @@ import {
   TruckOutlined,
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
+import { useAuth } from '../contexts';
 
 const { Text, Title } = Typography;
 
@@ -68,6 +71,7 @@ const PPT_TYPES = [
  */
 const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerate, generating }) => {
   const { isMobile } = useViewport();
+  const { user } = useAuth();
 
   // Step management
   const [step, setStep] = useState(1);
@@ -82,6 +86,12 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const [clientRequirement, setClientRequirement] = useState('');
   const [pocName, setPocName] = useState('');
   const [pocContact, setPocContact] = useState('');
+
+  // WareOnGo POCs fetched from the verified-numbers table (single API call),
+  // used to populate the POC dropdown. `selectedPocId` tracks the chosen row.
+  const [pocs, setPocs] = useState([]);
+  const [pocsLoading, setPocsLoading] = useState(false);
+  const [selectedPocId, setSelectedPocId] = useState(undefined);
 
   // v2 redaction flags — default enabled (full, unredacted deck)
   const [commercials, setCommercials] = useState(true);
@@ -99,11 +109,54 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setClientRequirement('');
       setPocName('');
       setPocContact('');
+      setSelectedPocId(undefined);
       setCommercials(true);
       setMapsLocation(true);
       setPocSlide(true);
     }
   }, [open]);
+
+  // Normalise a stored phone number to its last 10 digits (Indian mobiles);
+  // the +91 prefix is applied on submit / shown separately in the dropdown.
+  const toLocalDigits = (raw) => (raw || '').replace(/\D/g, '').slice(-10);
+
+  // Fetch the POC list once per open (single API call). Kept in state so both
+  // the detailed and standard flows share the same dropdown data.
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setPocsLoading(true);
+    verifiedNumberService.list()
+      .then((rows) => {
+        if (!active) return;
+        const list = Array.isArray(rows) ? rows : [];
+        setPocs(list);
+        // Default the POC to the logged-in user's own entry (matched by email).
+        const email = user?.email?.toLowerCase();
+        const me = email ? list.find((p) => p.email?.toLowerCase() === email) : null;
+        if (me) {
+          setSelectedPocId(me.id);
+          setPocName(me.name || '');
+          setPocContact(toLocalDigits(me.phone_number));
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setPocs([]);
+          message.error('Failed to load POC list');
+        }
+      })
+      .finally(() => { if (active) setPocsLoading(false); });
+    return () => { active = false; };
+  }, [open, user?.email]);
+
+  // Choosing a POC fills both the name and the contact number.
+  const handleSelectPoc = (id) => {
+    setSelectedPocId(id);
+    const poc = pocs.find((p) => p.id === id);
+    setPocName(poc?.name || '');
+    setPocContact(poc ? toLocalDigits(poc.phone_number) : '');
+  };
 
   // Filter warehouses from pre-loaded data when moving to step 2
   const handleGoToStep2 = () => {
@@ -386,39 +439,21 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
         <div>
           <label style={labelStyle}>
-            {pptType === 'detailed' ? 'Employee Name' : 'WareOnGo POC Name'}
+            {pptType === 'detailed' ? 'Employee (POC)' : 'WareOnGo POC'}
           </label>
-          <Input
-            value={pocName}
-            onChange={(e) => setPocName(e.target.value)}
-            placeholder="e.g., Dhaval Gupta"
+          <PocSelect
+            pocs={pocs}
+            loading={pocsLoading}
+            value={selectedPocId}
+            onChange={handleSelectPoc}
+            detailed={pptType === 'detailed'}
           />
+          {pptType !== 'detailed' && pocContact && (
+            <Text style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', display: 'block', marginTop: '6px' }}>
+              Contact: +91 {pocContact}
+            </Text>
+          )}
         </div>
-
-        {pptType !== 'detailed' && (
-          <div>
-            <label style={labelStyle}>WareOnGo POC Contact</label>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                style={{
-                  width: '56px',
-                  textAlign: 'center',
-                  background: 'rgba(255,255,255,0.04)',
-                  pointerEvents: 'none',
-                  flexShrink: 0,
-                }}
-                value="+91"
-                readOnly
-              />
-              <Input
-                value={pocContact}
-                onChange={(e) => setPocContact(e.target.value)}
-                placeholder="83188 25478"
-                style={{ flex: 1 }}
-              />
-            </Space.Compact>
-          </div>
-        )}
 
         {pptType === 'v2' && (
           <div>
