@@ -2,3 +2,4 @@
 export * from './warehouseService.js';
 export * from './authService.js';
 export * from './apiClient.js';
+export * from './verifiedNumberService.js';
