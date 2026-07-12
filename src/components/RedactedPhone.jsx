@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LoadingOutlined, LockOutlined, PhoneOutlined, CheckOutlined } from '@ant-design/icons';
+import { LoadingOutlined, LockOutlined, PhoneOutlined, CheckOutlined, StopOutlined } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
 import { useViewport } from '../hooks';
 
@@ -22,6 +22,7 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
   const [fetchedNumber, setFetchedNumber] = useState(null);
   const [loading, setLoading] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [denied, setDenied] = useState(false);
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef(null);
 
@@ -72,8 +73,13 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
       const data = await warehouseService.getContactNumber(warehouseId);
       setFetchedNumber(data.contactNumber);
       setRevealed(true);
-    } catch {
-      // Silently fail — button stays in redacted state
+    } catch (err) {
+      // Reveal is admin-only for now (approval flow coming later): a 403 means
+      // the caller lacks the ADMIN capability, so show that instead of a dead button.
+      if (err?.response?.status === 403) {
+        setDenied(true);
+      }
+      // Other errors fail silently — button stays in redacted state
     } finally {
       setLoading(false);
     }
@@ -102,6 +108,30 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
         fontSize: '13px',
       }}>
         <LoadingOutlined spin /> Loading...
+      </span>
+    );
+  }
+
+  if (denied) {
+    return (
+      <span
+        title="Contact number reveals are restricted to admins for now"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 12px',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          background: 'rgba(255, 255, 255, 0.03)',
+          color: 'rgba(255, 255, 255, 0.4)',
+          fontSize: '12px',
+          fontWeight: 500,
+          lineHeight: '1.4',
+          cursor: 'not-allowed',
+        }}
+      >
+        <StopOutlined /> Admin approval needed
       </span>
     );
   }
