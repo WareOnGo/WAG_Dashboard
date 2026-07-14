@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
+import VisitNotes from './VisitNotes';
 import './ResponsiveModal.css';
 import './WarehouseForm.css';
 import { clearErrors } from '../utils/errorHandler';
@@ -1214,6 +1215,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               />
             </Field>
           </Section>
+
+          {/* ── Visit Notes (saved instantly via API; only for persisted master
+                 warehouses — hidden in create mode and for staged review rows) ── */}
+          {typeof initialData?.id === 'number' && (
+            <Section title="Visit Notes">
+              <VisitNotes warehouseId={initialData.id} editable />
+            </Section>
+          )}
 
           {/* ── WOG Verification (distinct) ──────────────────────── */}
           <div
