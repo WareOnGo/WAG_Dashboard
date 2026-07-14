@@ -35,6 +35,19 @@ export const warehouseService = {
   },
 
   /**
+   * Get specific warehouses by id (full objects, no pagination). Used by the
+   * PPT/itinerary tools to resolve a handful of IDs without pulling the whole
+   * table like `getAll()` does. Unwraps the paginated envelope.
+   * @param {string|number[]} ids - Comma-separated id string or array of ids
+   * @returns {Promise<Array>} Matching warehouse objects
+   */
+  getByIds: async (ids) => {
+    const csv = Array.isArray(ids) ? ids.join(',') : String(ids);
+    const res = await apiClient.get('/warehouses', { params: { ids: csv, all: 'true' } });
+    return Array.isArray(res) ? res : (res?.data ?? []);
+  },
+
+  /**
    * Create a new warehouse
    * @param {Object} warehouseData - Warehouse data with nested warehouseData
    * @returns {Promise} Created warehouse object
