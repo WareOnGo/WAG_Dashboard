@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import ResponsiveModal from './ResponsiveModal';
 import RedactedPhone from './RedactedPhone';
+import VisitNotes from './VisitNotes';
 import { useViewport } from '../hooks/useViewport';
 import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
@@ -643,6 +644,13 @@ const WarehouseDetailsModal = ({
             <TextAreaValue mobile={m} value={warehouse.scoutNotes} />
           </Field>
         </Section>
+
+        {/* ── Visit Notes (master warehouses only — staged rows have uuid ids) ── */}
+        {typeof warehouse.id === 'number' && (
+          <Section title="Visit Notes">
+            <VisitNotes warehouseId={warehouse.id} editable />
+          </Section>
+        )}
 
         {/* ── Actions ─────────────────────────────────────────── */}
         <div

@@ -84,6 +84,48 @@ export const warehouseService = {
     return apiClient.get(`/warehouses/${id}`);
   },
 
+  // --- Visit notes (site-visit log per warehouse) ---
+
+  /**
+   * List visit notes for a warehouse, newest visit first.
+   * @param {number} warehouseId
+   * @returns {Promise<Array>} Visit note rows
+   */
+  listVisitNotes: async (warehouseId) => {
+    return apiClient.get(`/warehouses/${warehouseId}/visit-notes`);
+  },
+
+  /**
+   * Add a visit note to a warehouse.
+   * @param {number} warehouseId
+   * @param {Object} data - { client, clientPoc, wareOnGoPoc, visitDate (YYYY-MM-DD), clientFeedback, pocFeedback }
+   * @returns {Promise<Object>} Created note
+   */
+  createVisitNote: async (warehouseId, data) => {
+    return apiClient.post(`/warehouses/${warehouseId}/visit-notes`, data);
+  },
+
+  /**
+   * Update a visit note (partial payload allowed).
+   * @param {number} warehouseId
+   * @param {number} noteId
+   * @param {Object} data
+   * @returns {Promise<Object>} Updated note
+   */
+  updateVisitNote: async (warehouseId, noteId, data) => {
+    return apiClient.put(`/warehouses/${warehouseId}/visit-notes/${noteId}`, data);
+  },
+
+  /**
+   * Delete a visit note. Admin-only on the server.
+   * @param {number} warehouseId
+   * @param {number} noteId
+   * @returns {Promise} No content
+   */
+  deleteVisitNote: async (warehouseId, noteId) => {
+    return apiClient.delete(`/warehouses/${warehouseId}/visit-notes/${noteId}`);
+  },
+
   // --- Staging / review (admin-only) ---
 
   /**
