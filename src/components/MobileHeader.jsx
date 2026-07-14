@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, Checkbox, message } from 'antd';
 import {
   UserOutlined,
@@ -88,6 +88,8 @@ const MobileHeader = ({ onMenuToggle }) => {
   const [itineraryResultOpen, setItineraryResultOpen] = useState(false);
   const [warehouseIds, setWarehouseIds] = useState('');
   const [generatedItinerary, setGeneratedItinerary] = useState('');
+  // Warehouses resolved for the current PPT submission (?ids= subset, not the
+  // full table) — feeds PptConfigModal's id → warehouse lookup.
   const [warehouses, setWarehouses] = useState(null);
   const [generatingItinerary, setGeneratingItinerary] = useState(false);
   // Resolved data backing the current itinerary result, so it can be re-rendered
@@ -101,6 +103,9 @@ const MobileHeader = ({ onMenuToggle }) => {
   const [pptWarehouseIds, setPptWarehouseIds] = useState('');
   const [pptModalOpen, setPptModalOpen] = useState(false);
   const [generatingPpt, setGeneratingPpt] = useState(false);
+  // True while the PPT submission's warehouses are being resolved; drives the
+  // spinner on the PPT Submit button.
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -120,28 +125,10 @@ const MobileHeader = ({ onMenuToggle }) => {
     setItineraryExpanded(prev => !prev);
   };
 
-  // Lazy-load warehouse data the first time the itinerary tool opens, regardless of
-  // whether it was opened from the desktop nav or the mobile drawer.
-  useEffect(() => {
-    if (itineraryExpanded && !warehouses) {
-      warehouseService.getAll()
-        .then(data => setWarehouses(Array.isArray(data) ? data : []))
-        .catch(error => {
-          console.error('Failed to fetch warehouses:', error);
-          message.error('Failed to load warehouse data');
-        });
-    }
-  }, [itineraryExpanded, warehouses]);
-
   // Generate itinerary from comma-separated IDs
   const handleGenerateItinerary = async () => {
     if (!warehouseIds.trim()) {
       message.warning('Please enter warehouse IDs');
-      return;
-    }
-
-    if (!warehouses || warehouses.length === 0) {
-      message.error('Warehouse data not loaded');
       return;
     }
 
@@ -162,9 +149,12 @@ const MobileHeader = ({ onMenuToggle }) => {
         return;
       }
 
-      // Find warehouses by IDs
+      // Resolve just the requested warehouses server-side (?ids=), preserving
+      // the order the user typed them in.
+      const fetched = await warehouseService.getByIds(ids);
+      const byId = new Map(fetched.map(w => [w.id, w]));
       const foundWarehouses = ids
-        .map(id => warehouses.find(w => w.id === id))
+        .map(id => byId.get(id))
         .filter(w => w !== undefined);
 
       if (foundWarehouses.length === 0) {
@@ -295,16 +285,30 @@ const MobileHeader = ({ onMenuToggle }) => {
       message.warning('Please enter warehouse IDs');
       return;
     }
-    // Lazy-load warehouse data if not already loaded (shared with itinerary)
-    if (!warehouses) {
-      try {
-        const data = await warehouseService.getAll();
-        setWarehouses(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error('Failed to fetch warehouses:', error);
-        message.error('Failed to load warehouse data');
+    // Resolve just the requested warehouses server-side (?ids=). Fetched fresh on
+    // every submit so edited IDs are always honoured.
+    setWarehousesLoading(true);
+    try {
+      const ids = pptWarehouseIds
+        .split(',')
+        .map(id => id.trim())
+        .filter(id => /^\d+$/.test(id));
+      if (ids.length === 0) {
+        message.warning('No valid warehouse IDs found');
         return;
       }
+      const data = await warehouseService.getByIds(ids);
+      if (!Array.isArray(data) || data.length === 0) {
+        message.error('No matching warehouses found for the entered IDs');
+        return;
+      }
+      setWarehouses(data);
+    } catch (error) {
+      console.error('Failed to fetch warehouses:', error);
+      message.error('Failed to load warehouse data');
+      return;
+    } finally {
+      setWarehousesLoading(false);
     }
     setPptModalOpen(true);
   };
@@ -456,6 +460,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                       type="primary"
                       size="small"
                       onClick={handlePptSubmitIds}
+                      loading={warehousesLoading}
                       style={{ borderRadius: '6px', fontSize: '12px' }}
                     >
                       Submit
@@ -650,6 +655,7 @@ const MobileHeader = ({ onMenuToggle }) => {
             type="primary"
             size="small"
             onClick={handlePptSubmitIds}
+            loading={warehousesLoading}
             style={{ borderRadius: '6px', fontSize: '12px', flexShrink: 0 }}
           >
             Submit

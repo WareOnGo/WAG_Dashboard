@@ -1,8 +1,34 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Row, Col, Empty, Pagination } from 'antd';
+import { Row, Col, Empty, Pagination, Skeleton } from 'antd';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
 import './CardView.css';
+
+/**
+ * Placeholder card shown while a page of warehouses loads. Reuses the real
+ * card's container class so the grid keeps its exact geometry (no layout jump
+ * between loading and loaded states).
+ */
+const SkeletonCard = ({ isMobile }) => (
+  <div className="simple-warehouse-card" aria-hidden="true">
+    <Skeleton.Button
+      active
+      block
+      style={{ height: isMobile ? 100 : 120, borderRadius: 0 }}
+    />
+    <div style={{ padding: '12px 16px 16px' }}>
+      <Skeleton
+        active
+        title={{ width: '55%' }}
+        paragraph={{ rows: 3, width: ['90%', '65%', '75%'] }}
+      />
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <Skeleton.Button active size="small" style={{ width: 80 }} />
+        <Skeleton.Button active size="small" style={{ width: 80 }} />
+      </div>
+    </div>
+  </div>
+);
 
 /**
  * Fixed CardView Component with stable pagination
@@ -56,17 +82,18 @@ const CardView = ({
   }, [paginated, warehouses, currentPage, pageSize]);
 
   if (loading) {
+    // Skeleton grid sized like a typical page so pagination/filter changes
+    // don't collapse the layout while the next page loads.
+    const skeletonCount = isMobile ? 4 : (columnsPerRow === 2 ? 6 : 8);
     return (
       <div className="card-view card-view--loading">
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '200px',
-          color: 'rgba(255, 255, 255, 0.65)'
-        }}>
-          Loading warehouses...
-        </div>
+        <Row gutter={[16, 16]}>
+          {Array.from({ length: skeletonCount }, (_, i) => (
+            <Col key={i} {...colSpan}>
+              <SkeletonCard isMobile={isMobile} />
+            </Col>
+          ))}
+        </Row>
       </div>
     );
   }

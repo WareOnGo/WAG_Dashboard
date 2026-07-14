@@ -24,6 +24,7 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
   const [query, setQuery] = useState('');
   const containerRef = useRef(null);
   const searchRef = useRef(null);
+  const panelRef = useRef(null);
 
   const selected = pocs.find((p) => p.id === value);
 
@@ -32,8 +33,12 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return pocs;
+    // Only match on the number when the query actually contains digits —
+    // `includes('')` is always true, which used to make text queries match everyone.
+    const digits = q.replace(/\D/g, '');
     return pocs.filter((p) =>
-      p.name?.toLowerCase().includes(q) || toLocalDigits(p.phone_number).includes(q.replace(/\D/g, ''))
+      p.name?.toLowerCase().includes(q) ||
+      (digits.length > 0 && toLocalDigits(p.phone_number).includes(digits))
     );
   }, [pocs, query]);
 
@@ -52,12 +57,17 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
     };
   }, [open]);
 
-  // Focus the search box when opening.
+  // Focus the search box when opening, and scroll the whole panel into view —
+  // the picker sits near the bottom of the modal's scrollable body, so without
+  // this the in-flow list opens clipped behind the modal footer.
   useEffect(() => {
     if (open) {
       setQuery('');
       // Defer so the input is mounted.
-      const t = setTimeout(() => searchRef.current?.focus(), 0);
+      const t = setTimeout(() => {
+        searchRef.current?.focus({ preventScroll: true });
+        panelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 0);
       return () => clearTimeout(t);
     }
   }, [open]);
@@ -100,6 +110,7 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
       {/* In-flow dropdown panel */}
       {open && (
         <div
+          ref={panelRef}
           style={{
             marginTop: '4px',
             border: '1px solid #303030',
