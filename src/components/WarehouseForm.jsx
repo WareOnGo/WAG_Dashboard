@@ -91,6 +91,9 @@ const INITIAL_VALUES = {
   flooringType: '', floorStrengthPerSqm: '', ventilationType: '',
   ventilationAirChangesPerDay: '', insulationPresent: '', insulationType: '',
   lightingDetails: '', wogVerified: false, centreHeight: '',
+  // RCC-only fields (rendered only when warehouseType is 'RCC')
+  totalFloors: '', liftAccess: false, passengerLiftCount: '',
+  serviceLiftCount: '', liftLoadCapacity: '',
   status: '', handoverDate: '', lockInDate: '',
   cam: '', chargeableArea: '',
   scoutNotes: '',
@@ -175,6 +178,12 @@ const toFormValues = (d) => {
     lightingDetails: d.lightingDetails || '',
     wogVerified: d.wogVerified === true || d.wogVerified === 'true',
     centreHeight: d.centreHeight || '',
+    // RCC-only fields
+    totalFloors: d.totalFloors || '',
+    liftAccess: d.liftAccess === true || d.liftAccess === 'true',
+    passengerLiftCount: d.passengerLiftCount || '',
+    serviceLiftCount: d.serviceLiftCount || '',
+    liftLoadCapacity: d.liftLoadCapacity || '',
     status: d.status || '',
     handoverDate: d.handoverDate ? String(d.handoverDate).slice(0, 10) : '',
     lockInDate: d.lockInDate ? String(d.lockInDate).slice(0, 10) : '',
@@ -609,6 +618,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         lightingDetails: values.lightingDetails || null,
         wogVerified: typeof values.wogVerified === 'boolean' ? values.wogVerified : null,
         centreHeight: values.centreHeight || null,
+        // RCC-only fields. Sent regardless of the current warehouseType so that
+        // switching type away from RCC hides the inputs without wiping the data.
+        totalFloors: values.totalFloors || null,
+        liftAccess: typeof values.liftAccess === 'boolean' ? values.liftAccess : null,
+        passengerLiftCount: values.passengerLiftCount || null,
+        serviceLiftCount: values.serviceLiftCount || null,
+        liftLoadCapacity: values.liftLoadCapacity || null,
         status: values.status || null,
         handoverDate: values.handoverDate || null,
         lockInDate: values.lockInDate || null,
@@ -907,10 +923,51 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)
             )}
 
+            {/* RCC-specific specs. Hidden for other warehouse types, but any values
+                already captured are kept and still submitted. Mirrored in
+                WarehouseDetailsModal. */}
+            {values.warehouseType === 'RCC' && (<>
+              {row(<>
+                {col(
+                  <Field label="Total Number of Floors">
+                    <TextInput mobile={m} value={values.totalFloors} onChange={set('totalFloors')} placeholder="e.g. G+3" />
+                  </Field>,
+                  true)}
+                {col(
+                  <Field label="Lift Access">
+                    <ToggleSwitch checked={values.liftAccess} onChange={set('liftAccess')} />
+                  </Field>,
+                  true)}
+              </>)}
+
+              {values.liftAccess && (<>
+                {row(<>
+                  {col(
+                    <Field label="Number of Passenger Lifts">
+                      <TextInput mobile={m} value={values.passengerLiftCount} onChange={set('passengerLiftCount')} placeholder="Number of passenger lifts" />
+                    </Field>,
+                    true)}
+                  {col(
+                    <Field label="Number of Service Lifts">
+                      <TextInput mobile={m} value={values.serviceLiftCount} onChange={set('serviceLiftCount')} placeholder="Number of service lifts" />
+                    </Field>,
+                    true)}
+                </>)}
+
+                {row(
+                  col(
+                    <Field label="Lift Load Capacity" tooltip="Load capacity per lift, e.g. 2 T or 2000 kg.">
+                      <TextInput mobile={m} value={values.liftLoadCapacity} onChange={set('liftLoadCapacity')} placeholder="e.g. 2 T" />
+                    </Field>,
+                    true)
+                )}
+              </>)}
+            </>)}
+
             {row(<>
               {col(
                 /* NOTE: 'totalSpaceSqft' from the schema is displayed as "Offered Area" here per user request */
-                <Field label="Offered Area (sq ft)" required error={errors.totalSpaceSqft} tooltip="Please mention all kinds of areas offered, including partition possibilities.">
+                <Field label={values.warehouseType === 'RCC' ? 'Offered Area per Floor (sq ft)' : 'Offered Area (sq ft)'} required error={errors.totalSpaceSqft} tooltip="Please mention all kinds of areas offered, including partition possibilities.">
                   {(values.totalSpaceSqft || []).map((v, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
                       <input
