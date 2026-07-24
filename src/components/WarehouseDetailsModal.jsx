@@ -360,10 +360,29 @@ const WarehouseDetailsModal = ({
             col(<Field label="Warehouse Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseType} /></Field>, true)
           )}
 
+          {/* RCC-specific specs — shown only for RCC, mirroring WarehouseForm. */}
+          {warehouse.warehouseType === 'RCC' && (<>
+            {row(<>
+              {col(<Field label="Total Number of Floors" mobile={m}><TextValue mobile={m} value={warehouse.totalFloors} /></Field>, true)}
+              {col(<Field label="Lift Access" mobile={m}><TextValue mobile={m} value={warehouse.liftAccess === true ? 'Yes' : warehouse.liftAccess === false ? 'No' : '-'} /></Field>, true)}
+            </>)}
+
+            {warehouse.liftAccess === true && (<>
+              {row(<>
+                {col(<Field label="Number of Passenger Lifts" mobile={m}><TextValue mobile={m} value={warehouse.passengerLiftCount} /></Field>, true)}
+                {col(<Field label="Number of Service Lifts" mobile={m}><TextValue mobile={m} value={warehouse.serviceLiftCount} /></Field>, true)}
+              </>)}
+
+              {row(
+                col(<Field label="Lift Load Capacity" mobile={m}><TextValue mobile={m} value={warehouse.liftLoadCapacity} /></Field>, true)
+              )}
+            </>)}
+          </>)}
+
           {row(<>
             {col(
               /* NOTE: 'totalSpaceSqft' from the schema is displayed as "Offered Area" here per user request */
-              <Field label="Offered Area (sq ft)" mobile={m}>
+              <Field label={warehouse.warehouseType === 'RCC' ? 'Offered Area per Floor (sq ft)' : 'Offered Area (sq ft)'} mobile={m}>
                 <TextValue mobile={m} value={warehouse.totalSpaceSqft} />
               </Field>,
             true)}
