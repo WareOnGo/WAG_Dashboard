@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { LoadingOutlined, LockOutlined, PhoneOutlined, CheckOutlined, StopOutlined } from '@ant-design/icons';
+import { App, Input } from 'antd';
+import { LoadingOutlined, LockOutlined, PhoneOutlined, CheckOutlined } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
 import { useViewport } from '../hooks';
 
@@ -7,22 +8,26 @@ import { useViewport } from '../hooks';
  * RedactedPhone Component
  *
  * Displays a redacted phone number button that reveals the actual number on click.
- * Each reveal triggers an API call that is audit-logged on the backend.
+ * Revealing first asks which deal the number is needed for; the reason is sent with
+ * the API call and stored on the audit entry, so every reveal has a stated purpose.
  *
  * @param {number} warehouseId - Used to fetch the contact number on reveal (audited).
  * @param {string} inlineContactNumber - Optional. When the caller already has the number
  *   (e.g. staged review rows, which aren't redacted), pass it here to reveal directly
  *   without an API call. Master warehouse rows are redacted server-side and omit it, so
  *   they fall back to fetching by warehouseId. Without this, staged rows would call the
- *   master /contact-number endpoint with a staged uuid id and silently fail.
+ *   master /contact-number endpoint with a staged uuid id and silently fail. Inline
+ *   numbers skip the reason prompt — there is no reveal to audit.
  * @param {boolean} visible - Optional (default false). If true, auto-reveals on mount.
+ *   Only applies to inline numbers: a fetched reveal needs a typed reason, so it can
+ *   never happen unprompted.
  */
 const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null, visible = false }) => {
   const { isMobile } = useViewport();
+  const { message, modal } = App.useApp();
   const [fetchedNumber, setFetchedNumber] = useState(null);
   const [loading, setLoading] = useState(false);
   const [revealed, setRevealed] = useState(false);
-  const [denied, setDenied] = useState(false);
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef(null);
 
@@ -61,41 +66,65 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
     }
   }, [contactNumber]);
 
-  const fetchContactNumber = useCallback(async () => {
-    // Already have a number (inline or previously fetched) — just reveal it.
+  const fetchContactNumber = useCallback(async (reason) => {
+    setLoading(true);
+    try {
+      const data = await warehouseService.getContactNumber(warehouseId, reason);
+      setFetchedNumber(data.contactNumber);
+      setRevealed(true);
+    } catch (err) {
+      message.error(err?.message || 'Could not reveal the number — please try again');
+    } finally {
+      setLoading(false);
+    }
+  }, [warehouseId, message]);
+
+  // Ask which deal the number is for before fetching. The reason is required (also
+  // enforced server-side) and is recorded on the audit entry for the reveal.
+  const promptForReason = useCallback(() => {
+    let reason = '';
+    modal.confirm({
+      title: 'Why do you need this number?',
+      content: (
+        <Input.TextArea
+          rows={3}
+          placeholder="Which deal do you need this number for? (required)"
+          maxLength={280}
+          onChange={(e) => { reason = e.target.value; }}
+          style={{ marginTop: 8 }}
+        />
+      ),
+      okText: 'Reveal number',
+      onOk: async () => {
+        const trimmed = reason.trim();
+        if (trimmed.length < 3) {
+          message.error('Please note which deal you need this number for');
+          return Promise.reject(new Error('reason required'));
+        }
+        await fetchContactNumber(trimmed);
+      },
+    });
+  }, [modal, message, fetchContactNumber]);
+
+  useEffect(() => {
+    // Inline numbers only — a fetched reveal requires a typed reason.
+    if (visible && inlineContactNumber) {
+      setRevealed(true);
+    }
+  }, [visible, inlineContactNumber]);
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (revealed || loading) return;
+
+    // Already have the number (inline, or fetched earlier in this session) — no
+    // second API call, so there is nothing new to audit and no reason to ask for.
     if (inlineContactNumber || fetchedNumber) {
       setRevealed(true);
       return;
     }
 
-    setLoading(true);
-    try {
-      const data = await warehouseService.getContactNumber(warehouseId);
-      setFetchedNumber(data.contactNumber);
-      setRevealed(true);
-    } catch (err) {
-      // Reveal is admin-only for now (approval flow coming later): a 403 means
-      // the caller lacks the ADMIN capability, so show that instead of a dead button.
-      if (err?.response?.status === 403) {
-        setDenied(true);
-      }
-      // Other errors fail silently — button stays in redacted state
-    } finally {
-      setLoading(false);
-    }
-  }, [warehouseId, inlineContactNumber, fetchedNumber]);
-
-  useEffect(() => {
-    if (visible) {
-      fetchContactNumber();
-    }
-  }, [visible, fetchContactNumber]);
-
-  const handleClick = (e) => {
-    e.stopPropagation();
-    if (!revealed && !loading) {
-      fetchContactNumber();
-    }
+    promptForReason();
   };
 
   if (loading) {
@@ -108,30 +137,6 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
         fontSize: '13px',
       }}>
         <LoadingOutlined spin /> Loading...
-      </span>
-    );
-  }
-
-  if (denied) {
-    return (
-      <span
-        title="Contact number reveals are restricted to admins for now"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 12px',
-          borderRadius: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          background: 'rgba(255, 255, 255, 0.03)',
-          color: 'rgba(255, 255, 255, 0.4)',
-          fontSize: '12px',
-          fontWeight: 500,
-          lineHeight: '1.4',
-          cursor: 'not-allowed',
-        }}
-      >
-        <StopOutlined /> Admin approval needed
       </span>
     );
   }
