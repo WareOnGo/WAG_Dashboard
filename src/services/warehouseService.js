@@ -81,10 +81,14 @@ export const warehouseService = {
   /**
    * Get contact number for a specific warehouse (triggers audit log)
    * @param {number} warehouseId - Warehouse ID
+   * @param {string} reason - Which deal the number is needed for. Required by the
+   *   backend and stored on the audit entry, so every reveal has a stated purpose.
    * @returns {Promise} Object containing contactNumber and contactPerson
    */
-  getContactNumber: async (warehouseId) => {
-    return apiClient.get(`/warehouses/${warehouseId}/contact-number`);
+  getContactNumber: async (warehouseId, reason) => {
+    return apiClient.get(`/warehouses/${warehouseId}/contact-number`, {
+      params: { reason },
+    });
   },
 
   /**
