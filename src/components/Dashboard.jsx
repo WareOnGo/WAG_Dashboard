@@ -60,6 +60,7 @@ import {
   clearErrors
 } from '../utils/errorHandler';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { EDIT_PREFILL_REASON } from '../utils/revealReason';
 
 const { Title, Text } = Typography;
 
@@ -275,8 +276,10 @@ const Dashboard = () => {
     setEditingWarehouse(warehouse);
     setFormVisible(true);
 
-    // Fetch the real contact number in the background
-    warehouseService.getContactNumber(warehouse.id)
+    // Fetch the real contact number in the background so saving the form doesn't wipe
+    // it. This isn't a deal lookup and there's no one to prompt, so the audit entry
+    // records it as an edit rather than implying a deal.
+    warehouseService.getContactNumber(warehouse.id, EDIT_PREFILL_REASON)
       .then(contactInfo => {
         setEditingWarehouse(prev =>
           prev && prev.id === warehouse.id

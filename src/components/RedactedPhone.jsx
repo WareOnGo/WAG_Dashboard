@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { App, Input } from 'antd';
-import { LoadingOutlined, LockOutlined, PhoneOutlined, CheckOutlined } from '@ant-design/icons';
+import { LockOutlined, PhoneOutlined, CheckOutlined } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
 import { useViewport } from '../hooks';
+import RevealReasonModal from './RevealReasonModal';
 
 /**
  * RedactedPhone Component
@@ -24,10 +24,9 @@ import { useViewport } from '../hooks';
  */
 const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null, visible = false }) => {
   const { isMobile } = useViewport();
-  const { message, modal } = App.useApp();
   const [fetchedNumber, setFetchedNumber] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef(null);
 
@@ -66,45 +65,14 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
     }
   }, [contactNumber]);
 
-  const fetchContactNumber = useCallback(async (reason) => {
-    setLoading(true);
-    try {
-      const data = await warehouseService.getContactNumber(warehouseId, reason);
-      setFetchedNumber(data.contactNumber);
-      setRevealed(true);
-    } catch (err) {
-      message.error(err?.message || 'Could not reveal the number — please try again');
-    } finally {
-      setLoading(false);
-    }
-  }, [warehouseId, message]);
-
-  // Ask which deal the number is for before fetching. The reason is required (also
-  // enforced server-side) and is recorded on the audit entry for the reveal.
-  const promptForReason = useCallback(() => {
-    let reason = '';
-    modal.confirm({
-      title: 'Why do you need this number?',
-      content: (
-        <Input.TextArea
-          rows={3}
-          placeholder="Which deal do you need this number for? (required)"
-          maxLength={280}
-          onChange={(e) => { reason = e.target.value; }}
-          style={{ marginTop: 8 }}
-        />
-      ),
-      okText: 'Reveal number',
-      onOk: async () => {
-        const trimmed = reason.trim();
-        if (trimmed.length < 3) {
-          message.error('Please note which deal you need this number for');
-          return Promise.reject(new Error('reason required'));
-        }
-        await fetchContactNumber(trimmed);
-      },
-    });
-  }, [modal, message, fetchContactNumber]);
+  // Fetch under the reason the user stated. Errors are left to propagate: the modal
+  // catches them, stays open and shows them inline, so the typed reason isn't lost.
+  const revealWithReason = useCallback(async (reason) => {
+    const data = await warehouseService.getContactNumber(warehouseId, reason);
+    setFetchedNumber(data.contactNumber);
+    setRevealed(true);
+    setAsking(false);
+  }, [warehouseId]);
 
   useEffect(() => {
     // Inline numbers only — a fetched reveal requires a typed reason.
@@ -115,7 +83,7 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if (revealed || loading) return;
+    if (revealed) return;
 
     // Already have the number (inline, or fetched earlier in this session) — no
     // second API call, so there is nothing new to audit and no reason to ask for.
@@ -124,22 +92,8 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
       return;
     }
 
-    promptForReason();
+    setAsking(true);
   };
-
-  if (loading) {
-    return (
-      <span style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-        color: 'rgba(255, 255, 255, 0.45)',
-        fontSize: '13px',
-      }}>
-        <LoadingOutlined spin /> Loading...
-      </span>
-    );
-  }
 
   if (revealed && contactNumber) {
     // Mobile: tap-to-call via a tel: link. Desktop: click-to-copy (dialing from
@@ -182,34 +136,41 @@ const RedactedPhone = ({ warehouseId, contactNumber: inlineContactNumber = null,
   }
 
   return (
-    <button
-      onClick={handleClick}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '4px 12px',
-        borderRadius: '20px',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        background: 'rgba(255, 255, 255, 0.06)',
-        color: 'rgba(255, 255, 255, 0.65)',
-        cursor: 'pointer',
-        fontSize: '12px',
-        fontWeight: 500,
-        lineHeight: '1.4',
-        transition: 'all 0.2s ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-      }}
-    >
-      <LockOutlined /> Show Number
-    </button>
+    <>
+      <button
+        onClick={handleClick}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 12px',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          background: 'rgba(255, 255, 255, 0.06)',
+          color: 'rgba(255, 255, 255, 0.65)',
+          cursor: 'pointer',
+          fontSize: '12px',
+          fontWeight: 500,
+          lineHeight: '1.4',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+        }}
+      >
+        <LockOutlined /> Show Number
+      </button>
+      <RevealReasonModal
+        open={asking}
+        onCancel={() => setAsking(false)}
+        onConfirm={revealWithReason}
+      />
+    </>
   );
 };
 

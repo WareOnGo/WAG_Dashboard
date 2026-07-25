@@ -15,6 +15,7 @@ import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useMobileTools } from '../contexts/MobileToolsContext';
 import { warehouseService } from '../services/warehouseService';
+import RevealReasonModal from './RevealReasonModal';
 import { generateStandardPpt, generateDetailedPpt, generatePptV2, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
 
@@ -98,6 +99,9 @@ const MobileHeader = ({ onMenuToggle }) => {
   const [itineraryContactMap, setItineraryContactMap] = useState({});
   const [hideOwnerDetail, setHideOwnerDetail] = useState(false);
   const [hideRent, setHideRent] = useState(false);
+  // Warehouses resolved and waiting on a reason before their numbers are revealed:
+  // { ids, foundWarehouses } while the prompt is up, null otherwise.
+  const [reasonPrompt, setReasonPrompt] = useState(null);
 
   // PPT generator state
   const [pptWarehouseIds, setPptWarehouseIds] = useState('');
@@ -123,6 +127,48 @@ const MobileHeader = ({ onMenuToggle }) => {
   // Toggle the inline itinerary input in the navbar (used by the desktop nav link)
   const handleItineraryToggle = () => {
     setItineraryExpanded(prev => !prev);
+  };
+
+  // Second half of itinerary generation, run once the user has stated why they need
+  // the numbers: fetch every unmasked number under that one reason, then build the text.
+  const revealAndBuildItinerary = async (ids, foundWarehouses, reason) => {
+    setGeneratingItinerary(true);
+    try {
+      const contactResults = await Promise.allSettled(
+        foundWarehouses.map(wh => warehouseService.getContactNumber(wh.id, reason))
+      );
+      const contactMap = {};
+      foundWarehouses.forEach((wh, i) => {
+        if (contactResults[i].status === 'fulfilled') {
+          contactMap[wh.id] = contactResults[i].value.contactNumber;
+        }
+      });
+
+      // Reset the toggle for each fresh generation, then build the formatted text.
+      // Keep the resolved data around so the modal can re-render on toggle.
+      setItineraryWarehouses(foundWarehouses);
+      setItineraryContactMap(contactMap);
+      setHideOwnerDetail(false);
+      setHideRent(false);
+
+      const itinerary = buildItineraryText(foundWarehouses, contactMap, false, false);
+      setGeneratedItinerary(itinerary);
+      setItineraryResultOpen(true);
+      message.success(`Generated itinerary for ${foundWarehouses.length} warehouse(s)`);
+
+      // Show warning for missing IDs
+      const missingCount = ids.length - foundWarehouses.length;
+      if (missingCount > 0) {
+        message.warning(`${missingCount} warehouse ID(s) not found`);
+      }
+    } catch (error) {
+      console.error('Error generating itinerary:', error);
+      // Rethrow so the reason prompt shows the failure inline and stays open — the
+      // user has already typed a reason, and losing it silently is worse.
+      throw error;
+    } finally {
+      setGeneratingItinerary(false);
+    }
   };
 
   // Generate itinerary from comma-separated IDs
@@ -163,34 +209,10 @@ const MobileHeader = ({ onMenuToggle }) => {
         return;
       }
 
-      // Fetch unmasked phone numbers for all warehouses in parallel
-      const contactResults = await Promise.allSettled(
-        foundWarehouses.map(wh => warehouseService.getContactNumber(wh.id))
-      );
-      const contactMap = {};
-      foundWarehouses.forEach((wh, i) => {
-        if (contactResults[i].status === 'fulfilled') {
-          contactMap[wh.id] = contactResults[i].value.contactNumber;
-        }
-      });
-
-      // Reset the toggle for each fresh generation, then build the formatted text.
-      // Keep the resolved data around so the modal can re-render on toggle.
-      setItineraryWarehouses(foundWarehouses);
-      setItineraryContactMap(contactMap);
-      setHideOwnerDetail(false);
-      setHideRent(false);
-
-      const itinerary = buildItineraryText(foundWarehouses, contactMap, false, false);
-      setGeneratedItinerary(itinerary);
-      setItineraryResultOpen(true);
-      message.success(`Generated itinerary for ${foundWarehouses.length} warehouse(s)`);
-
-      // Show warning for missing IDs
-      const missingCount = ids.length - foundWarehouses.length;
-      if (missingCount > 0) {
-        message.warning(`${missingCount} warehouse ID(s) not found`);
-      }
+      // An itinerary reveals every warehouse's number at once, so ask for the reason
+      // once for the whole list rather than per warehouse. All the reveals are audited
+      // under that single reason.
+      setReasonPrompt({ ids, foundWarehouses });
     } catch (error) {
       console.error('Error generating itinerary:', error);
       message.error('Failed to generate itinerary');
@@ -784,6 +806,17 @@ const MobileHeader = ({ onMenuToggle }) => {
           </div>
         )}
       </Modal>
+
+      {/* One reason for the whole itinerary, asked before any number is revealed */}
+      <RevealReasonModal
+        open={reasonPrompt !== null}
+        count={reasonPrompt?.foundWarehouses.length || 1}
+        onCancel={() => setReasonPrompt(null)}
+        onConfirm={async (reason) => {
+          await revealAndBuildItinerary(reasonPrompt.ids, reasonPrompt.foundWarehouses, reason);
+          setReasonPrompt(null);
+        }}
+      />
 
       {/* PPT Config Modal */}
       <PptConfigModal
