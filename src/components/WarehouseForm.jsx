@@ -91,6 +91,7 @@ const INITIAL_VALUES = {
   flooringType: '', floorStrengthPerSqm: '', ventilationType: '',
   ventilationAirChangesPerDay: '', insulationPresent: '', insulationType: '',
   lightingDetails: '', wogVerified: false, centreHeight: '',
+  hasBorewell: false,
   // RCC-only fields (rendered only when warehouseType is 'RCC')
   totalFloors: '', liftAccess: false, passengerLiftCount: '',
   serviceLiftCount: '', liftLoadCapacity: '',
@@ -176,6 +177,7 @@ const toFormValues = (d) => {
     insulationPresent: d.insulationPresent || '',
     insulationType: d.insulationType || '',
     lightingDetails: d.lightingDetails || '',
+    hasBorewell: d.hasBorewell === true || d.hasBorewell === 'true',
     wogVerified: d.wogVerified === true || d.wogVerified === 'true',
     centreHeight: d.centreHeight || '',
     // RCC-only fields
@@ -616,6 +618,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
           : (values.insulationPresent || null),
         insulationType: values.insulationType || null,
         lightingDetails: values.lightingDetails || null,
+        hasBorewell: typeof values.hasBorewell === 'boolean' ? values.hasBorewell : null,
         wogVerified: typeof values.wogVerified === 'boolean' ? values.wogVerified : null,
         centreHeight: values.centreHeight || null,
         // RCC-only fields. Sent regardless of the current warehouseType so that
@@ -1155,6 +1158,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
             </>)}
+
+            {row(
+              col(
+                <Field label="Borewell" tooltip="Is there a borewell on the site?">
+                  <ToggleSwitch checked={values.hasBorewell} onChange={set('hasBorewell')} />
+                </Field>,
+                true)
+            )}
 
             <Field label="Parking Space Availability">
               <TextAreaInput mobile={m} value={values.parkingDockingSpace} onChange={set('parkingDockingSpace')} placeholder="Mention area for seperate parking if available" rows={m ? 3 : 2} />
