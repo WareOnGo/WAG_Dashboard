@@ -460,9 +460,10 @@ const WarehouseDetailsModal = ({
             <TextAreaValue mobile={m} value={wd.parkingDockingSpace} />
           </Field>
 
-          {row(
-            col(<Field label="Power (KVA)" mobile={m}><TextValue mobile={m} value={wd.powerKva} /></Field>, true)
-          )}
+          {row(<>
+            {col(<Field label="Power (KVA)" mobile={m}><TextValue mobile={m} value={wd.powerKva} /></Field>, true)}
+            {col(<Field label="Borewell" mobile={m}><TextValue mobile={m} value={warehouse.hasBorewell === true ? 'Yes' : warehouse.hasBorewell === false ? 'No' : '-'} /></Field>, true)}
+          </>)}
 
           <Field label="Other Specifications" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.otherSpecifications} />
