@@ -18,6 +18,7 @@ import { useViewport } from '../hooks/useViewport';
 import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { buildCoordMapsLink } from '../utils/mapsLink';
 import './ResponsiveModal.css';
 import './WarehouseForm.css';
 
@@ -144,6 +145,7 @@ const WarehouseDetailsModal = ({
   if (!warehouse) return null;
 
   const wd = warehouse.WarehouseData || warehouse.warehouseData || {};
+  const coordMapsLink = buildCoordMapsLink(wd.latitude, wd.longitude);
   const media = getMediaFromWarehouse(warehouse);
   const imageUrls = media.images || [];
   const videoUrls = media.videos || [];
@@ -331,6 +333,22 @@ const WarehouseDetailsModal = ({
               </a>
             ) : (
               <TextValue mobile={m} value={warehouse.googleLocation} />
+            )}
+          </Field>
+
+          {/* Coordinate-only fallback — the pasted link above often fails on Apple devices. */}
+          <Field label="Alternative Maps Link (from coordinates)" mobile={m}>
+            {coordMapsLink ? (
+              <a
+                href={coordMapsLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ ...valueBase(m), color: '#4ea1f5', textDecoration: 'none', cursor: 'pointer' }}
+              >
+                {coordMapsLink} ↗
+              </a>
+            ) : (
+              <TextValue mobile={m} value={null} />
             )}
           </Field>
 
