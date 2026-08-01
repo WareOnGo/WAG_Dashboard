@@ -10,6 +10,7 @@ import './WarehouseForm.css';
 import { clearErrors } from '../utils/errorHandler';
 import { useViewport } from '../hooks/useViewport';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { buildCoordMapsLink, COORD_MAPS_LINK_TOOLTIP } from '../utils/mapsLink';
 import { deriveZone } from '../utils/deriveZone';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
@@ -689,6 +690,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   // ── Layout helpers ──────────────────────────────────────────────────────────
 
   const m = isMobile;
+  // Rebuilt on every render so it tracks the latitude/longitude fields as they are edited.
+  const coordMapsLink = buildCoordMapsLink(values.latitude, values.longitude);
   const row = (children) => (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: m ? 0 : 16 }}>
       {children}
@@ -866,6 +869,30 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             <Field label="Google Location URL">
               <TextInput mobile={m} value={values.googleLocation} onChange={set('googleLocation')} placeholder="Google Maps URL" type="url" />
+            </Field>
+
+            {/* Read-only fallback, rebuilt live from the coordinate fields below. */}
+            <Field label="Alternative Maps Link" tooltip={COORD_MAPS_LINK_TOOLTIP}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <TextInput
+                  mobile={m}
+                  value={coordMapsLink || ''}
+                  onChange={() => {}}
+                  readOnly
+                  placeholder="Enter latitude and longitude to generate"
+                  style={{ ...inputBase(m), background: 'var(--bg-secondary, #1f1f1f)', color: 'var(--text-secondary, #aaa)', cursor: 'default' }}
+                />
+                {coordMapsLink && (
+                  <a
+                    href={coordMapsLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#4ea1f5', textDecoration: 'none', whiteSpace: 'nowrap', fontSize: m ? 16 : 14 }}
+                  >
+                    Open ↗
+                  </a>
+                )}
+              </div>
             </Field>
 
             {row(<>
