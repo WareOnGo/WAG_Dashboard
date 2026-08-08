@@ -19,6 +19,7 @@ import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/ima
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import { buildCoordMapsLink } from '../utils/mapsLink';
+import { formatHandover } from '../utils/handover';
 import './ResponsiveModal.css';
 import './WarehouseForm.css';
 
@@ -300,7 +301,7 @@ const WarehouseDetailsModal = ({
           </>)}
 
           {row(<>
-            {col(<Field label="Handover Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.handoverDate)} /></Field>, true)}
+            {col(<Field label="Handover" mobile={m}><TextValue mobile={m} value={formatHandover(warehouse, formatDate)} /></Field>, true)}
             {col(<Field label="Lock-in Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.lockInDate)} /></Field>, true)}
           </>)}
         </Section>
