@@ -12,6 +12,10 @@ import { useViewport } from '../hooks/useViewport';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import { buildCoordMapsLink, COORD_MAPS_LINK_TOOLTIP } from '../utils/mapsLink';
 import { deriveZone } from '../utils/deriveZone';
+import {
+  HANDOVER_TYPE_OPTIONS, HANDOVER_UNIT_OPTIONS,
+  handoverTypeToEnum, handoverTypeToLabel, handoverUnitToEnum, handoverUnitToLabel,
+} from '../utils/handover';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 
@@ -96,7 +100,10 @@ const INITIAL_VALUES = {
   // RCC-only fields (rendered only when warehouseType is 'RCC')
   totalFloors: '', liftAccess: false, passengerLiftCount: '',
   serviceLiftCount: '', liftLoadCapacity: '',
-  status: '', handoverDate: '', lockInDate: '',
+  status: '', lockInDate: '',
+  // Handover is either a precise date or a lead time; the mode drives which of the
+  // two below is sent. New rows default to Fixed, matching the pre-toggle behaviour.
+  handoverType: 'Fixed', handoverDate: '', handoverLeadValue: '', handoverLeadUnit: 'Months',
   cam: '', chargeableArea: '',
   scoutNotes: '',
 };
@@ -188,7 +195,12 @@ const toFormValues = (d) => {
     serviceLiftCount: d.serviceLiftCount || '',
     liftLoadCapacity: d.liftLoadCapacity || '',
     status: d.status || '',
+    // A row saved before the fixed/variable toggle existed has handoverType null and
+    // reads back as 'Fixed', preserving whatever date it already carried.
+    handoverType: handoverTypeToLabel(d.handoverType),
     handoverDate: d.handoverDate ? String(d.handoverDate).slice(0, 10) : '',
+    handoverLeadValue: d.handoverLeadValue ?? '',
+    handoverLeadUnit: handoverUnitToLabel(d.handoverLeadUnit) || 'Months',
     lockInDate: d.lockInDate ? String(d.lockInDate).slice(0, 10) : '',
     cam: d.cam || '',
     chargeableArea: d.chargeableArea ?? '',
@@ -525,6 +537,16 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
       }
     }
 
+    // Handover is entirely optional in both modes — a blank date or a blank lead time
+    // just saves as null, and since neither side clears the other, leaving one empty
+    // costs nothing. Only the format of a value actually entered is checked.
+    if (values.handoverLeadValue !== '' && values.handoverLeadValue != null) {
+      const n = Number(values.handoverLeadValue);
+      if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0 || n > 120) {
+        e.handoverLeadValue = 'Lead time must be a whole number between 1 and 120';
+      }
+    }
+
     // Latitude and longitude validation removed to support high precision formats
 
     setErrors(e);
@@ -630,7 +652,15 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         serviceLiftCount: values.serviceLiftCount || null,
         liftLoadCapacity: values.liftLoadCapacity || null,
         status: values.status || null,
+        // Both sides are sent regardless of the selected mode, so switching Fixed <->
+        // Variable hides the other input without wiping its value — same as the RCC
+        // fields above. handoverType alone decides which one is displayed.
+        handoverType: handoverTypeToEnum(values.handoverType),
         handoverDate: values.handoverDate || null,
+        handoverLeadValue: values.handoverLeadValue === '' || values.handoverLeadValue == null
+          ? null
+          : Number(values.handoverLeadValue),
+        handoverLeadUnit: handoverUnitToEnum(values.handoverLeadUnit),
         lockInDate: values.lockInDate || null,
         cam: values.cam || null,
         chargeableArea: values.chargeableArea === '' || values.chargeableArea == null
@@ -823,8 +853,49 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Handover Date" tooltip="Mention date from which warehouse can be realistically given.">
-                  <DateInput mobile={m} value={values.handoverDate} onChange={set('handoverDate')} />
+                <Field
+                  label="Handover"
+                  error={errors.handoverLeadValue}
+                  tooltip="When the warehouse can realistically be given. Pick Fixed for a known date, or Variable for a lead time from today (e.g. 2 months)."
+                >
+                  <div style={{ display: 'flex', flexDirection: m ? 'column' : 'row', gap: 8 }}>
+                    <div style={{ width: m ? '100%' : 120, flexShrink: 0 }}>
+                      <SelectInput
+                        mobile={m}
+                        value={values.handoverType}
+                        onChange={set('handoverType')}
+                        options={HANDOVER_TYPE_OPTIONS}
+                        placeholder="Mode"
+                      />
+                    </div>
+                    {values.handoverType === 'Variable' ? (
+                      <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                        <div style={{ width: m ? '40%' : 90, flexShrink: 0 }}>
+                          <TextInput
+                            mobile={m}
+                            inputMode="numeric"
+                            value={values.handoverLeadValue}
+                            onChange={set('handoverLeadValue')}
+                            placeholder="2"
+                            data-field="handoverLeadValue"
+                          />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <SelectInput
+                            mobile={m}
+                            value={values.handoverLeadUnit}
+                            onChange={set('handoverLeadUnit')}
+                            options={HANDOVER_UNIT_OPTIONS}
+                            placeholder="Unit"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ flex: 1 }}>
+                        <DateInput mobile={m} value={values.handoverDate} onChange={set('handoverDate')} />
+                      </div>
+                    )}
+                  </div>
                 </Field>,
                 true)}
               {col(

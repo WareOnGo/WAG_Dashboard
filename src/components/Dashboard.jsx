@@ -61,6 +61,7 @@ import {
 } from '../utils/errorHandler';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import { EDIT_PREFILL_REASON } from '../utils/revealReason';
+import { formatHandover } from '../utils/handover';
 
 const { Title, Text } = Typography;
 
@@ -627,11 +628,14 @@ const Dashboard = () => {
       render: (status) => <span>{status || '-'}</span>,
     },
     {
-      title: 'Handover Date',
-      dataIndex: 'handoverDate',
-      key: 'handoverDate',
+      // One column for both representations — a row carries either a fixed date or a
+      // lead time, never both, so a second column would always be half empty.
+      title: 'Handover',
+      key: 'handover',
       width: 130,
-      render: (d) => <span>{d ? String(d).slice(0, 10) : '-'}</span>,
+      render: (_, record) => (
+        <span>{formatHandover(record, (d) => (d ? String(d).slice(0, 10) : null)) || '-'}</span>
+      ),
     },
     {
       title: 'Lock-in Date',
