@@ -20,6 +20,7 @@ import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import { buildCoordMapsLink } from '../utils/mapsLink';
 import { formatHandover } from '../utils/handover';
+import { waterSupplyToLabel } from '../utils/waterSupply';
 import './ResponsiveModal.css';
 import './WarehouseForm.css';
 
@@ -481,7 +482,7 @@ const WarehouseDetailsModal = ({
 
           {row(<>
             {col(<Field label="Power (KVA)" mobile={m}><TextValue mobile={m} value={wd.powerKva} /></Field>, true)}
-            {col(<Field label="Borewell" mobile={m}><TextValue mobile={m} value={warehouse.hasBorewell === true ? 'Yes' : warehouse.hasBorewell === false ? 'No' : '-'} /></Field>, true)}
+            {col(<Field label="Water Supply" mobile={m}><TextValue mobile={m} value={waterSupplyToLabel(warehouse.waterSupply) || '-'} /></Field>, true)}
           </>)}
 
           <Field label="Other Specifications" mobile={m}>
