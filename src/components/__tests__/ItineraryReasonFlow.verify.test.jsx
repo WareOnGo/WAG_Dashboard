@@ -20,7 +20,7 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({ user: { name: 'Test User', email: 't@wareongo.com' }, logout: vi.fn() }),
 }));
 vi.mock('../../services/pptService', () => ({
-  generateStandardPpt: vi.fn(), generateDetailedPpt: vi.fn(), generatePptV2: vi.fn(),
+  generateDetailedPpt: vi.fn(), generatePptV2: vi.fn(),
   generateGodamwalePpt: vi.fn(), generateTciPpt: vi.fn(),
 }));
 

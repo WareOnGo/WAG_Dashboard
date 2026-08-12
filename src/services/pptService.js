@@ -65,7 +65,7 @@ export async function fetchWarehousesByIds(idsCsv) {
 }
 
 /**
- * Core PPT download helper — shared by standard and detailed flows.
+ * Core PPT download helper — shared by every PPT flow.
  */
 async function postPpt(endpoint, body, fallbackFilename) {
   const controller = new AbortController();
@@ -118,14 +118,6 @@ function buildFilename(customDetails, idsCsv, isDetailed) {
   }
   const prefix = isDetailed ? 'Detailed_Warehouses' : 'Warehouses';
   return `${prefix}_${idsCsv.replace(/,\s*/g, '_')}.pptx`;
-}
-
-/**
- * Generate and download a Standard PPT.
- */
-export async function generateStandardPpt({ ids, selectedImages, includeLocation, customDetails }) {
-  const filename = buildFilename(customDetails, ids, false);
-  await postPpt('/generate-ppt', { ids, selectedImages, includeLocation, customDetails }, filename);
 }
 
 /**

@@ -16,7 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMobileTools } from '../contexts/MobileToolsContext';
 import { warehouseService } from '../services/warehouseService';
 import RevealReasonModal from './RevealReasonModal';
-import { generateStandardPpt, generateDetailedPpt, generatePptV2, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
+import { generateDetailedPpt, generatePptV2, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
 
 const { Header } = Layout;
@@ -349,12 +349,7 @@ const MobileHeader = ({ onMenuToggle }) => {
       } else if (pptType === 'tci') {
         await generateTciPpt({ ids, selectedImages, customDetails });
       } else {
-        await generateStandardPpt({
-          ids,
-          selectedImages,
-          includeLocation: pptType === 'standard-with-location',
-          customDetails,
-        });
+        throw new Error(`Unsupported PPT type: ${pptType}`);
       }
       message.success('Presentation downloaded successfully!');
       setPptModalOpen(false);
