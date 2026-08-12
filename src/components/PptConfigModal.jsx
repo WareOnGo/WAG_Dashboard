@@ -3,8 +3,6 @@ import { Modal, Radio, Input, Button, Spin, Typography, Image, Checkbox, message
 import { verifiedNumberService } from '../services/verifiedNumberService';
 import PocSelect from './PocSelect';
 import {
-  FileTextOutlined,
-  EnvironmentOutlined,
   BarChartOutlined,
   LoadingOutlined,
   CheckCircleFilled,
@@ -18,18 +16,6 @@ import { useAuth } from '../contexts';
 const { Text, Title } = Typography;
 
 const PPT_TYPES = [
-  {
-    value: 'standard',
-    icon: <FileTextOutlined />,
-    title: 'Standard PPT',
-    desc: 'Basic warehouse info with selected images',
-  },
-  {
-    value: 'standard-with-location',
-    icon: <EnvironmentOutlined />,
-    title: 'Standard + Location',
-    desc: 'Includes Google Maps link instead of security deposit',
-  },
   {
     value: 'detailed',
     icon: <BarChartOutlined />,
@@ -77,7 +63,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const [step, setStep] = useState(1);
 
   // Step 1 state
-  const [pptType, setPptType] = useState('standard');
+  const [pptType, setPptType] = useState('v2');
 
   // Step 2 state
   const [warehouses, setWarehouses] = useState([]);
@@ -102,7 +88,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   useEffect(() => {
     if (open) {
       setStep(1);
-      setPptType('standard');
+      setPptType('v2');
       setWarehouses([]);
       setSelectedImages({});
       setClientName('');
@@ -192,7 +178,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     setSelectedImages((prev) => {
       const current = prev[warehouseId] || [];
       const isSelected = current.includes(url);
-      const isStandard = pptType === 'standard' || pptType === 'standard-with-location' || pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
+      const isStandard = pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
 
       if (isSelected) {
         return { ...prev, [warehouseId]: current.filter((u) => u !== url) };
@@ -304,7 +290,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     }
 
     const selected = selectedImages[warehouse.id] || [];
-    const isStandard = pptType === 'standard' || pptType === 'standard-with-location' || pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
+    const isStandard = pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
 
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
