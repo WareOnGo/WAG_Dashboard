@@ -17,16 +17,16 @@ const { Text, Title } = Typography;
 
 const PPT_TYPES = [
   {
+    value: 'v2',
+    icon: <AppstoreOutlined />,
+    title: 'PPT v2 (Standard)',
+    desc: 'New layout: sidebar tables, photo grid, fixed cover hero',
+  },
+  {
     value: 'detailed',
     icon: <BarChartOutlined />,
     title: 'Detailed PPT',
     desc: 'Geospatial data, satellite images, distance highlights (takes longer)',
-  },
-  {
-    value: 'v2',
-    icon: <AppstoreOutlined />,
-    title: 'PPT v2',
-    desc: 'New layout: sidebar tables, photo grid, fixed cover hero',
   },
   {
     value: 'godamwale',
