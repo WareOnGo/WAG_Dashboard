@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Image, Space, Button } from 'antd';
 import {
   ZoomInOutlined,
@@ -17,7 +17,8 @@ import VisitNotes from './VisitNotes';
 import { useViewport } from '../hooks/useViewport';
 import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
-import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { getMediaFromWarehouse, groupImagesByClassification } from '../utils/mediaUtils';
+import { imageLabelService } from '../services/imageLabelService';
 import { buildCoordMapsLink } from '../utils/mapsLink';
 import { formatHandover } from '../utils/handover';
 import { waterSupplyToLabel } from '../utils/waterSupply';
@@ -143,6 +144,50 @@ const WarehouseDetailsModal = ({
   const { isMobile } = useViewport();
   const m = isMobile;
   const [isDownloading, setIsDownloading] = useState(false);
+  // Tagged with the id it belongs to: this modal stays mounted and its
+  // `warehouse` prop swaps underneath it, so untagged state would briefly group
+  // the new warehouse's images by the previous one's labels.
+  const [fetched, setFetched] = useState({ id: null, labels: undefined });
+
+  // Declared above the `!warehouse` early return to keep hook order stable.
+  //
+  // This modal is also used by the review queue, where `warehouse` is a STAGED
+  // row whose `id` is a uuid string, not a Warehouse id. Labels only exist for
+  // promoted warehouses, so resolve a numeric id — falling back to the staged
+  // row's `warehouseId` (set once approved) — and skip the lookup entirely when
+  // there isn't one, rather than firing a request that can only 400.
+  const numericId = (v) => {
+    const n = Number(v);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  };
+  const warehouseId = numericId(warehouse?.id) ?? numericId(warehouse?.warehouseId);
+
+  // Resolved during render, never in an effect. Effects run after paint, so
+  // anything fetched there is at least one frame too late and shows up as a
+  // flat-then-segmented reflow.
+  //
+  // Preference order:
+  //   1. labels the list already delivered on the row (the common path — free)
+  //   2. labels cached from a previous open
+  //   3. a lookup, for callers that did not ask the list for labels (review queue)
+  const rowLabels = warehouse?.imageLabels;
+  const cachedLabels = rowLabels ?? (warehouseId ? imageLabelService.getCached(warehouseId) : undefined);
+  const imageLabels = cachedLabels ?? (fetched.id === warehouseId ? fetched.labels : undefined);
+
+  useEffect(() => {
+    // Already have them: no request at all.
+    if (!visible || !warehouseId || cachedLabels !== undefined) return undefined;
+
+    let cancelled = false;
+    imageLabelService
+      .getForWarehouse(warehouseId)
+      .then((labels) => { if (!cancelled) setFetched({ id: warehouseId, labels }); })
+      // Deliberately silent: labels are a nicety, and a toast here would be
+      // noise on a modal that is already showing every image correctly.
+      .catch(() => { if (!cancelled) setFetched({ id: warehouseId, labels: undefined }); });
+
+    return () => { cancelled = true; };
+  }, [visible, warehouseId, cachedLabels]);
 
   if (!warehouse) return null;
 
@@ -163,6 +208,45 @@ const WarehouseDetailsModal = ({
   const col = (children, half = false) => (
     <div style={{ width: (half && !m) ? 'calc(50% - 8px)' : '100%' }}>
       {children}
+    </div>
+  );
+
+  // ── Image sections ─────────────────────────────────────────────────────
+  // null until labels arrive, and null forever if they never do or if every
+  // image lands in one bucket — either way the plain gallery renders instead.
+  const imageSections = groupImagesByClassification(imageUrls, imageLabels);
+
+  const renderImageGrid = (urls) => (
+    <div style={{
+      display: 'grid',
+      gap: 10,
+      gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+    }}>
+      {urls.map((url) => (
+        <Image
+          // Keyed by URL, not index: sectioning reorders images, and an index
+          // key would make React reuse the wrong <img> across a re-group.
+          key={url}
+          src={url}
+          alt={`Warehouse ${warehouse.id} - ${imageLabels?.[url]?.description || 'Image'}`}
+          title={imageLabels?.[url]?.description || undefined}
+          crossOrigin="anonymous"
+          style={{
+            width: '100%',
+            height: m ? 130 : 120,
+            objectFit: 'cover',
+            borderRadius: 8,
+            cursor: 'pointer',
+            border: '1px solid var(--border-primary)',
+          }}
+          preview={{
+            mask: 'Preview',
+            maskClassName: 'warehouse-image-preview',
+            toolbarRender: previewToolbar,
+          }}
+          fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23282828'/%3E%3Ctext x='50' y='54' text-anchor='middle' fill='%23666' font-size='11'%3ENo Image%3C/text%3E%3C/svg%3E"
+        />
+      ))}
     </div>
   );
 
@@ -559,36 +643,28 @@ const WarehouseDetailsModal = ({
                   {isDownloading ? 'Downloading...' : 'Download All'}
                 </Button>
               </div>
-              <div style={{
-                display: 'grid',
-                gap: 10,
-                gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-              }}>
-                <Image.PreviewGroup>
-                  {imageUrls.map((url, i) => (
-                    <Image
-                      key={i}
-                      src={url}
-                      alt={`Warehouse ${warehouse.id} - Image ${i + 1}`}
-                      crossOrigin="anonymous"
-                      style={{
-                        width: '100%',
-                        height: m ? 130 : 120,
-                        objectFit: 'cover',
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                        border: '1px solid var(--border-primary)',
-                      }}
-                      preview={{
-                        mask: 'Preview',
-                        maskClassName: 'warehouse-image-preview',
-                        toolbarRender: previewToolbar,
-                      }}
-                      fallback="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100' height='100' fill='%23282828'/%3E%3Ctext x='50' y='54' text-anchor='middle' fill='%23666' font-size='11'%3ENo Image%3C/text%3E%3C/svg%3E"
-                    />
-                  ))}
-                </Image.PreviewGroup>
-              </div>
+              {/* One PreviewGroup around everything, so arrowing through the
+                  lightbox still walks the whole set even when it is split into
+                  sections on the page. */}
+              <Image.PreviewGroup>
+                {imageSections
+                  ? imageSections.map((section) => (
+                      <div key={section.key} style={{ marginBottom: 18 }}>
+                        <div style={{
+                          fontSize: m ? 12 : 13,
+                          fontWeight: 600,
+                          color: 'var(--text-muted, #8c8c8c)',
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                          marginBottom: 8,
+                        }}>
+                          {section.title} ({section.urls.length})
+                        </div>
+                        {renderImageGrid(section.urls)}
+                      </div>
+                    ))
+                  : renderImageGrid(imageUrls)}
+              </Image.PreviewGroup>
             </Field>
           )}
 
