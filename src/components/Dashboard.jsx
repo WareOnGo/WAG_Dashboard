@@ -60,6 +60,7 @@ import {
   clearErrors
 } from '../utils/errorHandler';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { imageLabelService } from '../services/imageLabelService';
 import { EDIT_PREFILL_REASON } from '../utils/revealReason';
 import { formatHandover } from '../utils/handover';
 
@@ -160,6 +161,10 @@ const Dashboard = () => {
         ...debouncedParams,
         page: currentPage,
         limit: pageSize,
+        // Rows come back with `imageLabels` attached, so opening a details modal
+        // paints its segmented gallery on the first render — no second request,
+        // and no flat-then-segmented reflow.
+        includeImageLabels: 'true',
       });
       // Ignore stale responses (a newer request has since been issued).
       if (reqId !== reqIdRef.current) return;
@@ -262,6 +267,7 @@ const Dashboard = () => {
               maxRetries: 1 // Don't retry delete operations multiple times
             }
           );
+          imageLabelService.invalidate(warehouse.id);
 
           // Update local state after successful deletion
           setWarehouses(prev => prev.filter(w => w.id !== warehouse.id));
@@ -343,6 +349,12 @@ const Dashboard = () => {
                   maxRetries: 1
                 }
               );
+
+              // An edit can add or remove images, so the cached labels for this
+              // warehouse are no longer trustworthy. Drop them and let the next
+              // open re-fetch; newly added images stay unlabelled until the
+              // sweep runs, which the fallback handles.
+              imageLabelService.invalidate(editingWarehouse.id);
 
               const updatedWarehouse = {
                 ...editingWarehouse,
