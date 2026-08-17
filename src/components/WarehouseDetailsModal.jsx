@@ -407,6 +407,11 @@ const WarehouseDetailsModal = ({
             {col(<Field label="Zone" mobile={m}><TextValue mobile={m} value={warehouse.zone} /></Field>, true)}
           </>)}
 
+          {/* Derived server-side from the coordinates, never entered by hand. */}
+          <Field label="Micro Market" mobile={m}>
+            <TextValue mobile={m} value={warehouse.micromarket} />
+          </Field>
+
           <Field label="Google Location URL" mobile={m}>
             {warehouse.googleLocation ? (
               <a
