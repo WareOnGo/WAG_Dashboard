@@ -107,6 +107,8 @@ const INITIAL_VALUES = {
   handoverType: 'Fixed', handoverDate: '', handoverLeadValue: '', handoverLeadUnit: 'Months',
   cam: '', chargeableArea: '',
   scoutNotes: '',
+  // Derived server-side from the coordinates; displayed read-only and never submitted.
+  micromarket: [],
 };
 
 /** Flatten initialData (including nested WarehouseData) into form shape */
@@ -206,6 +208,7 @@ const toFormValues = (d) => {
     cam: d.cam || '',
     chargeableArea: d.chargeableArea ?? '',
     scoutNotes: d.scoutNotes || '',
+    micromarket: Array.isArray(d.micromarket) ? d.micromarket : (d.micromarket ? [d.micromarket] : []),
   };
 };
 
@@ -938,6 +941,19 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
             </>)}
+
+            {/* Read-only: the server derives the tags from the coordinates on save
+                (warehouseService.applyMicroMarketTags), so there is nothing to edit here. */}
+            <Field label="Micro Market" tooltip="Derived automatically from the latitude/longitude — not editable.">
+              <TextInput
+                mobile={m}
+                value={(values.micromarket || []).filter(Boolean).join(', ')}
+                onChange={() => {}}
+                readOnly
+                placeholder="Auto-tagged from coordinates"
+                style={{ ...inputBase(m), background: 'var(--bg-secondary, #1f1f1f)', color: 'var(--text-secondary, #aaa)', cursor: 'default' }}
+              />
+            </Field>
 
             <Field label="Google Location URL">
               <TextInput mobile={m} value={values.googleLocation} onChange={set('googleLocation')} placeholder="Google Maps URL" type="url" />

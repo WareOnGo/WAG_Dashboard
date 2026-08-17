@@ -553,6 +553,24 @@ const Dashboard = () => {
       render: (zone) => <span>{zone}</span>,
     },
     {
+      // Server-derived from the coordinates (see warehouseService.applyMicroMarketTags),
+      // so it is read-only everywhere in the UI.
+      title: 'Micro Market',
+      dataIndex: 'micromarket',
+      key: 'micromarket',
+      width: 180,
+      ellipsis: { showTitle: false },
+      render: (tags) => {
+        const text = Array.isArray(tags) ? tags.filter(Boolean).join(', ') : (tags || '');
+        if (!text) return <span>-</span>;
+        return (
+          <Tooltip title={text}>
+            <span>{text}</span>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: 'Contact Person',
       dataIndex: 'contactPerson',
       key: 'contactPerson',
