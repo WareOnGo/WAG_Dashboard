@@ -9,6 +9,7 @@ import {
   CopyOutlined,
   SafetyCertificateOutlined,
   DashboardOutlined,
+  GlobalOutlined,
   CloseOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
@@ -291,6 +292,15 @@ const MobileHeader = ({ onMenuToggle }) => {
           tooltip: 'Draw and name micro-market areas',
         }]
       : []),
+    // Available to anyone who can see the warehouse list, matching the gate on
+    // /api/geo (JWT only, no capability requirement).
+    {
+      key: 'map',
+      label: 'GIS',
+      href: '/map',
+      icon: <GlobalOutlined />,
+      tooltip: 'Map view: warehouses, reference points and our own points of interest',
+    },
   ];
 
   const pptTooltip = 'Generate warehouse presentation (PPT)';

@@ -8,7 +8,8 @@ import {
   DashboardOutlined,
   LogoutOutlined,
   SafetyCertificateOutlined,
-  EnvironmentOutlined
+  EnvironmentOutlined,
+  GlobalOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
@@ -89,6 +90,14 @@ const MobileNavigation = ({ visible, onClose }) => {
       label: 'Micro-Markets',
       href: '/micro-markets'
     }] : []),
+    // Map view — available to anyone who can see the warehouse list, matching
+    // the API gate on /api/geo (JWT only, no capability requirement).
+    {
+      key: 'map',
+      icon: <GlobalOutlined />,
+      label: 'GIS',
+      href: '/map'
+    },
     // In-app tools (rendered by MobileHeader, opened via shared MobileTools context)
     {
       key: 'ppt-generator',
