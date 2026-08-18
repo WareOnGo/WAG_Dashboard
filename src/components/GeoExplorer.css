@@ -20,19 +20,6 @@
   border-right-color: rgba(26, 26, 26, 0.98);
 }
 
-.geo-popup .mapboxgl-popup-close-button {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 18px;
-  padding: 2px 8px 4px;
-  right: 2px;
-  top: 2px;
-}
-
-.geo-popup .mapboxgl-popup-close-button:hover {
-  background: transparent;
-  color: #fff;
-}
-
 /* Inputs inside a popup form need explicit focus styling — they inherit none. */
 .geo-popup input:focus,
 .geo-popup textarea:focus {
@@ -119,3 +106,111 @@
   }
   .geo-skel { background: rgba(255, 255, 255, 0.09); }
 }
+
+/* ── Move mode ────────────────────────────────────────────────────────────
+ *
+ * The draggable handle is the point's own badge rather than a generic marker,
+ * so it reads as moving that point rather than positioning some other object.
+ * The point is hidden from its layer meanwhile, so only one thing is on screen.
+ */
+
+/*
+ * The highlight ring is drawn inside the SVG (see moveHandleSvg), NOT as a
+ * pseudo-element. A pseudo-element sized by `inset` inherits the host box, and
+ * Mapbox styles marker elements itself — when that box came out full-width, a
+ * border-radius: 50% "circle" stretched into an ellipse across the whole map.
+ * Keeping the geometry in the SVG makes it immune to that.
+ */
+.geo-move-handle {
+  cursor: grab;
+}
+
+/* Block, so the SVG does not sit on a text baseline and leave stray pixels. */
+.geo-move-handle svg {
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+
+.geo-move-handle:active {
+  cursor: grabbing;
+}
+
+/*
+ * Toolbar pinned to the bottom of the map, deliberately NOT anchored to the
+ * point: the ground around the point is exactly what has to stay visible while
+ * aiming it, and a panel over that is the thing that made this awkward.
+ */
+.geo-move-bar {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px 10px 16px;
+  background: rgba(26, 26, 26, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+  font-family: Verdana, Geneva, sans-serif;
+  white-space: nowrap;
+}
+
+.geo-move-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.geo-move-text span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+  /* Tabular figures so the coordinates do not jitter while dragging. */
+  font-variant-numeric: tabular-nums;
+}
+
+.geo-move-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.geo-move-actions button {
+  padding: 6px 14px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.geo-move-actions button[data-action='cancel-move'] {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.geo-move-actions button[data-action='save-move'] {
+  background: #1890ff;
+  color: #fff;
+  font-weight: 500;
+}
+
+.geo-move-actions button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .geo-move-bar {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    justify-content: space-between;
+    gap: 10px;
+  }
+}
+
+/* Nothing in move mode animates, so there is no reduced-motion case for it. */

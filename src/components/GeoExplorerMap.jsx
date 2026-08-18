@@ -4,13 +4,15 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 import { geoService, boundsToBbox, bboxContains, padBbox } from '../services/geoService'
 import { EMPTY_FC } from '../utils/geoLayers'
 import {
-  warehousePopupHTML, osmPopupHTML, ownPopupHTML, newPointFormHTML,
+  warehousePopupHTML, osmPopupHTML, ownPopupHTML, pointFormHTML, esc as escHtml,
 } from '../utils/geoPopups'
 import {
   registerMapIcons,
   ensureCategoryIcon,
   warehouseIconId,
   OWN_ICON_ID,
+  OWN_POINT_COLOR,
+  moveHandleSvg,
   availabilityExpression,
 } from '../utils/geoIcons'
 
@@ -41,7 +43,9 @@ const GeoExplorerMap = ({
   showWarehouses = true,
   showOwnPoints = true,
   placingPoint = false,
+  canEditPoint = () => false,
   onCreatePoint,
+  onUpdatePoint,
   onDeletePoint,
   onOpenWarehouse,
   onFetchWarehouse,
@@ -56,16 +60,22 @@ const GeoExplorerMap = ({
   const lastBboxRef = useRef({ osm: null, own: null, wh: null })
   const symbolOptsRef = useRef(null)
   const popupRef = useRef(null)
+  // The draggable handle and toolbar used while repositioning a point, so both
+  // can be torn down if the component unmounts mid-move.
+  const moveMarkerRef = useRef(null)
+  const moveBarRef = useRef(null)
   // Cursor inputs. Kept in refs because they are read from map event handlers
   // that are bound once and never see re-rendered state.
   const cursorRef = useRef({ fetching: false, hovering: false })
   // Handlers are called from popup DOM listeners that are bound once, so they
   // must read the latest callbacks rather than the ones captured at bind time.
   const handlersRef = useRef({})
-  handlersRef.current = { onCreatePoint, onDeletePoint, onOpenWarehouse, onPlacingChange, onFetchWarehouse }
+  handlersRef.current = {
+    onCreatePoint, onUpdatePoint, onDeletePoint, onOpenWarehouse, onPlacingChange, onFetchWarehouse,
+  }
   // Read inside map event handlers, which close over their first render.
-  const stateRef = useRef({ enabledOsmCategories, showWarehouses, showOwnPoints, placingPoint })
-  stateRef.current = { enabledOsmCategories, showWarehouses, showOwnPoints, placingPoint }
+  const stateRef = useRef({ enabledOsmCategories, showWarehouses, showOwnPoints, placingPoint, canEdit: canEditPoint })
+  stateRef.current = { enabledOsmCategories, showWarehouses, showOwnPoints, placingPoint, canEdit: canEditPoint }
 
   /**
    * Resolve the canvas cursor from all of its inputs at once.
@@ -271,7 +281,11 @@ const GeoExplorerMap = ({
         popupRef.current?.remove()
         const popup = new mapboxgl.Popup({
           offset: 14,
-          closeButton: true,
+          // No close button: it renders in the same corner as the point's own
+          // action menu and the two collide. Clicking the map dismisses the
+          // popup, and forms carry an explicit Cancel — the same arrangement
+          // MapView already uses.
+          closeButton: false,
           closeOnClick: true,
           maxWidth: '300px',
           className: 'geo-popup',
@@ -283,40 +297,140 @@ const GeoExplorerMap = ({
         return popup
       }
 
+      /**
+       * Open the point form and wire it up. Serves both create and edit, since
+       * the only difference is whether an existing record is passed in and which
+       * handler the submit calls.
+       */
+      const openPointForm = (at, existing = null) => {
+        const popup = showPopup([at.lng, at.lat], pointFormHTML(at, existing))
+        const el = popup.getElement()
+        const form = el.querySelector('[data-form="point"]')
+        const errorBox = el.querySelector('[data-role="error"]')
+        el.querySelector('[data-action="cancel-point"]')?.addEventListener('click', () => popup.remove())
+
+        form?.addEventListener('submit', async (ev) => {
+          ev.preventDefault()
+          const submit = form.querySelector('[data-action="save-point"]')
+          const data = Object.fromEntries(new FormData(form))
+          submit.disabled = true
+          submit.style.opacity = '0.75'
+          submit.innerHTML = '<span class="geo-spinner"></span>Saving'
+          try {
+            if (existing) await handlersRef.current.onUpdatePoint?.(existing.id, data)
+            else await handlersRef.current.onCreatePoint?.({ ...data, lat: at.lat, lng: at.lng })
+            popup.remove()
+          } catch (err) {
+            // Reported inside the popup rather than as a toast: the failure
+            // belongs next to the form the user is still looking at.
+            errorBox.textContent = err?.message || 'Could not save the point'
+            errorBox.style.display = 'block'
+            errorBox.classList.add('geo-reveal')
+            submit.disabled = false
+            submit.style.opacity = '1'
+            submit.textContent = 'Save'
+          }
+        })
+        return popup
+      }
+
+      /**
+       * Enter move mode: swap the popup for instructions and drop a draggable
+       * marker on the point. The marker, not the map, is what moves — dragging
+       * the map itself would be ambiguous with panning.
+       */
+      const startMove = (props, coords) => {
+        popupRef.current?.remove()
+
+        // Hide the point from its layer for the duration. Without this the
+        // original badge stays painted where it was, so the user sees two
+        // things and cannot tell which one they are actually moving.
+        map.setFilter('own-poi-dots', ['!=', ['get', 'id'], props.id])
+
+        // The draggable handle IS the point's own badge, ringed — dragging a
+        // different-looking marker makes it feel like you are positioning some
+        // other object. Ring and badge are one SVG, so nothing about its shape
+        // depends on CSS box sizing of an element Mapbox styles itself.
+        const HANDLE_PX = 40
+        const handle = document.createElement('div')
+        handle.className = 'geo-move-handle'
+        handle.style.width = `${HANDLE_PX}px`
+        handle.style.height = `${HANDLE_PX}px`
+        handle.innerHTML = moveHandleSvg(OWN_POINT_COLOR, 'own', HANDLE_PX)
+
+        const marker = new mapboxgl.Marker({ element: handle, draggable: true, anchor: 'center' })
+          .setLngLat(coords)
+          .addTo(map)
+        moveMarkerRef.current = marker
+
+        // A compact bar pinned to the bottom of the map, rather than a panel
+        // anchored to the point: the area around the point is exactly what the
+        // user needs to see while aiming.
+        const bar = document.createElement('div')
+        bar.className = 'geo-move-bar geo-reveal'
+        bar.innerHTML = `
+          <div class="geo-move-text">
+            <strong>Moving ${escHtml(props.name)}</strong>
+            <span data-role="coords"></span>
+          </div>
+          <div class="geo-move-actions">
+            <button type="button" data-action="cancel-move">Cancel</button>
+            <button type="button" data-action="save-move">Save</button>
+          </div>`
+        map.getContainer().appendChild(bar)
+        moveBarRef.current = bar
+
+        const coordBox = bar.querySelector('[data-role="coords"]')
+        const showCoords = () => {
+          const { lat, lng } = marker.getLngLat()
+          coordBox.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+        }
+        showCoords()
+        marker.on('drag', showCoords)
+
+        const end = () => {
+          marker.remove()
+          bar.remove()
+          moveMarkerRef.current = null
+          moveBarRef.current = null
+          // Restore the layer so the point reappears — the refresh that follows
+          // a successful save will bring back its updated position.
+          if (map.getLayer('own-poi-dots')) map.setFilter('own-poi-dots', null)
+        }
+
+        bar.querySelector('[data-action="cancel-move"]').addEventListener('click', end)
+
+        bar.querySelector('[data-action="save-move"]').addEventListener('click', async (ev) => {
+          const btn = ev.currentTarget
+          const { lat, lng } = marker.getLngLat()
+          btn.disabled = true
+          btn.innerHTML = '<span class="geo-spinner"></span>Saving'
+          try {
+            await handlersRef.current.onUpdatePoint?.(props.id, { lat, lng })
+            end()
+          } catch (err) {
+            coordBox.textContent = err?.message || 'Could not move the point'
+            coordBox.style.color = '#ef4444'
+            btn.disabled = false
+            btn.textContent = 'Save'
+          }
+        })
+
+        // Escape cancels, which is what a user reaches for to back out.
+        const onKey = (ev) => {
+          if (ev.key !== 'Escape') return
+          end()
+          window.removeEventListener('keydown', onKey)
+        }
+        window.addEventListener('keydown', onKey)
+      }
+
       map.on('click', (e) => {
         // Placing mode: the form opens where the click landed, so the location
         // being named stays visible while it is named.
         if (stateRef.current.placingPoint) {
-          const { lat, lng } = e.lngLat
-          const popup = showPopup(e.lngLat, newPointFormHTML(lat, lng))
+          openPointForm({ lat: e.lngLat.lat, lng: e.lngLat.lng })
           handlersRef.current.onPlacingChange?.(false)
-
-          const el = popup.getElement()
-          const form = el.querySelector('[data-form="new-point"]')
-          const errorBox = el.querySelector('[data-role="error"]')
-          el.querySelector('[data-action="cancel-point"]')?.addEventListener('click', () => popup.remove())
-
-          form?.addEventListener('submit', async (ev) => {
-            ev.preventDefault()
-            const submit = form.querySelector('[data-action="save-point"]')
-            const data = Object.fromEntries(new FormData(form))
-            submit.disabled = true
-            submit.style.opacity = '0.75'
-            submit.innerHTML = '<span class="geo-spinner"></span>Saving'
-            try {
-              await handlersRef.current.onCreatePoint?.({ ...data, lat, lng })
-              popup.remove()
-            } catch (err) {
-              // Reported inside the popup rather than as a toast: the failure
-              // belongs next to the form the user is still looking at.
-              errorBox.textContent = err?.message || 'Could not save the point'
-              errorBox.style.display = 'block'
-              errorBox.classList.add('geo-reveal')
-              submit.disabled = false
-              submit.style.opacity = '1'
-              submit.textContent = 'Save'
-            }
-          })
           return
         }
 
@@ -329,7 +443,9 @@ const GeoExplorerMap = ({
 
         let html
         if (layerId === 'warehouse-dots') html = warehousePopupHTML(props)
-        else if (layerId === 'own-poi-dots') html = ownPopupHTML(props)
+        // The menu is hidden for other people's points, but the server refuses
+        // the mutation regardless — this only removes a control that would fail.
+        else if (layerId === 'own-poi-dots') html = ownPopupHTML(props, stateRef.current.canEdit(props.createdBy))
         else html = osmPopupHTML(props)
 
         const popup = showPopup(coords, html)
@@ -350,6 +466,21 @@ const GeoExplorerMap = ({
             handlersRef.current.onOpenWarehouse?.(Number(btn.dataset.id))
           })
 
+          const menu = el.querySelector('[data-role="menu"]')
+          el.querySelector('[data-action="toggle-menu"]')?.addEventListener('click', (ev) => {
+            ev.stopPropagation()
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block'
+          })
+
+          el.querySelector('[data-action="edit-point"]')?.addEventListener('click', () => {
+            // Replaces this popup, so the point being edited keeps its position.
+            openPointForm({ lat: coords[1], lng: coords[0] }, props)
+          })
+
+          el.querySelector('[data-action="move-point"]')?.addEventListener('click', () => {
+            startMove(props, coords)
+          })
+
           el.querySelector('[data-action="delete-point"]')?.addEventListener('click', async (ev) => {
             const btn = ev.currentTarget
             btn.disabled = true
@@ -358,10 +489,10 @@ const GeoExplorerMap = ({
             try {
               await handlersRef.current.onDeletePoint?.(btn.dataset.id)
               popup.remove()
-            } catch {
+            } catch (err) {
               btn.disabled = false
               btn.style.opacity = '1'
-              btn.textContent = 'Delete failed — retry'
+              btn.textContent = err?.message?.includes('only change') ? 'Not yours to delete' : 'Delete failed — retry'
             }
           })
         }
@@ -409,6 +540,8 @@ const GeoExplorerMap = ({
 
     return () => {
       popupRef.current?.remove()
+      moveMarkerRef.current?.remove()
+      moveBarRef.current?.remove()
       map.remove()
       mapRef.current = null
       loadedRef.current = false

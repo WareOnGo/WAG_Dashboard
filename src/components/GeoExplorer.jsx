@@ -10,6 +10,7 @@ import { geoService } from '../services/geoService'
 import { warehouseService } from '../services/warehouseService'
 import WarehouseDetailsModal from './WarehouseDetailsModal'
 import { useViewport } from '../hooks/useViewport'
+import { useAuth } from '../contexts'
 import './GeoExplorer.css'
 
 const { Title, Text } = Typography
@@ -35,6 +36,7 @@ const Badge = ({ color, glyph }) => (
  */
 const GeoExplorer = () => {
   const { isMobile } = useViewport()
+  const { user } = useAuth()
   const { message } = App.useApp()
 
   const [layers, setLayers] = useState(null)   // null = not loaded yet
@@ -71,11 +73,29 @@ const GeoExplorer = () => {
     setRefreshKey((k) => k + 1)
   }, [message])
 
+  const updatePoint = useCallback(async (id, body) => {
+    await geoService.updatePoint(id, body)
+    message.success('Point updated')
+    setRefreshKey((k) => k + 1)
+  }, [message])
+
   const deletePoint = useCallback(async (id) => {
     await geoService.deletePoint(id)
     message.success('Point deleted')
     setRefreshKey((k) => k + 1)
   }, [message])
+
+  /**
+   * Whether to offer edit/move/delete on a point.
+   *
+   * Presentation only — the API independently refuses a mutation from anyone
+   * but the author or an admin, so this just avoids showing a control that
+   * would fail.
+   */
+  const canEditPoint = useCallback(
+    (createdBy) => !!user && (user.isAdmin || createdBy === user.email),
+    [user],
+  )
 
   /**
    * Fetch a full warehouse for the popup's second render pass, caching it so
@@ -225,7 +245,9 @@ const GeoExplorer = () => {
           showWarehouses={showWarehouses}
           showOwnPoints={showOwnPoints}
           placingPoint={placing}
+          canEditPoint={canEditPoint}
           onCreatePoint={createPoint}
+          onUpdatePoint={updatePoint}
           onDeletePoint={deletePoint}
           onOpenWarehouse={openWarehouse}
           onFetchWarehouse={fetchWarehouse}
