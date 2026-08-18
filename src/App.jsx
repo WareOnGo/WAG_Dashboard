@@ -28,6 +28,8 @@ const { Content } = Layout
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const ReviewQueue = lazy(() => import('./components/ReviewQueue'))
 const MicroMarkets = lazy(() => import('./components/MicroMarkets'))
+// Pulls in mapbox-gl (~1MB), so lazy like the other map-bearing routes.
+const GeoExplorer = lazy(() => import('./components/GeoExplorer'))
 
 const RouteFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
@@ -208,6 +210,37 @@ function AppContent() {
             }}>
               <ProtectedRoute>
                 <MicroMarkets />
+              </ProtectedRoute>
+            </Content>
+          </Layout>
+        } />
+        {/* Map view: POI plotting over warehouses, OSM reference points and our own points */}
+        <Route path="/map" element={
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
+            <MobileHeader
+              onMenuToggle={handleMenuToggle}
+              isMenuOpen={mobileMenuOpen}
+            />
+            <MobileNavigation
+              visible={mobileMenuOpen}
+              onClose={handleMenuClose}
+            />
+            {/* No padding and a fixed height, unlike the other routes: the map
+                fills its pane edge to edge and manages its own internal spacing.
+                height (not minHeight) so the map can size to 100% of it. */}
+            <Content style={{
+              background: 'var(--bg-primary)',
+              height: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
+              padding: 0,
+              overflow: 'hidden',
+              // GeoExplorer pins itself to this box. ProtectedRoute's wrapper
+              // carries min-height:100vh and no positioning, so without an
+              // explicit containing block the map would size against the
+              // viewport and overflow by the height of the header.
+              position: 'relative'
+            }}>
+              <ProtectedRoute>
+                <GeoExplorer />
               </ProtectedRoute>
             </Content>
           </Layout>

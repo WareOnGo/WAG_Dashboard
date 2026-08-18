@@ -1,0 +1,121 @@
+/*
+ * Mapbox popup chrome.
+ *
+ * The default popup is a white bubble with a white tip, which sits badly on a
+ * dark basemap. The inner card supplies its own padding and background, so the
+ * container here is stripped back to nothing and only the tip and close button
+ * are restyled to match.
+ */
+.geo-popup .mapboxgl-popup-content {
+  padding: 0;
+  background: transparent;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  border-radius: 6px;
+}
+
+.geo-popup .mapboxgl-popup-tip {
+  border-top-color: rgba(26, 26, 26, 0.98);
+  border-bottom-color: rgba(26, 26, 26, 0.98);
+  border-left-color: rgba(26, 26, 26, 0.98);
+  border-right-color: rgba(26, 26, 26, 0.98);
+}
+
+.geo-popup .mapboxgl-popup-close-button {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 18px;
+  padding: 2px 8px 4px;
+  right: 2px;
+  top: 2px;
+}
+
+.geo-popup .mapboxgl-popup-close-button:hover {
+  background: transparent;
+  color: #fff;
+}
+
+/* Inputs inside a popup form need explicit focus styling — they inherit none. */
+.geo-popup input:focus,
+.geo-popup textarea:focus {
+  outline: none;
+  border-color: #1890ff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.geo-popup input::placeholder,
+.geo-popup textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── Loading affordances ──────────────────────────────────────────────────
+ *
+ * Skeletons mirror the exact shape of the content they stand in for, so the
+ * popup does not resize when the real values land. A block that changes size on
+ * arrival is worse than no placeholder at all — the reader loses their place.
+ */
+
+@keyframes geo-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.geo-skel {
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.06) 25%,
+    rgba(255, 255, 255, 0.14) 37%,
+    rgba(255, 255, 255, 0.06) 63%
+  );
+  background-size: 200% 100%;
+  animation: geo-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Popups fade and lift in rather than snapping into place. */
+@keyframes geo-popup-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.geo-popup .mapboxgl-popup-content {
+  animation: geo-popup-in 160ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Content swapped in by the second render pass gets its own gentle fade, so the
+ * transition from skeleton to real values reads as one motion. */
+@keyframes geo-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.geo-reveal {
+  animation: geo-fade-in 220ms ease-out;
+}
+
+/* Inline button spinner, for actions that persist inside a popup. */
+@keyframes geo-spin {
+  to { transform: rotate(360deg); }
+}
+
+.geo-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: geo-spin 0.6s linear infinite;
+}
+
+/* Respect a reduced-motion preference: the shimmer and spin are decorative, and
+ * a static placeholder still communicates "not here yet". */
+@media (prefers-reduced-motion: reduce) {
+  .geo-skel,
+  .geo-popup .mapboxgl-popup-content,
+  .geo-reveal,
+  .geo-spinner {
+    animation: none;
+  }
+  .geo-skel { background: rgba(255, 255, 255, 0.09); }
+}
