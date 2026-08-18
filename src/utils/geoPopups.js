@@ -144,43 +144,69 @@ export const osmPopupHTML = (p) => `
     </div>
   </div>`;
 
-/** Popup for one of our own points, with a delete action. */
-export const ownPopupHTML = (p) => `
-  <div style="${SHELL}">
+const MENU_ITEM = 'display:block;width:100%;text-align:left;padding:7px 10px;font-size:12px;background:transparent;color:#fff;border:none;cursor:pointer;font-family:inherit;';
+
+/**
+ * Popup for one of our own points.
+ *
+ * Edit/move/delete live behind a kebab menu rather than sitting as three
+ * buttons: viewing a point is the common case, and destructive actions should
+ * take a deliberate extra step rather than being one stray click away.
+ *
+ * `canEdit` only hides the menu. The server independently refuses a mutation
+ * from anyone but the author (or an admin), because a hidden button stops
+ * nobody from calling the endpoint.
+ */
+export const ownPopupHTML = (p, canEdit = false) => `
+  <div style="${SHELL}position:relative;">
+    ${canEdit ? `
+      <button data-action="toggle-menu" aria-label="Point actions"
+        style="position:absolute;top:8px;right:8px;width:24px;height:24px;line-height:1;padding:0;font-size:16px;background:transparent;color:rgba(255,255,255,0.6);border:none;border-radius:4px;cursor:pointer;">⋯</button>
+      <div data-role="menu" style="display:none;position:absolute;top:32px;right:8px;z-index:2;min-width:130px;background:#242424;border:1px solid rgba(255,255,255,0.15);border-radius:5px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+        <button data-action="edit-point" data-id="${esc(p.id)}" style="${MENU_ITEM}">Edit details</button>
+        <button data-action="move-point" data-id="${esc(p.id)}" style="${MENU_ITEM}">Move on map</button>
+        <button data-action="delete-point" data-id="${esc(p.id)}" style="${MENU_ITEM}color:#ef4444;border-top:1px solid rgba(255,255,255,0.1);">Delete</button>
+      </div>` : ''}
     ${header(iconSvg('#a855f7', 'own', 20), esc(p.name), '')}
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div><div style="${LABEL}">Category</div><div style="${VALUE}">${esc(humaniseCategory(p.category))}</div></div>
-      ${p.city ? `<div><div style="${LABEL}">City</div><div style="${VALUE}">${esc(p.city)}</div></div>` : ''}
       ${p.notes ? `<div><div style="${LABEL}">Notes</div><div style="${VALUE}line-height:1.4;">${esc(p.notes)}</div></div>` : ''}
       ${p.createdBy ? `<div><div style="${LABEL}">Added by</div><div style="${VALUE}">${esc(p.createdBy)}</div></div>` : ''}
     </div>
-    <div style="${DIVIDER}">
-      <button data-action="delete-point" data-id="${esc(p.id)}"
-        style="width:100%;padding:7px;font-size:12px;font-weight:500;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.4);border-radius:4px;cursor:pointer;">
-        Delete point
-      </button>
-    </div>
   </div>`;
 
+// Move mode has no popup: it uses a toolbar pinned to the bottom of the map
+// (see GeoExplorerMap.startMove and .geo-move-bar), because a panel anchored to
+// the point covers the ground the user is aiming at.
+
+const INPUT = 'width:100%;box-sizing:border-box;padding:7px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;';
+
 /**
- * Inline "add a point" form, rendered at the clicked location.
+ * Point form, used for both creating and editing.
  *
- * A form in a popup rather than a centred dialog keeps the pin you are naming
- * on screen while you name it.
+ * A form in a popup rather than a centred dialog keeps the location you are
+ * naming on screen while you name it.
+ *
+ * There is deliberately no city field: the point already carries coordinates, so
+ * a city typed by hand is a second source of truth that can only disagree with
+ * them. It is derivable by reverse geocoding whenever it is actually needed.
+ *
+ * @param {{lat:number,lng:number}} at - where the point sits
+ * @param {Object|null} existing - populate for an edit; omit to create
  */
-export const newPointFormHTML = (lat, lng) => `
-  <form data-form="new-point" style="${SHELL}">
-    <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;">Add point</div>
-    <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-bottom:10px;">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+export const pointFormHTML = (at, existing = null) => {
+  const editing = !!existing;
+  return `
+  <form data-form="point" ${editing ? `data-id="${esc(existing.id)}"` : ''} style="${SHELL}">
+    <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;">${editing ? 'Edit point' : 'Add point'}</div>
+    <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-bottom:10px;">${at.lat.toFixed(5)}, ${at.lng.toFixed(5)}</div>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <input name="name" placeholder="Name" required autocomplete="off"
-        style="width:100%;box-sizing:border-box;padding:7px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;" />
+        value="${esc(existing?.name ?? '')}" style="${INPUT}" />
       <input name="category" placeholder="Category (e.g. logistics_node)" required autocomplete="off"
-        style="width:100%;box-sizing:border-box;padding:7px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;" />
-      <input name="city" placeholder="City (optional)" autocomplete="off"
-        style="width:100%;box-sizing:border-box;padding:7px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;" />
+        value="${esc(existing?.category ?? '')}" style="${INPUT}" />
       <textarea name="notes" placeholder="Notes (optional)" rows="2"
-        style="width:100%;box-sizing:border-box;padding:7px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;resize:vertical;font-family:inherit;"></textarea>
+        style="${INPUT}resize:vertical;font-family:inherit;">${esc(existing?.notes ?? '')}</textarea>
     </div>
     <div data-role="error" style="display:none;font-size:11px;color:#ef4444;margin-top:8px;"></div>
     <div style="display:flex;gap:6px;${DIVIDER}">
@@ -190,3 +216,4 @@ export const newPointFormHTML = (lat, lng) => `
         style="flex:1;padding:7px;font-size:12px;font-weight:500;background:#1890ff;color:#fff;border:none;border-radius:4px;cursor:pointer;">Save</button>
     </div>
   </form>`;
+};

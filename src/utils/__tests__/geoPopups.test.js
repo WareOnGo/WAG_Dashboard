@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  esc, availabilityBucket, warehousePopupHTML, osmPopupHTML, ownPopupHTML, newPointFormHTML,
+  esc, availabilityBucket, warehousePopupHTML, osmPopupHTML, ownPopupHTML, pointFormHTML,
 } from '../geoPopups';
 
 describe('esc', () => {
@@ -28,14 +28,15 @@ describe('popup escaping', () => {
 
   it('escapes every user-supplied field on our own points', () => {
     const html = ownPopupHTML({
-      id: 'x', name: payload, category: payload, city: payload, notes: payload, createdBy: payload,
-    });
-    // Case-insensitive: humaniseCategory title-cases the category before it is
-    // escaped, so the payload's own casing is not preserved.
-    expect(html.match(/&lt;img src=x/gi)).toHaveLength(5);
-    // The decisive check — no executable attribute survives anywhere.
+      id: payload, name: payload, category: payload, notes: payload, createdBy: payload,
+    }, true);
+    // The decisive check — no executable attribute survives anywhere, including
+    // in the id interpolated into the menu's data attributes.
     expect(html).not.toMatch(/onerror\s*=\s*"/i);
     expect(html).not.toMatch(/<img/i);
+    // Case-insensitive: humaniseCategory title-cases the category before it is
+    // escaped, so the payload's own casing is not preserved.
+    expect(html.match(/&lt;img src=x/gi).length).toBeGreaterThanOrEqual(4);
   });
 
   it('escapes warehouse fields', () => {
@@ -105,12 +106,61 @@ describe('warehousePopupHTML lazy rendering', () => {
   });
 });
 
-describe('newPointFormHTML', () => {
+describe('pointFormHTML', () => {
+  const at = { lat: 12.95, lng: 77.61 };
+
   it('carries the clicked coordinates and the fields the API requires', () => {
-    const html = newPointFormHTML(12.95, 77.61);
+    const html = pointFormHTML(at);
     expect(html).toContain('12.95000, 77.61000');
     expect(html).toContain('name="name"');
     expect(html).toContain('name="category"');
     expect(html).toContain('required');
   });
+
+  it('has no city field — coordinates are the source of truth for location', () => {
+    expect(pointFormHTML(at)).not.toContain('name="city"');
+  });
+
+  it('prefills and switches to edit mode when given an existing point', () => {
+    const html = pointFormHTML(at, { id: 'abc', name: 'Depot', category: 'icd', notes: 'near gate' });
+    expect(html).toContain('Edit point');
+    expect(html).toContain('data-id="abc"');
+    expect(html).toContain('value="Depot"');
+    expect(html).toContain('value="icd"');
+    expect(html).toContain('near gate');
+  });
+
+  it('escapes prefilled values, which are user-authored', () => {
+    const html = pointFormHTML(at, { id: 'x', name: '"><script>alert(1)</script>', category: 'c', notes: '' });
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
 });
+
+describe('ownPopupHTML menu', () => {
+  const point = { id: 'p1', name: 'Depot', category: 'icd', createdBy: 'alice@wareongo.com' };
+
+  it('offers edit, move and delete when the viewer may change the point', () => {
+    const html = ownPopupHTML(point, true);
+    expect(html).toContain('data-action="edit-point"');
+    expect(html).toContain('data-action="move-point"');
+    expect(html).toContain('data-action="delete-point"');
+  });
+
+  it('hides every mutating action otherwise', () => {
+    // Presentation only — the API refuses these regardless of what is rendered.
+    const html = ownPopupHTML(point, false);
+    expect(html).not.toContain('data-action="edit-point"');
+    expect(html).not.toContain('data-action="move-point"');
+    expect(html).not.toContain('data-action="delete-point"');
+    // The point itself is still readable.
+    expect(html).toContain('Depot');
+  });
+
+  it('no longer shows a city, which is no longer collected', () => {
+    expect(ownPopupHTML({ ...point, city: 'Bengaluru' }, true)).not.toContain('Bengaluru');
+  });
+});
+
+// Move mode is built from DOM nodes in GeoExplorerMap rather than an HTML
+// string, so there is nothing to assert here — its toolbar is not a popup.

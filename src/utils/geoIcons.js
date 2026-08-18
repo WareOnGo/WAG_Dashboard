@@ -187,6 +187,34 @@ export function iconSvg(color, glyphKey, size = 18) {
   </svg>`;
 }
 
+/**
+ * The badge with a highlight ring around it, for the point being dragged in
+ * move mode.
+ *
+ * The ring is drawn inside the SVG rather than as a CSS pseudo-element. A
+ * pseudo-element sized with `inset` and `border-radius: 50%` depends on the
+ * host element's box, and Mapbox owns the styling of marker elements — when the
+ * box came out full-width the "circle" stretched into an ellipse spanning the
+ * whole map. Drawing it here makes the ring geometry independent of any CSS.
+ *
+ * The viewBox is padded to 32 units so the ring has room outside the badge
+ * without the badge itself shrinking relative to the map's other points.
+ *
+ * @param {string} color
+ * @param {string} glyphKey
+ * @param {number} size - rendered px, badge and ring together
+ */
+export function moveHandleSvg(color, glyphKey, size = 40) {
+  const path = GLYPHS[glyphKey] || '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="14.5" fill="none" stroke="rgba(0,0,0,0.45)" stroke-width="5"/>
+    <circle cx="16" cy="16" r="14.5" fill="none" stroke="${OWN_POINT_COLOR}" stroke-width="3"/>
+    <circle cx="16" cy="16" r="10.5" fill="rgba(255,255,255,0.95)"/>
+    <circle cx="16" cy="16" r="9" fill="${color}"/>
+    <g transform="translate(10.6 10.6) scale(0.45)"><path d="${path}" fill="#fff"/></g>
+  </svg>`;
+}
+
 /** fire_station -> Fire Station */
 export const humaniseCategory = (s) =>
   String(s).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
