@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Space, Button } from 'antd';
+import { Image, Space, Button, Tag } from 'antd';
 import {
   ZoomInOutlined,
   ZoomOutOutlined,
@@ -22,6 +22,7 @@ import { imageLabelService } from '../services/imageLabelService';
 import { buildCoordMapsLink } from '../utils/mapsLink';
 import { formatHandover } from '../utils/handover';
 import { waterSupplyToLabel } from '../utils/waterSupply';
+import { suitableForLabels } from '../utils/suitableFor';
 import './ResponsiveModal.css';
 import './WarehouseForm.css';
 
@@ -573,6 +574,20 @@ const WarehouseDetailsModal = ({
             {col(<Field label="Power (KVA)" mobile={m}><TextValue mobile={m} value={wd.powerKva} /></Field>, true)}
             {col(<Field label="Water Supply" mobile={m}><TextValue mobile={m} value={waterSupplyToLabel(warehouse.waterSupply) || '-'} /></Field>, true)}
           </>)}
+
+          {/* Tags rather than a comma-joined string: the values are a set, and
+              chips make it obvious where one ends and the next begins. */}
+          <Field label="Suitable For" mobile={m}>
+            {suitableForLabels(warehouse.suitableFor).length ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: m ? '10px 0' : '6px 0' }}>
+                {suitableForLabels(warehouse.suitableFor).map((label) => (
+                  <Tag key={label} style={{ margin: 0 }}>{label}</Tag>
+                ))}
+              </div>
+            ) : (
+              <TextValue mobile={m} value="-" />
+            )}
+          </Field>
 
           <Field label="Other Specifications" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.otherSpecifications} />
