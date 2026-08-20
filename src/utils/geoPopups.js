@@ -1,4 +1,7 @@
-import { AVAILABILITY_COLORS, colorForCategory, glyphForCategory, iconSvg, humaniseCategory } from './geoIcons';
+import {
+  AVAILABILITY_COLORS, colorForCategory, glyphForCategory, iconSvg, humaniseCategory,
+  OWN_POINT_COLOR, POI_CATEGORIES, poiCategoryLabel, poiCategoryGlyph,
+} from './geoIcons';
 import { getMediaFromWarehouse } from './mediaUtils';
 
 /**
@@ -167,9 +170,9 @@ export const ownPopupHTML = (p, canEdit = false) => `
         <button data-action="move-point" data-id="${esc(p.id)}" style="${MENU_ITEM}">Move on map</button>
         <button data-action="delete-point" data-id="${esc(p.id)}" style="${MENU_ITEM}color:#ef4444;border-top:1px solid rgba(255,255,255,0.1);">Delete</button>
       </div>` : ''}
-    ${header(iconSvg('#a855f7', 'own', 20), esc(p.name), '')}
+    ${header(iconSvg(OWN_POINT_COLOR, poiCategoryGlyph(p.category), 20), esc(p.name), '')}
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <div><div style="${LABEL}">Category</div><div style="${VALUE}">${esc(humaniseCategory(p.category))}</div></div>
+      <div><div style="${LABEL}">Type</div><div style="${VALUE}">${esc(poiCategoryLabel(p.category))}</div></div>
       ${p.notes ? `<div><div style="${LABEL}">Notes</div><div style="${VALUE}line-height:1.4;">${esc(p.notes)}</div></div>` : ''}
       ${p.createdBy ? `<div><div style="${LABEL}">Added by</div><div style="${VALUE}">${esc(p.createdBy)}</div></div>` : ''}
     </div>
@@ -181,6 +184,21 @@ export const ownPopupHTML = (p, canEdit = false) => `
 
 const INPUT = 'width:100%;box-sizing:border-box;padding:7px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;';
 
+// The style string is interpolated into a double-quoted HTML attribute, so it
+// must stay free of quote characters — which rules out a `url("data:...")`
+// custom arrow. The native arrow follows the select's `color`, so it reads white
+// on this dark popup anyway.
+const SELECT = 'cursor:pointer;';
+
+// Options are painted by the OS on Linux/Windows and would otherwise inherit a
+// white background with the select's white text.
+const OPTION = 'background:#242424;color:#fff;';
+
+// A point created before this list existed keeps its old category in the
+// database and in the popup, but the form deliberately does NOT preselect it:
+// the API only accepts the fixed codes now, so offering the stale value back
+// would produce a form that cannot be saved. Editing such a point requires
+// picking a real type, which is the migration.
 /**
  * Point form, used for both creating and editing.
  *
@@ -203,8 +221,11 @@ export const pointFormHTML = (at, existing = null) => {
     <div style="display:flex;flex-direction:column;gap:8px;">
       <input name="name" placeholder="Name" required autocomplete="off"
         value="${esc(existing?.name ?? '')}" style="${INPUT}" />
-      <input name="category" placeholder="Category (e.g. logistics_node)" required autocomplete="off"
-        value="${esc(existing?.category ?? '')}" style="${INPUT}" />
+      <select name="category" required style="${INPUT}${SELECT}">
+        <option value="" disabled ${existing?.category ? '' : 'selected'} style="${OPTION}">Point type\u2026</option>
+        ${POI_CATEGORIES.map((c) => `
+          <option value="${esc(c.value)}" ${existing?.category === c.value ? 'selected' : ''} style="${OPTION}">${esc(c.label)}</option>`).join('')}
+      </select>
       <textarea name="notes" placeholder="Notes (optional)" rows="2"
         style="${INPUT}resize:vertical;font-family:inherit;">${esc(existing?.notes ?? '')}</textarea>
     </div>

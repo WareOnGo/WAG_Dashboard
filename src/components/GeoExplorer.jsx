@@ -4,6 +4,7 @@ import { PlusOutlined, AimOutlined } from '@ant-design/icons'
 import GeoExplorerMap from './GeoExplorerMap'
 import {
   CATEGORY_COLORS, FALLBACK_COLOR, OWN_POINT_COLOR, AVAILABILITY_COLORS,
+  poiCategoryLabel, poiCategoryGlyph,
   iconSvg, humaniseCategory as humanise,
 } from '../utils/geoIcons'
 import { geoService } from '../services/geoService'
@@ -143,6 +144,23 @@ const GeoExplorer = () => {
             </Text>
           )}
         </Checkbox>
+
+        {/* Our points all share one purple badge and one toggle, but each type
+            draws a different glyph on the map. Listing them here is what makes
+            those glyphs readable — without it the legend claims a star and the
+            map shows six other shapes. */}
+        {showOwnPoints && (layers?.internal ?? []).length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginLeft: 24 }}>
+            {layers.internal.map(({ category, count }) => (
+              <div key={category} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
+                <Badge color={OWN_POINT_COLOR} glyph={poiCategoryGlyph(category)} />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {poiCategoryLabel(category)} ({count})
+                </Text>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <Title level={5} style={{ marginTop: 18 }}>Reference (OSM)</Title>
