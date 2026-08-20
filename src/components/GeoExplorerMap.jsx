@@ -10,9 +10,10 @@ import {
   registerMapIcons,
   ensureCategoryIcon,
   warehouseIconId,
-  OWN_ICON_ID,
+  ownIconExpression,
   OWN_POINT_COLOR,
   moveHandleSvg,
+  poiCategoryGlyph,
   availabilityExpression,
 } from '../utils/geoIcons'
 
@@ -265,7 +266,7 @@ const GeoExplorerMap = ({
         layout: {
           ...symbolLayout,
           'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.65, 12, 0.95, 16, 1.2],
-          'icon-image': OWN_ICON_ID,
+          'icon-image': ownIconExpression,
         },
         paint: symbolPaint,
       })
@@ -356,7 +357,7 @@ const GeoExplorerMap = ({
         handle.className = 'geo-move-handle'
         handle.style.width = `${HANDLE_PX}px`
         handle.style.height = `${HANDLE_PX}px`
-        handle.innerHTML = moveHandleSvg(OWN_POINT_COLOR, 'own', HANDLE_PX)
+        handle.innerHTML = moveHandleSvg(OWN_POINT_COLOR, poiCategoryGlyph(props.category), HANDLE_PX)
 
         const marker = new mapboxgl.Marker({ element: handle, draggable: true, anchor: 'center' })
           .setLngLat(coords)

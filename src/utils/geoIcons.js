@@ -59,9 +59,49 @@ const GLYPHS = {
   industrial: 'M3 21V11l5 3V11l5 3V11l5 3V6h3v15H3zm3-4v2h3v-2H6zm5 0v2h3v-2h-3z',
   warehouse: 'M3 10l9-6 9 6v11h-5v-7H8v7H3V10z',
   own: 'M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8L12 2z',
+  // Glyphs for our own point categories.
+  client: 'M9 4h6a2 2 0 0 1 2 2v1h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3V6a2 2 0 0 1 2-2zm0 3h6V6H9v1z',
+  food: 'M6 2v8a2 2 0 0 0 2 2v10h2V12a2 2 0 0 0 2-2V2h-1.5v6H9V2H7.5v6H6V2zm10 0c-1.5 0-2.5 2.5-2.5 6 0 2 .8 3.2 2 3.7V22h2V2h-1.5z',
+  hotel: 'M3 6h2v7h6V8h6a3 3 0 0 1 3 3v9h-2v-3H5v3H3V6zm4 1.5A2.2 2.2 0 1 1 7 12a2.2 2.2 0 0 1 0-4.5z',
+  quarters: 'M9 3l6 3v15h-4v-5H8v5H3V8l6-5zm8 5l4 2v11h-4V8zM5 9v2h2V9H5zm0 4v2h2v-2H5z',
+  yard: 'M3 8h18v2H3V8zm0 6h18v2H3v-2zM5 4h2v16H5V4zm12 0h2v16h-2V4z',
   // Used for any category the palette does not know about.
   generic: 'M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 4.5A2.5 2.5 0 1 1 12 11a2.5 2.5 0 0 1 0-4.5z',
 };
+
+/**
+ * Categories for OUR OWN points of interest — a fixed list driven by a dropdown,
+ * unlike the OSM categories which come from whatever the import contains.
+ *
+ * Codes are stored and labels live here, so renaming one is a string change
+ * rather than an update across every row. The glyph varies per category while
+ * the badge colour stays a single purple: colour says "this is ours", the glyph
+ * says what it is, which keeps our points distinguishable from OSM reference
+ * data at a glance.
+ */
+export const POI_CATEGORIES = [
+  { value: 'POTENTIAL_CLIENT', label: 'Potential client', glyph: 'client' },
+  { value: 'POTENTIAL_WAREHOUSE', label: 'Potential warehouse', glyph: 'warehouse' },
+  { value: 'FOOD_PLACE', label: 'Good local food place', glyph: 'food' },
+  { value: 'HOTEL_RESTAURANT', label: 'Good local hotel/restaurant', glyph: 'hotel' },
+  { value: 'LABOR_QUARTERS', label: 'Residential quarters - labor', glyph: 'quarters' },
+  { value: 'OPEN_YARD_BTS', label: 'Potential open yard/BTS site', glyph: 'yard' },
+];
+
+const POI_BY_VALUE = Object.fromEntries(POI_CATEGORIES.map((c) => [c.value, c]));
+
+/**
+ * Label for one of our point categories. Falls back to the humanised code so a
+ * value written before this list existed still reads as something.
+ */
+export const poiCategoryLabel = (value) =>
+  POI_BY_VALUE[value]?.label ?? humaniseCategory(value);
+
+/** Glyph key for one of our point categories, defaulting to the star. */
+export const poiCategoryGlyph = (value) => POI_BY_VALUE[value]?.glyph ?? 'own';
+
+/** Image id for one of our point badges. */
+export const poiIconId = (value) => `wag-own-${POI_BY_VALUE[value] ? value : 'DEFAULT'}`;
 
 const SIZE = 22;         // logical px
 const PIXEL_RATIO = 2;   // draw at 2x so it stays crisp on retina
@@ -114,7 +154,6 @@ function drawIcon(color, glyphKey) {
 export const categoryIconId = (cat) => `wag-poi-${cat}`;
 /** Image id for a warehouse badge in a given availability state. */
 export const warehouseIconId = (state) => `wag-warehouse-${state}`;
-export const OWN_ICON_ID = 'wag-own-point';
 
 /** Colour for a category, falling back for anything not in the palette. */
 export const colorForCategory = (cat) => CATEGORY_COLORS[cat] || FALLBACK_COLOR;
@@ -164,8 +203,24 @@ export function registerMapIcons(map) {
     add(warehouseIconId(state), drawIcon(color, 'warehouse'));
   }
 
-  add(OWN_ICON_ID, drawIcon(OWN_POINT_COLOR, 'own'));
+  // One badge per own-point category, all in the same purple, plus a starred
+  // default for rows whose category predates the fixed list.
+  add(poiIconId(null), drawIcon(OWN_POINT_COLOR, 'own'));
+  for (const c of POI_CATEGORIES) {
+    add(poiIconId(c.value), drawIcon(OWN_POINT_COLOR, c.glyph));
+  }
 }
+
+/**
+ * `icon-image` expression selecting the badge for one of our points. Icon images
+ * cannot be tinted or swapped per feature by any other means, so the category is
+ * resolved with a `match` the same way warehouse availability is.
+ */
+export const ownIconExpression = [
+  'match', ['coalesce', ['get', 'category'], ''],
+  ...POI_CATEGORIES.flatMap((c) => [c.value, poiIconId(c.value)]),
+  poiIconId(null),
+];
 
 /**
  * The same badge as an inline SVG, for the sidebar legend. The legend must show
