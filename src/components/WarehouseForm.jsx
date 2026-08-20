@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Button, Switch, Spin, Tooltip, message, DatePicker } from 'antd';
+import { Button, Switch, Spin, Tooltip, message, DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
 import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
@@ -17,6 +17,7 @@ import {
   handoverTypeToEnum, handoverTypeToLabel, handoverUnitToEnum, handoverUnitToLabel,
 } from '../utils/handover';
 import { WATER_SUPPLY_OPTIONS, waterSupplyToEnum, waterSupplyToLabel } from '../utils/waterSupply';
+import { SUITABLE_FOR_OPTIONS } from '../utils/suitableFor';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 
@@ -98,6 +99,8 @@ const INITIAL_VALUES = {
   ventilationAirChangesPerDay: '', insulationPresent: '', insulationType: '',
   lightingDetails: '', wogVerified: false, centreHeight: '',
   waterSupply: '',
+  // Array, not a string: it is sent to the API exactly as held here.
+  suitableFor: [],
   // RCC-only fields (rendered only when warehouseType is 'RCC')
   totalFloors: '', liftAccess: false, passengerLiftCount: '',
   serviceLiftCount: '', liftLoadCapacity: '',
@@ -189,6 +192,8 @@ const toFormValues = (d) => {
     insulationType: d.insulationType || '',
     lightingDetails: d.lightingDetails || '',
     waterSupply: waterSupplyToLabel(d.waterSupply),
+    // Guarded: an older record predates the column and has no value at all.
+    suitableFor: Array.isArray(d.suitableFor) ? d.suitableFor : [],
     wogVerified: d.wogVerified === true || d.wogVerified === 'true',
     centreHeight: d.centreHeight || '',
     // RCC-only fields
@@ -346,6 +351,32 @@ const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest })
     </select>
   );
 };
+
+/**
+ * Dropdown multi-select rendering selected values as removable tags.
+ *
+ * antd's Select rather than a native <select multiple>: the native control
+ * requires ctrl-click to pick more than one and gives no affordance saying so,
+ * which people reliably read as "only one choice allowed".
+ *
+ * `value` is always an array; the caller stores exactly what the API expects.
+ */
+const MultiSelectInput = ({ value, onChange, mobile, placeholder, options }) => (
+  <Select
+    mode="multiple"
+    allowClear
+    value={Array.isArray(value) ? value : []}
+    onChange={onChange}
+    placeholder={placeholder}
+    options={options}
+    // Filter on the visible label, not the stored code — nobody is going to
+    // type TRANSSHIPMENT_COURIER.
+    optionFilterProp="label"
+    style={{ width: '100%', minHeight: mobile ? 44 : 36 }}
+    size={mobile ? 'large' : 'middle'}
+    maxTagCount="responsive"
+  />
+);
 
 const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...rest }) => {
   const [query, setQuery] = useState('');
@@ -646,6 +677,9 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         insulationType: values.insulationType || null,
         lightingDetails: values.lightingDetails || null,
         waterSupply: waterSupplyToEnum(values.waterSupply),
+        // Sent as an array, never null: the column defaults to [] and the API
+        // treats an empty array as "no tags" rather than as unset.
+        suitableFor: Array.isArray(values.suitableFor) ? values.suitableFor : [],
         wogVerified: typeof values.wogVerified === 'boolean' ? values.wogVerified : null,
         centreHeight: values.centreHeight || null,
         // RCC-only fields. Sent regardless of the current warehouseType so that
@@ -1281,6 +1315,19 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)
             )}
+
+            <Field
+              label="Suitable For"
+              tooltip="Which use-cases this site suits. Pick as many as apply."
+            >
+              <MultiSelectInput
+                mobile={m}
+                value={values.suitableFor}
+                onChange={set('suitableFor')}
+                placeholder="Select use-cases"
+                options={SUITABLE_FOR_OPTIONS}
+              />
+            </Field>
 
             <Field label="Parking Space Availability">
               <TextAreaInput mobile={m} value={values.parkingDockingSpace} onChange={set('parkingDockingSpace')} placeholder="Mention area for seperate parking if available" rows={m ? 3 : 2} />
