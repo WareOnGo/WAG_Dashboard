@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 const ICON = {
   fill: 'none', stroke: 'currentColor', strokeWidth: 2,
@@ -65,6 +65,36 @@ export default function MicroMarketSidebar({
 }) {
   const [query, setQuery] = useState('')
 
+  // Card elements by area id, so a selection can be scrolled to.
+  const cardRefs = useRef(new Map())
+
+  // Clicking a polygon on the map highlights its card, which is no use if the
+  // card is scrolled out of view — with 100+ areas most of the list is. Reveal it.
+  //
+  // Deliberately keyed on selectedId alone: adding the filtered list as a
+  // dependency would re-run this on every keystroke in a name/city field (each
+  // edit produces a new array) and yank the list out from under the user.
+  useEffect(() => {
+    if (!selectedId) return
+    const el = cardRefs.current.get(selectedId)
+    // Missing means the search box is filtering it out, so there is nothing to reveal.
+    if (!el) return
+
+    // The card may sit in a collapsed city group. These <details> are
+    // uncontrolled — `open` is only their initial state — so open it here rather
+    // than scrolling to something the user still cannot see.
+    const group = el.closest('details')
+    if (group && !group.open) group.open = true
+
+    el.scrollIntoView({
+      // 'nearest' leaves an already-visible card alone, which matters because
+      // sidebar clicks also land here (they round-trip through the map's
+      // selectionchange) and should not re-centre the list under the cursor.
+      block: 'nearest',
+      behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    })
+  }, [selectedId])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return areas
@@ -90,7 +120,14 @@ export default function MicroMarketSidebar({
   }, [filtered])
 
   const renderCard = (a) => (
-    <li key={a.id} className={`mm-area${a.id === selectedId ? ' selected' : ''}`}>
+    <li
+      key={a.id}
+      ref={el => {
+        if (el) cardRefs.current.set(a.id, el)
+        else cardRefs.current.delete(a.id)
+      }}
+      className={`mm-area${a.id === selectedId ? ' selected' : ''}`}
+    >
       <button className="mm-area-head" type="button" onClick={() => onFocus(a.id)}>
         <span className="mm-dot" />
         <strong>{a.name || 'Untitled area'}</strong>
