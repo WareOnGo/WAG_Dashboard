@@ -114,11 +114,17 @@
   overflow-y: auto;
   list-style: none;
   margin: 0;
-  padding: 14px 18px 18px;
+  /* No top padding on purpose. A sticky group header pins below the scroll
+     container's top padding, so that strip stays uncovered and cards scroll
+     visibly through it — reading as a sliced card floating above the pinned
+     header. The opening gap moves to the first child, which scrolls away. */
+  padding: 0 18px 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+
+.mm-area-list > :first-child { margin-top: 14px; }
 
 .mm-area-list::-webkit-scrollbar { width: 8px; }
 .mm-area-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
@@ -140,6 +146,14 @@
 .mm-search-input::placeholder { color: var(--text-muted); }
 .mm-search-input:focus { outline: none; border-color: #1890ff; box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.2); }
 
+/* Selection colour. Matches MicroMarketMap's NEON/NEON_DIM draw theme so a card
+   and its polygon read as the same selection rather than two unrelated states.
+   Input focus rings stay the dashboard's antd blue — focus is not selection. */
+.mm-page {
+  --mm-sel: #22d3ee;          /* active — mirrors NEON */
+  --mm-idle: #38bdf8;         /* inactive — mirrors NEON_DIM */
+}
+
 /* ---- Collapsible city groups ---- */
 .mm-group + .mm-group { margin-top: 2px; }
 
@@ -149,17 +163,39 @@
   gap: 8px;
   list-style: none;
   cursor: pointer;
-  padding: 8px 6px;
-  border-radius: 6px;
+  /* Bleeds across the list's side padding so a card sliding underneath a pinned
+     header cannot show at its edges. The extra inline padding keeps the text
+     where it was. */
+  margin: 0 -18px;
+  padding: 8px 24px;
   user-select: none;
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--bg-secondary);
+  background-color: var(--bg-secondary);
 }
 
 .mm-group-head::-webkit-details-marker { display: none; }
-.mm-group-head:hover { background: rgba(255, 255, 255, 0.05); }
+
+/* Tint via background-IMAGE layered over the opaque background-color. The
+   `background` shorthand would replace that opaque colour with a 5%-alpha white,
+   turning a pinned header translucent exactly while hovered — which showed the
+   card scrolling underneath it. Never give a sticky element a translucent
+   background. */
+.mm-group-head:hover {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05));
+}
+
+/* Separates a pinned header from whatever is sliding beneath it. */
+.mm-group-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--border-primary);
+}
 
 .mm-group-name {
   flex: 1;
@@ -222,10 +258,21 @@
   flex-direction: column;
   gap: 8px;
   transition: border-color 0.12s, box-shadow 0.12s;
+  /* Clears the pinned group header when the sidebar auto-scrolls to a selected
+     card: scrollIntoView knows nothing about sticky overlays, so without this a
+     card selected on the map can land underneath the header it belongs to. */
+  scroll-margin-top: 42px;
 }
 
 .mm-area:hover { border-color: rgba(255, 255, 255, 0.18); }
-.mm-area.selected { border-color: #1890ff; box-shadow: 0 0 0 1px #1890ff, 0 2px 8px rgba(24, 144, 255, 0.18); }
+
+/* Tint as a layered background-image, not a translucent background-color, so the
+   card stays opaque (same reason as .mm-group-head:hover above). */
+.mm-area.selected {
+  border-color: var(--mm-sel);
+  background-image: linear-gradient(rgba(34, 211, 238, 0.07), rgba(34, 211, 238, 0.07));
+  box-shadow: 0 0 0 1px var(--mm-sel), 0 2px 10px rgba(34, 211, 238, 0.15);
+}
 
 .mm-area-head {
   display: flex;
@@ -241,8 +288,28 @@
 }
 
 .mm-area-head strong { font-weight: 600; color: var(--text-primary); }
-.mm-area-head .mm-dot { width: 9px; height: 9px; border-radius: 50%; background: #1890ff; flex: none; }
 .mm-area-head .mm-muted { color: var(--text-muted); font-weight: 400; }
+
+/* Dimmed by default, lit when selected — so the dot carries the same
+   active/inactive meaning the polygons do on the map. */
+.mm-area-head .mm-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--mm-idle);
+  opacity: 0.45;
+  transition: opacity 0.12s, box-shadow 0.12s, background-color 0.12s;
+}
+
+.mm-area.selected .mm-dot {
+  background: var(--mm-sel);
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.2);
+}
+
+/* The name is a button that focuses the polygon on the map — say so on hover. */
+.mm-area-head:hover strong { color: var(--mm-sel); }
 
 .mm-field {
   width: 100%;
