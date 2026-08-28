@@ -590,7 +590,7 @@ export default function AdminUsers() {
                 : 'Linked to their WhatsApp assistant history — you will be asked to confirm a change.'
             }
           >
-            <Input placeholder="91XXXXXXXXXX" />
+            <Input placeholder="+91 XXXXX XXXXX" />
           </Form.Item>
 
           {!isCreate && (
