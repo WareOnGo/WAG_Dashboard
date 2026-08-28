@@ -1,5 +1,5 @@
 import { App } from 'antd';
-import { parseError, ERROR_TYPES } from '../utils/errorHandler';
+import { parseError, toErrorInfo, ERROR_TYPES } from '../utils/errorHandler';
 
 /**
  * Custom hook for error handling with Ant Design App context
@@ -18,7 +18,7 @@ export const useErrorHandler = () => {
       prefix = ''
     } = options;
 
-    const errorInfo = error.type ? error : parseError(error);
+    const errorInfo = toErrorInfo(error);
     const displayMessage = prefix ? `${prefix}: ${errorInfo.message}` : errorInfo.message;
 
     if (errorInfo.type === ERROR_TYPES.VALIDATION && errorInfo.issues.length > 0) {
@@ -46,7 +46,7 @@ export const useErrorHandler = () => {
       showDetails = true
     } = options;
 
-    const errorInfo = error.type ? error : parseError(error);
+    const errorInfo = toErrorInfo(error);
 
     let description = errorInfo.message;
     

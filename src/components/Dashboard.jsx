@@ -66,6 +66,15 @@ import { formatHandover } from '../utils/handover';
 
 const { Title, Text } = Typography;
 
+/**
+ * Shallow value equality for the flat filter-param objects `useWarehouseFilters`
+ * builds. Values are scalars, so identity comparison per key is enough.
+ */
+const sameParams = (a, b) => {
+  const aKeys = Object.keys(a);
+  return aKeys.length === Object.keys(b).length && aKeys.every((key) => a[key] === b[key]);
+};
+
 const Dashboard = () => {
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -132,8 +141,9 @@ const Dashboard = () => {
   const [total, setTotal] = useState(0);
 
   // Debounced copy of the filter query params so typing in search doesn't fire a
-  // request per keystroke. Drives the server-side fetch.
-  const [debouncedParams, setDebouncedParams] = useState({});
+  // request per keystroke. Drives the server-side fetch. Seeded from the live
+  // params so the first debounce settle has nothing to commit.
+  const [debouncedParams, setDebouncedParams] = useState(queryParams);
 
   // Map markers for split view: all warehouses matching the current filters
   // (fetched separately from the paged list so the map stays complete).
@@ -192,7 +202,13 @@ const Dashboard = () => {
   // is a stable memo (only changes when a filter changes), so this fires once per change.
   useEffect(() => {
     const t = setTimeout(() => {
-      setDebouncedParams(queryParams);
+      // Commit only a real change. `queryParams` is a fresh object whenever a
+      // filter re-renders, and committing one that is value-identical to what is
+      // already stored still re-creates `fetchWarehouses` and refires the fetch
+      // effect. Returning `prev` lets React bail out instead — which is what kept
+      // mounting the dashboard from issuing the same request twice, and stops a
+      // filter typed and undone inside the debounce window from issuing another.
+      setDebouncedParams((prev) => (sameParams(prev, queryParams) ? prev : queryParams));
       setCurrentPage(1);
     }, 300);
     return () => clearTimeout(t);

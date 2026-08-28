@@ -278,6 +278,47 @@
   color: #ff4d4f;
 }
 
+/* ── Loading placeholder ──────────────────────────────────────────────────────
+   CardView's SkeletonCard reuses the structural classes above — header, image,
+   content, metrics, actions — so the placeholder's geometry comes from the same
+   rules as the real card and cannot drift from it. Only the shimmer and the
+   stand-in text blocks live here. */
+.simple-warehouse-card--skeleton {
+  cursor: default;
+}
+
+.simple-warehouse-card--skeleton:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.swc-skeleton__block {
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.06) 25%,
+      rgba(255, 255, 255, 0.14) 37%,
+      rgba(255, 255, 255, 0.06) 63%);
+  background-size: 400% 100%;
+  animation: swc-skeleton-shimmer 1.4s ease infinite;
+  border-radius: 4px;
+}
+
+/* The image block inherits its height, radius and spacing from
+   .simple-warehouse-card__image, so it must not be given its own. */
+.simple-warehouse-card__image.swc-skeleton__block {
+  border-radius: 6px;
+}
+
+@keyframes swc-skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}
+
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .simple-warehouse-card {
@@ -396,5 +437,9 @@
 
   .simple-warehouse-card:hover {
     transform: none;
+  }
+
+  .swc-skeleton__block {
+    animation: none;
   }
 }

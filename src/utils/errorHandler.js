@@ -20,6 +20,34 @@ export const ERROR_TYPES = {
 };
 
 /**
+ * Shape guarantee for the display helpers below.
+ *
+ * `parseError` always returns the full shape, but these helpers are also handed
+ * literals — `showErrorMessage({ type: 'validation', message })` from FileUpload,
+ * for instance — and a literal carries only the fields its author needed.
+ * Reading `issues.length` off one of those threw, and since rc-upload treats a
+ * throw inside `beforeUpload` as "skip this file", the user was left with no
+ * feedback at all when a file was rejected. Normalising once here keeps every
+ * downstream read safe instead of guarding each one.
+ *
+ * @param {Error|Object|string|null} error
+ * @returns {Object} Error info with every field present
+ */
+export const toErrorInfo = (error) => {
+  const base = {
+    type: ERROR_TYPES.GENERIC,
+    message: 'An unexpected error occurred',
+    details: null,
+    issues: [],
+    statusCode: null
+  };
+
+  if (!error) return base;
+  if (error.type) return { ...base, ...error };
+  return { ...base, ...parseError(error) };
+};
+
+/**
  * Parse API error response and extract relevant information
  * @param {Error} error - The error object from axios or other sources
  * @returns {Object} Parsed error information
@@ -82,7 +110,7 @@ export const showErrorMessage = (error, options = {}) => {
     prefix = ''
   } = options;
 
-  const errorInfo = error.type ? error : parseError(error);
+  const errorInfo = toErrorInfo(error);
   const displayMessage = prefix ? `${prefix}: ${errorInfo.message}` : errorInfo.message;
 
   if (errorInfo.type === ERROR_TYPES.VALIDATION && errorInfo.issues.length > 0) {
@@ -113,7 +141,7 @@ export const showErrorNotification = (error, options = {}) => {
     showDetails = true
   } = options;
 
-  const errorInfo = error.type ? error : parseError(error);
+  const errorInfo = toErrorInfo(error);
 
   let description = errorInfo.message;
   

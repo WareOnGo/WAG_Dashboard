@@ -1,34 +1,81 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Row, Col, Empty, Pagination, Skeleton } from 'antd';
+import { Row, Col, Empty, Pagination } from 'antd';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
 import './CardView.css';
 
+/** One shimmer block standing in for a line of text or a control. */
+const Block = ({ width, height, style }) => (
+  <div className="swc-skeleton__block" style={{ width, height, ...style }} />
+);
+
 /**
- * Placeholder card shown while a page of warehouses loads. Reuses the real
- * card's container class so the grid keeps its exact geometry (no layout jump
- * between loading and loaded states).
+ * Placeholder card shown while a page of warehouses loads.
+ *
+ * Built from SimpleWarehouseCard's own structural classes — header, image,
+ * content, top/bottom content, metrics, actions — so every box, gap, border and
+ * breakpoint comes from SimpleWarehouseCard.css rather than being restated here.
+ * That is what keeps the placeholder the same shape as the thing it stands in
+ * for: the only measurements below are the heights of the text lines being
+ * replaced, which have no box of their own to inherit.
+ *
+ * The earlier version was a flat image-plus-paragraph stack, 181px shorter than
+ * a real card and missing the header outright, so the grid jumped when a page
+ * landed.
  */
-const SkeletonCard = ({ isMobile }) => (
-  <div className="simple-warehouse-card" aria-hidden="true">
-    <Skeleton.Button
-      active
-      block
-      style={{ height: isMobile ? 100 : 120, borderRadius: 0 }}
-    />
-    <div style={{ padding: '12px 16px 16px' }}>
-      <Skeleton
-        active
-        title={{ width: '55%' }}
-        paragraph={{ rows: 3, width: ['90%', '65%', '75%'] }}
-      />
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <Skeleton.Button active size="small" style={{ width: 80 }} />
-        <Skeleton.Button active size="small" style={{ width: 80 }} />
+const SkeletonCard = ({ isMobile }) => {
+  // Block heights are the line boxes measured on a rendered card, not guesses:
+  // id 22, status badge 27, title 21, owner type 19, location 22, metric label 15
+  // over value 16. Mobile drops each font by ~1px, so the blocks follow.
+  const m = isMobile;
+
+  return (
+    <div className="simple-warehouse-card simple-warehouse-card--skeleton" aria-hidden="true">
+      {/* Header: id on the left, visibility badge on the right */}
+      <div className="simple-warehouse-card__header">
+        <Block width={64} height={m ? 20 : 22} />
+        <Block width={62} height={m ? 25 : 27} />
+      </div>
+
+      {/* Image — height, radius and spacing all come from the real class */}
+      <div className="simple-warehouse-card__image swc-skeleton__block" />
+
+      <div className="simple-warehouse-card__content">
+        <div className="simple-warehouse-card__top-content">
+          {/* Warehouse type, then owner type */}
+          <Block width="55%" height={m ? 20 : 21} style={{ marginBottom: 8 }} />
+          <Block width="30%" height={m ? 17 : 19} style={{ marginBottom: 12 }} />
+
+          {/* Location row: city, state and the zone tag */}
+          <Block width="85%" height={m ? 20 : 22} style={{ marginBottom: m ? 6 : 8 }} />
+
+          {/* Contact: the name, with the phone-reveal control below it — that
+              control sits on its own line at the card widths this grid produces. */}
+          <Block width="70%" height={m ? 20 : 22} style={{ marginBottom: 4 }} />
+          <Block width={110} height={m ? 16 : 18} style={{ marginBottom: m ? 6 : 8 }} />
+        </div>
+
+        <div className="simple-warehouse-card__bottom-content">
+          {/* Metrics keep the real tinted grid, so the columns wrap where they do */}
+          <div className="simple-warehouse-card__metrics">
+            {['area', 'rate', 'docks'].map((key) => (
+              <div className="simple-warehouse-card__metric" key={key}>
+                <Block width="70%" height={m ? 14 : 15} style={{ margin: '0 auto 4px' }} />
+                <Block width="90%" height={m ? 15 : 16} style={{ margin: '0 auto' }} />
+              </div>
+            ))}
+          </div>
+
+          {/* Actions inherit the top border, gap and button height from the real class */}
+          <div className="simple-warehouse-card__actions">
+            <Block height={m ? 32 : 36} style={{ flex: 1 }} />
+            <Block height={m ? 32 : 36} style={{ flex: 1 }} />
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * Fixed CardView Component with stable pagination
