@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Card, Checkbox, Typography, Button, Spin, Alert, App, Empty } from 'antd'
+import { Card, Checkbox, Typography, Button, Spin, Alert, App, Empty, Result } from 'antd'
 import { PlusOutlined, AimOutlined } from '@ant-design/icons'
 import GeoExplorerMap from './GeoExplorerMap'
 import {
@@ -38,6 +38,8 @@ const Badge = ({ color, glyph }) => (
 const GeoExplorer = () => {
   const { isMobile } = useViewport()
   const { user } = useAuth()
+  // Sessions predating the capabilities map are treated as allowed.
+  const hasDashboardAccess = !(user?.capabilities && !user.capabilities.DASHBOARD)
   const { message } = App.useApp()
 
   const [layers, setLayers] = useState(null)   // null = not loaded yet
@@ -57,10 +59,12 @@ const GeoExplorer = () => {
   const warehouseCache = useRef(new Map())
 
   useEffect(() => {
+    // /api/geo is gated on DASHBOARD, so skip the round trip that would only 403.
+    if (!hasDashboardAccess) return
     geoService.layers()
       .then((d) => setLayers({ osm: d?.osm ?? [], internal: d?.internal ?? [] }))
       .catch((e) => { setLayersError(e?.message || 'Could not load layer list'); setLayers({ osm: [], internal: [] }) })
-  }, [refreshKey])
+  }, [refreshKey, hasDashboardAccess])
 
   const toggleOsm = useCallback((cat, on) => {
     setEnabledOsm((prev) => (on ? [...prev, cat] : prev.filter((c) => c !== cat)))
@@ -220,6 +224,18 @@ const GeoExplorer = () => {
       )}
     </Card>
   )
+
+  // Same gate as the dashboard: /api/geo requires the DASHBOARD capability, so
+  // refuse clearly here rather than letting the map fail request by request.
+  if (!hasDashboardAccess) {
+    return (
+      <Result
+        status="403"
+        title="No dashboard access"
+        subTitle="Your account isn't set up for the dashboard yet. Ask an admin to grant you access."
+      />
+    )
+  }
 
   return (
     // position:absolute + inset:0 rather than height:100%: this sits inside

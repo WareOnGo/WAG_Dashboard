@@ -84,7 +84,12 @@ const Dashboard = () => {
   const [formLoading, setFormLoading] = useState(false);
 
   // Authentication context
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  // The warehouse routes are gated on the DASHBOARD capability server-side. Fetching
+  // anyway would just spend a round trip to be told 403, so the effects below check
+  // this too — the render-time refusal alone runs after the hooks have already fired.
+  // Sessions predating the capabilities map are treated as allowed.
+  const hasDashboardAccess = !(user?.capabilities && !user.capabilities.DASHBOARD);
 
   // Responsive and view management
   const { isMobile } = useViewport();
@@ -160,7 +165,7 @@ const Dashboard = () => {
 
   // Fetch a page of warehouses with the current filters/page applied server-side.
   const fetchWarehouses = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !hasDashboardAccess) return;
 
     const reqId = ++reqIdRef.current;
     setLoading(true);
@@ -185,7 +190,7 @@ const Dashboard = () => {
     } finally {
       if (reqId === reqIdRef.current) setLoading(false);
     }
-  }, [isAuthenticated, debouncedParams, currentPage, pageSize]);
+  }, [isAuthenticated, hasDashboardAccess, debouncedParams, currentPage, pageSize]);
 
   // Network/connection failures (no HTTP response) get a connection-specific
   // message + icon; everything else is a generic error.
@@ -193,10 +198,10 @@ const Dashboard = () => {
 
   // Fetch when authenticated and whenever the page/size/filters change.
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+    if (!authLoading && isAuthenticated && hasDashboardAccess) {
       fetchWarehouses();
     }
-  }, [authLoading, isAuthenticated, fetchWarehouses]);
+  }, [authLoading, isAuthenticated, hasDashboardAccess, fetchWarehouses]);
 
   // Debounce filter changes into `debouncedParams` and reset to page 1. `queryParams`
   // is a stable memo (only changes when a filter changes), so this fires once per change.
@@ -217,7 +222,7 @@ const Dashboard = () => {
   // Keep the split-view map complete: fetch coordinates for ALL filtered rows
   // (not just the current page) whenever the map is visible and filters change.
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !hasDashboardAccess) return;
     const mapVisible = splitViewEnabled && effectiveView === 'cards';
     if (!mapVisible) return;
     let active = true;
@@ -225,7 +230,7 @@ const Dashboard = () => {
       .then((rows) => { if (active) setMapCoords(Array.isArray(rows) ? rows : []); })
       .catch(() => { if (active) setMapCoords([]); });
     return () => { active = false; };
-  }, [isAuthenticated, debouncedParams, splitViewEnabled, effectiveView]);
+  }, [isAuthenticated, hasDashboardAccess, debouncedParams, splitViewEnabled, effectiveView]);
 
   // MapView reads coordinates from top-level latitude/longitude; adapt the
   // lightweight { id, lat, lng } payload from the coordinates endpoint.
@@ -819,6 +824,20 @@ const Dashboard = () => {
       render: (text) => <span>{text}</span>,
     },
   ];
+
+  // The warehouse routes are gated on the DASHBOARD capability server-side, so an
+  // account that isn't on the employee roster would otherwise sign in successfully
+  // and then meet a bare error toast over an empty page. Sessions predating the
+  // capabilities map are treated as allowed, so a stale token locks nobody out.
+  if (!hasDashboardAccess) {
+    return (
+      <Result
+        status="403"
+        title="No dashboard access"
+        subTitle="Your account isn't set up for the dashboard yet. Ask an admin to grant you access."
+      />
+    );
+  }
 
   return (
     <div style={{ padding: isMobile ? '8px' : '24px' }}>
