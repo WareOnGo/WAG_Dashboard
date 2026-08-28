@@ -9,7 +9,8 @@ import {
   LogoutOutlined,
   SafetyCertificateOutlined,
   EnvironmentOutlined,
-  GlobalOutlined
+  GlobalOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
@@ -89,6 +90,13 @@ const MobileNavigation = ({ visible, onClose }) => {
       icon: <EnvironmentOutlined />,
       label: 'Micro-Markets',
       href: '/micro-markets'
+    }] : []),
+    // Admins only: employee roster and dashboard access management
+    ...(user?.isAdmin ? [{
+      key: 'admin',
+      icon: <TeamOutlined />,
+      label: 'Admin Panel',
+      href: '/admin'
     }] : []),
     // Map view — available to anyone who can see the warehouse list, matching
     // the API gate on /api/geo (JWT only, no capability requirement).

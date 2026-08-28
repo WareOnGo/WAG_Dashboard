@@ -28,6 +28,7 @@ const { Content } = Layout
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const ReviewQueue = lazy(() => import('./components/ReviewQueue'))
 const MicroMarkets = lazy(() => import('./components/MicroMarkets'))
+const AdminUsers = lazy(() => import('./components/AdminUsers'))
 // Pulls in mapbox-gl (~1MB), so lazy like the other map-bearing routes.
 const GeoExplorer = lazy(() => import('./components/GeoExplorer'))
 
@@ -187,6 +188,29 @@ function AppContent() {
             }}>
               <ProtectedRoute>
                 <ReviewQueue />
+              </ProtectedRoute>
+            </Content>
+          </Layout>
+        } />
+
+        {/* Employee access admin (admin-only; AdminUsers renders a 403 for non-admins) */}
+        <Route path="/admin" element={
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
+            <MobileHeader
+              onMenuToggle={handleMenuToggle}
+              isMenuOpen={mobileMenuOpen}
+            />
+            <MobileNavigation
+              visible={mobileMenuOpen}
+              onClose={handleMenuClose}
+            />
+            <Content style={{
+              background: 'var(--bg-primary)',
+              minHeight: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
+              padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
+            }}>
+              <ProtectedRoute>
+                <AdminUsers />
               </ProtectedRoute>
             </Content>
           </Layout>

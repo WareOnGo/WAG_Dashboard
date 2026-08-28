@@ -1,0 +1,236 @@
+.admin-users {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.admin-users__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.admin-users__intro {
+  min-width: 0;
+  max-width: 46ch;
+}
+
+.admin-users__title {
+  margin: 0 0 var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+/* A one-line read on the roster, sitting under the description so the numbers
+   are visible without scanning the table. */
+.admin-users__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.admin-users__stat {
+  padding: 2px 10px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.admin-users__stat strong {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-users__avatar {
+  flex-shrink: 0;
+  background: rgba(22, 119, 255, 0.18);
+  color: #6cb2ff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.admin-users__sub {
+  font-size: 12px;
+}
+
+/* ── Toolbar ───────────────────────────────────────────────────────────────
+   A global rule gives .ant-input a 44px min-height (touch target), which left
+   the search field visibly taller than the 32px buttons beside it. Rather than
+   weaken that rule, every toolbar control is matched to the same height so they
+   sit on one baseline. */
+.admin-users__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.admin-users__filters,
+.admin-users__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.admin-users__search {
+  width: 280px;
+}
+
+.admin-users__toolbar .ant-btn,
+.admin-users__toolbar .ant-segmented {
+  min-height: var(--touch-target-min);
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-users__toolbar .ant-segmented-item-label {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--touch-target-min) - 8px);
+  padding-inline: var(--spacing-md);
+}
+
+/* Phone-only scope filter, shaped like the capability rows on the cards below. */
+.admin-users__scope {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: 10px var(--spacing-md);
+  min-height: var(--touch-target-min);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 10px);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Square off the icon-only refresh so it reads as a peer of the switch/segment
+   rather than a truncated button. */
+.admin-users__actions .ant-btn-icon-only {
+  width: var(--touch-target-min);
+}
+
+/* The four capability switches are grouped under one "Access" header; a pair of
+   hairlines separates that block from the identity columns either side of it. */
+.admin-users .ant-table-thead th.admin-users__group {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* A deactivated row still needs to be readable — it is dimmed, not hidden, and
+   its name stays at full strength so the row is still scannable. */
+.admin-users__row--inactive td {
+  opacity: 0.55;
+}
+
+.admin-users__row--inactive td:first-child {
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .admin-users__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-users__intro {
+    max-width: none;
+  }
+
+  /* Stack into full-width rows: search, then scope, then the actions — each
+     comfortably tappable instead of collapsing into a cramped single row. */
+  .admin-users__toolbar,
+  .admin-users__filters {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-users__search {
+    width: 100%;
+  }
+
+  .admin-users__actions {
+    width: 100%;
+  }
+
+  /* The primary action takes the remaining width; refresh stays a square icon. */
+  .admin-users__actions .ant-btn:not(.ant-btn-icon-only) {
+    flex: 1;
+  }
+}
+
+
+/* ── Phone layout ──────────────────────────────────────────────────────────
+   One card per employee, replacing the table below the breakpoint. */
+.admin-users__cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.admin-users__card {
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-md, 10px);
+  background: var(--bg-secondary, rgba(255, 255, 255, 0.02));
+  overflow: hidden;
+}
+
+.admin-users__card--inactive .admin-users__card-head,
+.admin-users__card--inactive .admin-users__card-caps {
+  opacity: 0.6;
+}
+
+.admin-users__card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.admin-users__card-id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  /* Long addresses wrap instead of pushing the Edit button off the card. */
+  overflow-wrap: anywhere;
+}
+
+.admin-users__card-caps {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Each capability is a full-width row, so the tap target is the row rather than
+   the switch sitting at the end of it. */
+.admin-users__card-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: 10px var(--spacing-md);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.admin-users__card-cap + .admin-users__card-cap {
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+}
+
+.admin-users__card-cap--active {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font-weight: 500;
+}

@@ -10,7 +10,8 @@ import {
   SafetyCertificateOutlined,
   DashboardOutlined,
   GlobalOutlined,
-  CloseOutlined
+  CloseOutlined,
+  TeamOutlined
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
@@ -290,6 +291,15 @@ const MobileHeader = ({ onMenuToggle }) => {
           href: '/micro-markets',
           icon: <EnvironmentOutlined />,
           tooltip: 'Draw and name micro-market areas',
+        }]
+      : []),
+    ...(user?.isAdmin
+      ? [{
+          key: 'admin',
+          label: 'Admin Panel',
+          href: '/admin',
+          icon: <TeamOutlined />,
+          tooltip: 'Manage employees and who can access what',
         }]
       : []),
     // Available to anyone who can see the warehouse list, matching the gate on
