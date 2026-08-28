@@ -13,26 +13,13 @@
   padding: 0 8px;
 }
 
-/* Loading state */
-.card-view--loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 300px;
-  background: rgba(31, 31, 31, 0.4);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-}
-
-.card-view--loading .ant-spin {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.card-view--loading .ant-spin-text {
-  color: rgba(255, 255, 255, 0.65);
-}
+/* Loading state.
+   Deliberately has no styles of its own. This container holds the skeleton grid,
+   so it has to lay out exactly like the loaded grid does — centring, a minimum
+   height or a panel of its own would place the cards somewhere the real cards
+   never go, and move them again when the data lands. It carried all three (plus
+   spinner colours) from when this state rendered a <Spin> rather than a grid.
+   The class stays as a state hook; geometry comes from .card-view. */
 
 /* Empty state */
 .card-view--empty {
@@ -172,7 +159,6 @@
     animation: none;
   }
 
-  .card-view--loading,
   .card-view--empty {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -203,7 +189,6 @@
 /* High contrast mode support */
 @media (prefers-contrast: high) {
 
-  .card-view--loading,
   .card-view--empty {
     border-color: rgba(255, 255, 255, 0.5);
     background: rgba(0, 0, 0, 0.8);

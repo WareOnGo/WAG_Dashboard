@@ -278,47 +278,6 @@
   color: #ff4d4f;
 }
 
-/* ── Loading placeholder ──────────────────────────────────────────────────────
-   CardView's SkeletonCard reuses the structural classes above — header, image,
-   content, metrics, actions — so the placeholder's geometry comes from the same
-   rules as the real card and cannot drift from it. Only the shimmer and the
-   stand-in text blocks live here. */
-.simple-warehouse-card--skeleton {
-  cursor: default;
-}
-
-.simple-warehouse-card--skeleton:hover {
-  transform: none;
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: none;
-}
-
-.swc-skeleton__block {
-  background: linear-gradient(90deg,
-      rgba(255, 255, 255, 0.06) 25%,
-      rgba(255, 255, 255, 0.14) 37%,
-      rgba(255, 255, 255, 0.06) 63%);
-  background-size: 400% 100%;
-  animation: swc-skeleton-shimmer 1.4s ease infinite;
-  border-radius: 4px;
-}
-
-/* The image block inherits its height, radius and spacing from
-   .simple-warehouse-card__image, so it must not be given its own. */
-.simple-warehouse-card__image.swc-skeleton__block {
-  border-radius: 6px;
-}
-
-@keyframes swc-skeleton-shimmer {
-  0% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0 50%;
-  }
-}
-
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .simple-warehouse-card {
@@ -438,7 +397,213 @@
   .simple-warehouse-card:hover {
     transform: none;
   }
+}
 
+/* ── Loading placeholder ──────────────────────────────────────────────────────
+   CardView's SkeletonCard reuses the structural classes above — header, image,
+   content, metrics, actions — so the placeholder's geometry comes from the same
+   rules as the real card and cannot drift from it. Only the shimmer and the
+   stand-in text lines live here.
+
+   This section sits at the end of the file on purpose: its container queries
+   have to come after the mobile media query to win on source order. */
+.simple-warehouse-card--skeleton {
+  cursor: default;
+  /* Lets the stand-in lines respond to the card's own width. They have to: the
+     narrowest cards in this grid appear at a ~1024px viewport (four across at
+     195px), which is wider than a phone, so a media query cannot see them. */
+  container-type: inline-size;
+}
+
+.simple-warehouse-card--skeleton:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.swc-skeleton__block {
+  background: linear-gradient(90deg,
+      rgba(255, 255, 255, 0.06) 25%,
+      rgba(255, 255, 255, 0.14) 37%,
+      rgba(255, 255, 255, 0.06) 63%);
+  background-size: 400% 100%;
+  animation: swc-skeleton-shimmer 1.4s ease infinite;
+  border-radius: 4px;
+}
+
+/* The image block inherits its height, radius and spacing from
+   .simple-warehouse-card__image, so it must not be given its own. */
+.simple-warehouse-card__image.swc-skeleton__block {
+  border-radius: 6px;
+}
+
+@keyframes swc-skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* Stand-in blocks.
+   Every height is the measured height of the row it replaces. They live here
+   rather than in the component because the real rows change with two things at
+   once — the stylesheet's breakpoint and the card's own width — and only CSS can
+   see either. Measured on a rendered card:
+
+     card content width   265   225   161   159   292
+     location              22    22    41    38    22
+     contact (row total)   44    44    61    57    27
+     metric label/value    16    16    16    14    14
+     action button         36    36    36    32    32                          */
+.swc-skeleton__line--id {
+  height: 22px;
+}
+
+.swc-skeleton__line--status {
+  height: 27px;
+}
+
+.swc-skeleton__line--title {
+  height: 21px;
+  margin-bottom: 8px;
+}
+
+.swc-skeleton__line--owner {
+  height: 19px;
+  margin-bottom: 12px;
+}
+
+.swc-skeleton__line--location {
+  height: 22px;
+  margin-bottom: 8px;
+}
+
+.swc-skeleton__line--contact {
+  height: 22px;
+  margin-bottom: 4px;
+}
+
+/* The phone-reveal control, which sits below the contact name when there is room. */
+.swc-skeleton__line--phone {
+  height: 18px;
+  margin-bottom: 8px;
+}
+
+.swc-skeleton__line--metric-label {
+  height: 16px;
+  margin: 0 auto 4px;
+}
+
+.swc-skeleton__line--metric-value {
+  height: 16px;
+  margin: 0 auto;
+}
+
+.swc-skeleton__line--chip {
+  height: 20px;
+}
+
+.swc-skeleton__line--action {
+  flex: 1;
+  height: 36px;
+}
+
+@media (max-width: 768px) {
+  .swc-skeleton__line--title {
+    height: 20px;
+  }
+
+  .swc-skeleton__line--location {
+    margin-bottom: 6px;
+  }
+
+  /* A full-width card fits the contact name and its reveal button on one line. */
+  .swc-skeleton__line--contact {
+    height: 27px;
+    margin-bottom: 6px;
+  }
+
+  .swc-skeleton__line--phone {
+    display: none;
+  }
+
+  .swc-skeleton__line--metric-label,
+  .swc-skeleton__line--metric-value {
+    height: 14px;
+  }
+
+  .swc-skeleton__line--action {
+    height: 32px;
+  }
+}
+
+/* A wide card: the contact name and its reveal button share one line, so the
+   separate stand-in for the button is not needed. Measured at 305px of content
+   and up; at 265px the real row is already two lines. */
+@container (min-width: 285px) {
+  .swc-skeleton__line--contact {
+    height: 27px;
+    margin-bottom: 8px;
+  }
+
+  .swc-skeleton__line--phone {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .swc-skeleton__line--contact {
+      margin-bottom: 6px;
+    }
+  }
+}
+
+/* On a phone stylesheet, the contact name and its reveal button share a line only
+   while the card is genuinely wide (a single column at 390px gives 292px of
+   content). Two columns at 600px leave 230px, where the real row already wraps. */
+@container (max-width: 260px) {
+  @media (max-width: 768px) {
+    .swc-skeleton__line--contact {
+      height: 44px;
+    }
+  }
+}
+
+/* A narrow card: the real location and contact rows wrap, and the reveal button
+   joins the contact row instead of sitting below it. Card-relative rather than
+   viewport-relative, because the narrowest cards in this grid appear at a
+   ~1024px viewport (four across), not on a phone. The threshold is a content-box
+   width — that is what an inline-size container query measures. */
+@container (max-width: 200px) {
+  .swc-skeleton__line--location {
+    height: 41px;
+  }
+
+  .swc-skeleton__line--contact {
+    height: 61px;
+    margin-bottom: 8px;
+  }
+
+  .swc-skeleton__line--phone {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .swc-skeleton__line--location {
+      height: 38px;
+      margin-bottom: 6px;
+    }
+
+    .swc-skeleton__line--contact {
+      height: 57px;
+      margin-bottom: 6px;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
   .swc-skeleton__block {
     animation: none;
   }

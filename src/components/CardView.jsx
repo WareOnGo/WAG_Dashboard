@@ -4,9 +4,16 @@ import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
 import './CardView.css';
 
-/** One shimmer block standing in for a line of text or a control. */
-const Block = ({ width, height, style }) => (
-  <div className="swc-skeleton__block" style={{ width, height, ...style }} />
+/**
+ * One shimmer block standing in for a line of text or a control.
+ *
+ * `line` names the row it replaces; every height and margin comes from
+ * SimpleWarehouseCard.css, which is the only place that can see both the active
+ * breakpoint and how wide the card ended up. Only widths are passed here, since
+ * those are just the shape of the text being stood in for.
+ */
+const Block = ({ width, line }) => (
+  <div className={`swc-skeleton__block swc-skeleton__line--${line}`} style={{ width }} />
 );
 
 /**
@@ -23,59 +30,64 @@ const Block = ({ width, height, style }) => (
  * a real card and missing the header outright, so the grid jumped when a page
  * landed.
  */
-const SkeletonCard = ({ isMobile }) => {
-  // Block heights are the line boxes measured on a rendered card, not guesses:
-  // id 22, status badge 27, title 21, owner type 19, location 22, metric label 15
-  // over value 16. Mobile drops each font by ~1px, so the blocks follow.
-  const m = isMobile;
+const SkeletonCard = () => (
+  <div className="simple-warehouse-card simple-warehouse-card--skeleton" aria-hidden="true">
+    {/* Header: id on the left, visibility badge on the right */}
+    <div className="simple-warehouse-card__header">
+      <Block width={64} line="id" />
+      <Block width={62} line="status" />
+    </div>
 
-  return (
-    <div className="simple-warehouse-card simple-warehouse-card--skeleton" aria-hidden="true">
-      {/* Header: id on the left, visibility badge on the right */}
-      <div className="simple-warehouse-card__header">
-        <Block width={64} height={m ? 20 : 22} />
-        <Block width={62} height={m ? 25 : 27} />
+    {/* Image — height, radius and spacing all come from the real class */}
+    <div className="simple-warehouse-card__image swc-skeleton__block" />
+
+    <div className="simple-warehouse-card__content">
+      <div className="simple-warehouse-card__top-content">
+        {/* Warehouse type, then owner type */}
+        <Block width="55%" line="title" />
+        <Block width="30%" line="owner" />
+
+        {/* City, state and the zone tag */}
+        <Block width="85%" line="location" />
+
+        {/* The contact name, then the phone-reveal control below it */}
+        <Block width="70%" line="contact" />
+        <Block width={110} line="phone" />
       </div>
 
-      {/* Image — height, radius and spacing all come from the real class */}
-      <div className="simple-warehouse-card__image swc-skeleton__block" />
+      <div className="simple-warehouse-card__bottom-content">
+        {/* Metrics keep the real tinted grid, so the columns reflow where they do */}
+        <div className="simple-warehouse-card__metrics">
+          {['area', 'rate', 'docks'].map((key) => (
+            <div className="simple-warehouse-card__metric" key={key}>
+              <Block width="70%" line="metric-label" />
+              <Block width="90%" line="metric-value" />
 
-      <div className="simple-warehouse-card__content">
-        <div className="simple-warehouse-card__top-content">
-          {/* Warehouse type, then owner type */}
-          <Block width="55%" height={m ? 20 : 21} style={{ marginBottom: 8 }} />
-          <Block width="30%" height={m ? 17 : 19} style={{ marginBottom: 12 }} />
-
-          {/* Location row: city, state and the zone tag */}
-          <Block width="85%" height={m ? 20 : 22} style={{ marginBottom: m ? 6 : 8 }} />
-
-          {/* Contact: the name, with the phone-reveal control below it — that
-              control sits on its own line at the card widths this grid produces. */}
-          <Block width="70%" height={m ? 20 : 22} style={{ marginBottom: 4 }} />
-          <Block width={110} height={m ? 16 : 18} style={{ marginBottom: m ? 6 : 8 }} />
+              {/* The offered-area metric carries the space-breakdown chips
+                  whenever a warehouse lists more than one area. Reusing the real
+                  container and the real chip widths (54 and 46) means these wrap
+                  onto a second line at exactly the card widths the real ones do.
+                  Cards stretch to the tallest in their row, so reserving this row
+                  is the right way to be wrong when no warehouse on the page has it. */}
+              {key === 'area' && (
+                <div className="simple-warehouse-card__space-breakdown">
+                  <Block width={54} line="chip" />
+                  <Block width={46} line="chip" />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        <div className="simple-warehouse-card__bottom-content">
-          {/* Metrics keep the real tinted grid, so the columns wrap where they do */}
-          <div className="simple-warehouse-card__metrics">
-            {['area', 'rate', 'docks'].map((key) => (
-              <div className="simple-warehouse-card__metric" key={key}>
-                <Block width="70%" height={m ? 14 : 15} style={{ margin: '0 auto 4px' }} />
-                <Block width="90%" height={m ? 15 : 16} style={{ margin: '0 auto' }} />
-              </div>
-            ))}
-          </div>
-
-          {/* Actions inherit the top border, gap and button height from the real class */}
-          <div className="simple-warehouse-card__actions">
-            <Block height={m ? 32 : 36} style={{ flex: 1 }} />
-            <Block height={m ? 32 : 36} style={{ flex: 1 }} />
-          </div>
+        {/* Actions inherit the top border and gap from the real class */}
+        <div className="simple-warehouse-card__actions">
+          <Block line="action" />
+          <Block line="action" />
         </div>
       </div>
     </div>
-  );
-};
+  </div>
+);
 
 /**
  * Fixed CardView Component with stable pagination
@@ -137,7 +149,7 @@ const CardView = ({
         <Row gutter={[16, 16]}>
           {Array.from({ length: skeletonCount }, (_, i) => (
             <Col key={i} {...colSpan}>
-              <SkeletonCard isMobile={isMobile} />
+              <SkeletonCard />
             </Col>
           ))}
         </Row>
