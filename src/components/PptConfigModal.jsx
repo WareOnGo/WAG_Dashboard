@@ -9,6 +9,7 @@ import {
   AppstoreOutlined,
   ShopOutlined,
   TruckOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts';
@@ -40,7 +41,24 @@ const PPT_TYPES = [
     title: 'TCI (External)',
     desc: 'TCI-branded 4:3 deck for external sharing',
   },
+  // Kept last: still being trialled, so it should not be the first thing the eye
+  // lands on when picking a deck for a client.
+  {
+    value: 'v3',
+    icon: <ExperimentOutlined />,
+    title: 'PPT V3 (beta)',
+    desc: 'WareOnGo branding with the full specification table and a dedicated photos slide',
+  },
 ];
+
+/**
+ * Decks that cap photo selection at four per warehouse — the layouts have four
+ * photo slots and silently drop the rest.
+ */
+const CAPPED_PHOTO_TYPES = ['v2', 'v3', 'godamwale', 'tci'];
+
+/** Decks that accept the deck-content redaction flags. */
+const REDACTABLE_TYPES = ['v2', 'v3'];
 
 /**
  * Multi-step modal for PPT configuration:
@@ -178,7 +196,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     setSelectedImages((prev) => {
       const current = prev[warehouseId] || [];
       const isSelected = current.includes(url);
-      const isStandard = pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
+      const isStandard = CAPPED_PHOTO_TYPES.includes(pptType);
 
       if (isSelected) {
         return { ...prev, [warehouseId]: current.filter((u) => u !== url) };
@@ -207,8 +225,9 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           clientRequirement: clientRequirement.trim(),
           pocName: pocName.trim(),
           pocContact: pocContact.trim() ? `+91${pocContact.trim()}` : '',
-          // v2-only redaction flags (deck-level); unchecked → false redacts content
-          ...(pptType === 'v2' && { commercials, mapsLocation, pocSlide }),
+          // Deck-level redaction flags, sent only to the decks that honour them;
+          // unchecked → false redacts the corresponding content.
+          ...(REDACTABLE_TYPES.includes(pptType) && { commercials, mapsLocation, pocSlide }),
         };
 
     onGenerate({ pptType, customDetails, selectedImages });
@@ -290,7 +309,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     }
 
     const selected = selectedImages[warehouse.id] || [];
-    const isStandard = pptType === 'v2' || pptType === 'godamwale' || pptType === 'tci';
+    const isStandard = CAPPED_PHOTO_TYPES.includes(pptType);
 
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -441,7 +460,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           )}
         </div>
 
-        {pptType === 'v2' && (
+        {REDACTABLE_TYPES.includes(pptType) && (
           <div>
             <label style={labelStyle}>Deck Content</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

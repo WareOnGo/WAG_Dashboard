@@ -18,7 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMobileTools } from '../contexts/MobileToolsContext';
 import { warehouseService } from '../services/warehouseService';
 import RevealReasonModal from './RevealReasonModal';
-import { generateDetailedPpt, generatePptV2, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
+import { generateDetailedPpt, generatePptV2, generatePptV3, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
 
 const { Header } = Layout;
@@ -364,6 +364,8 @@ const MobileHeader = ({ onMenuToggle }) => {
         await generateDetailedPpt({ ids, selectedImages, customDetails });
       } else if (pptType === 'v2') {
         await generatePptV2({ ids, selectedImages, customDetails });
+      } else if (pptType === 'v3') {
+        await generatePptV3({ ids, selectedImages, customDetails });
       } else if (pptType === 'godamwale') {
         await generateGodamwalePpt({ ids, selectedImages, customDetails });
       } else if (pptType === 'tci') {

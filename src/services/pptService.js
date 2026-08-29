@@ -133,6 +133,15 @@ export async function generatePptV2({ ids, selectedImages, customDetails }) {
 }
 
 /**
+ * Generate and download a v3 PPT — v2's branding with the fuller specification
+ * table and the photographs on a slide of their own.
+ */
+export async function generatePptV3({ ids, selectedImages, customDetails }) {
+  const filename = buildFilename(customDetails, ids, false);
+  await postPpt('/generate-ppt-v3', { ids, selectedImages, customDetails }, filename);
+}
+
+/**
  * Generate and download a Godamwale-branded PPT (external).
  * Photos come exclusively from selectedImages; DB photos are not used.
  */
