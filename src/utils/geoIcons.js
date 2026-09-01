@@ -38,6 +38,16 @@ export const CATEGORY_COLORS = {
   railway_station: '#6366f1',
   aerodrome: '#06b6d4',
   industrial: '#94a3b8',
+  // Categories added by the national OSM ingest. Thirteen cool hues cannot all
+  // be told apart at 22px, so these four lean on the GLYPH for identity and use
+  // colour only to group: metro sits in the same indigo family as the railway
+  // because a commuter reads them as one network. Every badge is dark enough to
+  // carry a white glyph — the reason the first pass at city_centre (sky-300) was
+  // rejected, since a pale badge erases the very thing that names it.
+  metro_station: '#4338ca',
+  city_centre: '#1e3a8a',
+  seaport: '#0369a1',
+  highway_access: '#475569',
 };
 
 export const FALLBACK_COLOR = '#64748b';
@@ -57,6 +67,15 @@ const GLYPHS = {
   railway_station: 'M6 5a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3l2 3h-2.5l-1.5-2.5h-5L6.5 20H4l2-3a3 3 0 0 1-3-3V5h3zm2 2v4h8V7H8zm1 6.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4zm6 0a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z',
   aerodrome: 'M21 15v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V8l-8 5v2l8-2.5V17l-2.5 2v1.5L12 19.5l3.5 1V19L13 17v-4.5L21 15z',
   industrial: 'M3 21V11l5 3V11l5 3V11l5 3V6h3v15H3zm3-4v2h3v-2H6zm5 0v2h3v-2h-3z',
+  // A letterform rather than a train: railway_station is already a carriage, and
+  // at 22px two vehicle silhouettes are one silhouette.
+  metro_station: 'M4 20V4h4l4 7.5L16 4h4v16h-3.6V10.2L12 17.6 7.6 10.2V20H4z',
+  city_centre: 'M2 21V8l5-3 5 3v3h4l5 3v10H2zm3-9v2h2v-2H5zm0 5v2h2v-2H5zm4-5v2h2v-2H9zm0 5v2h2v-2H9zm7 0v2h2v-2h-2zm0-4v2h2v-2h-2z',
+  seaport: 'M12 1.6a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm-1.3 5.5h2.6v1.6H16.4v2.6h-3.1v6.9c2.1-.6 3.7-2.2 4.2-4.2H15.9l3.05-4.6 3.05 4.6h-1.7c-.65 4.2-4 7.4-8.3 7.9-4.3-.5-7.65-3.7-8.3-7.9H2l3.05-4.6L8.1 14.4H6.4c.5 2 2.1 3.6 4.3 4.2v-6.9H7.6V9.1h3.1V7.1z',
+  // Road in perspective with a dashed centre line. The dashes are carved by
+  // winding direction, wound the opposite way to the outer trapezoid exactly as
+  // industrial's windows are — same way up, and they fill in solid instead.
+  highway_access: 'M10 3h4l6 18H4L10 3zM11.3 5.6v2.4h1.4V5.6zM11 9.4v2.7h2V9.4zM10.6 13.6v3.2h2.8v-3.2z',
   warehouse: 'M3 10l9-6 9 6v11h-5v-7H8v7H3V10z',
   own: 'M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8L12 2z',
   // Glyphs for our own point categories.

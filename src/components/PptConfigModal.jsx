@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts';
+import { describeLatLngInput } from '../utils/latLngInput';
 
 const { Text, Title } = Typography;
 
@@ -91,6 +92,10 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const [pocName, setPocName] = useState('');
   const [pocContact, setPocContact] = useState('');
 
+  // Free text, parsed on every keystroke rather than stored as coordinates: the
+  // raw string is what the user can see and correct, so it is what state holds.
+  const [clientLocation, setClientLocation] = useState('');
+
   // WareOnGo POCs fetched from the verified-numbers table (single API call),
   // used to populate the POC dropdown. `selectedPocId` tracks the chosen row.
   const [pocs, setPocs] = useState([]);
@@ -113,6 +118,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setClientRequirement('');
       setPocName('');
       setPocContact('');
+      setClientLocation('');
       setSelectedPocId(undefined);
       setCommercials(true);
       setMapsLocation(true);
@@ -214,6 +220,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
   const handleSubmit = () => {
     const isDetailed = pptType === 'detailed';
+    const clientSite = describeLatLngInput(clientLocation);
     const customDetails = isDetailed
       ? {
           companyName: clientName.trim(),
@@ -225,6 +232,10 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           clientRequirement: clientRequirement.trim(),
           pocName: pocName.trim(),
           pocContact: pocContact.trim() ? `+91${pocContact.trim()}` : '',
+          // Only v3 renders the comparison slide, and only when a point is given
+          // — an unparseable or empty field sends nothing, which the backend
+          // reads as "omit that slide" rather than as an error.
+          ...(pptType === 'v3' && clientSite.coords && { clientLocation: clientSite.coords }),
           // Deck-level redaction flags, sent only to the decks that honour them;
           // unchecked → false redacts the corresponding content.
           ...(REDACTABLE_TYPES.includes(pptType) && { commercials, mapsLocation, pocSlide }),
@@ -441,6 +452,30 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
             placeholder="e.g., Nelamangala, Bangalore - 100,000 sft"
           />
         </div>
+
+        {pptType === 'v3' && (() => {
+          const site = describeLatLngInput(clientLocation);
+          return (
+            <div>
+              <label style={labelStyle}>Client&apos;s own location (optional)</label>
+              <Input
+                value={clientLocation}
+                onChange={(e) => setClientLocation(e.target.value)}
+                placeholder="Paste coordinates or a Google Maps link"
+                status={site.status === 'error' ? 'error' : undefined}
+              />
+              <Text style={{
+                fontSize: '12px',
+                display: 'block',
+                marginTop: '6px',
+                color: site.status === 'error' ? '#ff7875' : 'rgba(255,255,255,0.45)',
+              }}>
+                {site.message
+                  || 'Adds a slide ranking every property by road distance from this point. Leave blank to omit it.'}
+              </Text>
+            </div>
+          );
+        })()}
 
         <div>
           <label style={labelStyle}>
