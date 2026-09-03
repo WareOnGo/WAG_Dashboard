@@ -43,7 +43,22 @@ export const warehouseService = {
    */
   getByIds: async (ids) => {
     const csv = Array.isArray(ids) ? ids.join(',') : String(ids);
-    const res = await apiClient.get('/warehouses', { params: { ids: csv, all: 'true' } });
+    const res = await apiClient.get('/warehouses', {
+      params: {
+        ids: csv,
+        all: 'true',
+        // The PPT picker needs these to group images by Indoor/Outdoor/Documents
+        // and to pre-tick the layout drawings. Without them
+        // groupImagesByClassification returns null, the picker falls back to one
+        // flat grid where every tile counts as a photograph, and a CAD drawing
+        // clicked there is sent as a photograph — so it lands in the photo grid
+        // instead of getting its own Layout slide.
+        //
+        // Cheap here despite `all=true`, because this endpoint is only ever called
+        // with an explicit id list.
+        includeImageLabels: 'true',
+      },
+    });
     return Array.isArray(res) ? res : (res?.data ?? []);
   },
 
