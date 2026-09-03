@@ -14,9 +14,21 @@
  * mean silently sending nothing, so it is rejected with a message saying to open
  * the link and copy the coordinates instead.
  *
- * Order matters. A place URL contains BOTH an @-segment (the map centre, which
- * is what the eye is on) and often a `!3d`/`!4d` pair (the place's own point).
- * The @-segment is checked first because it is the one the user is looking at.
+ * ORDER MATTERS, AND THE OBVIOUS ORDER IS WRONG. A place URL carries both an
+ * @-segment and a `!3d`/`!4d` pair, and they are different things: `!3d!4d` is the
+ * PLACE, while `@` is merely where the map viewport happened to be centred, with
+ * the zoom level appended.
+ *
+ * This file originally preferred `@`, on the reasoning that it is "what the user is
+ * looking at". Warehouse 2038 is what that costs. Its link resolved to
+ * `/maps/place/…Panvel…/@19.1631823,72.6823597,10z/…!3d18.8799339!4d73.103823` —
+ * the place is in Panvel, the viewport centre at zoom 10 is 50km away in the
+ * Arabian Sea, and the sea is what got stored. Its connectivity slide rendered a
+ * map of open water and nine distances measured from it.
+ *
+ * So when a URL names a place, the place's own coordinates win. The @-segment is
+ * the fallback for a plain map URL, where there is no place and the centre is
+ * genuinely the subject.
  */
 
 /** India's bounding box, generously padded. Used only to warn, never to reject. */
@@ -39,10 +51,10 @@ export function parseLatLng(raw) {
 
   const num = '(-?\\d{1,3}(?:\\.\\d+)?)';
   const patterns = [
-    new RegExp(`@${num},${num}`),                       // /maps/place/.../@lat,lng,17z
+    new RegExp(`!3d${num}!4d${num}`),                   // the place itself — see above
     new RegExp(`[?&](?:q|query|ll|center|daddr)=${num},${num}`, 'i'),
     new RegExp(`^${num}\\s*[,;\\s]\\s*${num}$`),        // a bare pasted pair
-    new RegExp(`!3d${num}!4d${num}`),                   // the place's own point
+    new RegExp(`@${num},${num}`),                       // viewport centre, last resort
   ];
 
   for (const re of patterns) {
