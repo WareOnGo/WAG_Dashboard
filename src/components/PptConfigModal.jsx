@@ -10,10 +10,12 @@ import {
   ShopOutlined,
   TruckOutlined,
   ExperimentOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts';
 import { describeLatLngInput } from '../utils/latLngInput';
+import { groupImagesByClassification } from '../utils/mediaUtils';
 
 const { Text, Title } = Typography;
 
@@ -56,7 +58,16 @@ const PPT_TYPES = [
  * Decks that cap photo selection at four per warehouse — the layouts have four
  * photo slots and silently drop the rest.
  */
-const CAPPED_PHOTO_TYPES = ['v2', 'v3', 'godamwale', 'tci'];
+/**
+ * Decks that take at most four photographs per property.
+ *
+ * v3 is deliberately absent: it paginates photographs across as many slides as it
+ * needs, so a cap would only throw away images the deck can show. The others each
+ * have a single fixed photo grid with four cells.
+ */
+const CAPPED_PHOTO_TYPES = ['v2', 'godamwale', 'tci'];
+/** Decks that render layout drawings on their own slides. */
+const CAD_CAPABLE_TYPES = ['v3'];
 
 /** Decks that accept the deck-content redaction flags. */
 const REDACTABLE_TYPES = ['v2', 'v3'];
@@ -87,6 +98,9 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   // Step 2 state
   const [warehouses, setWarehouses] = useState([]);
   const [selectedImages, setSelectedImages] = useState({}); // { warehouseId: [url, ...] }
+  // Layout drawings, kept separate from photographs because they land on their own
+  // slides. An image is one or the other, never both — it appears once in the deck.
+  const [selectedCad, setSelectedCad] = useState({}); // { warehouseId: [url, ...] }
   const [clientName, setClientName] = useState('');
   const [clientRequirement, setClientRequirement] = useState('');
   const [pocName, setPocName] = useState('');
@@ -114,6 +128,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setPptType('v2');
       setWarehouses([]);
       setSelectedImages({});
+      setSelectedCad({});
       setClientName('');
       setClientRequirement('');
       setPocName('');
@@ -198,6 +213,25 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   };
 
   // Toggle image selection
+  /** Marking an image as a layout takes it out of the photographs, and vice versa. */
+  const toggleCad = (warehouseId, url) => {
+    setSelectedCad((prev) => {
+      const current = prev[warehouseId] || [];
+      if (current.includes(url)) {
+        return { ...prev, [warehouseId]: current.filter((u) => u !== url) };
+      }
+      setSelectedImages((prevPhotos) => ({
+        ...prevPhotos,
+        [warehouseId]: (prevPhotos[warehouseId] || []).filter((u) => u !== url),
+      }));
+      setSelectedCad((prevCad) => ({
+        ...prevCad,
+        [warehouseId]: (prevCad[warehouseId] || []).filter((u) => u !== url),
+      }));
+      return { ...prev, [warehouseId]: [...current, url] };
+    });
+  };
+
   const toggleImage = (warehouseId, url) => {
     setSelectedImages((prev) => {
       const current = prev[warehouseId] || [];
@@ -241,7 +275,19 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           ...(REDACTABLE_TYPES.includes(pptType) && { commercials, mapsLocation, pocSlide }),
         };
 
-    onGenerate({ pptType, customDetails, selectedImages });
+    // v3 renders layout drawings on their own slides, so its selection carries the
+    // two kinds separately. Every other deck takes the flat array it always has —
+    // the backend accepts both shapes, so nothing else had to change.
+    const payloadImages = CAD_CAPABLE_TYPES.includes(pptType)
+      ? Object.fromEntries(
+        warehouses.map((wh) => [wh.id, {
+          photos: selectedImages[wh.id] || [],
+          cad: selectedCad[wh.id] || [],
+        }]).filter(([, v]) => v.photos.length || v.cad.length),
+      )
+      : selectedImages;
+
+    onGenerate({ pptType, customDetails, selectedImages: payloadImages });
   };
 
   // --- Render helpers ---
@@ -299,6 +345,62 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     </div>
   );
 
+  /**
+   * One image tile. `mode` decides what a click means in the section it sits in.
+   */
+  const renderTile = (warehouse, url, mode) => {
+    const isCad = mode === 'cad';
+    const active = isCad
+      ? (selectedCad[warehouse.id] || []).includes(url)
+      : (selectedImages[warehouse.id] || []).includes(url);
+    const accent = isCad ? '#fa8c16' : '#1890ff';
+
+    return (
+      <div
+        key={url}
+        onClick={() => (isCad ? toggleCad(warehouse.id, url) : toggleImage(warehouse.id, url))}
+        style={{
+          position: 'relative',
+          width: '90px',
+          height: '90px',
+          borderRadius: '6px',
+          overflow: 'hidden',
+          cursor: 'pointer',
+          border: active ? `2px solid ${accent}` : '2px solid transparent',
+          opacity: active ? 1 : 0.7,
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <img
+          src={url}
+          alt="Warehouse"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          loading="lazy"
+          crossOrigin="anonymous"
+        />
+        {active && (
+          <div style={{
+            position: 'absolute',
+            top: '4px',
+            right: '4px',
+            background: accent,
+            borderRadius: isCad ? '4px' : '50%',
+            minWidth: '20px',
+            height: '20px',
+            padding: isCad ? '0 5px' : 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {isCad
+              ? <span style={{ color: '#fff', fontSize: '10px', fontWeight: 600 }}>CAD</span>
+              : <CheckCircleFilled style={{ color: '#fff', fontSize: '12px' }} />}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderImageGallery = (warehouse) => {
     if (!warehouse.photos) {
       return (
@@ -320,73 +422,69 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     }
 
     const selected = selectedImages[warehouse.id] || [];
+    const cad = selectedCad[warehouse.id] || [];
     const isStandard = CAPPED_PHOTO_TYPES.includes(pptType);
+    const cadCapable = CAD_CAPABLE_TYPES.includes(pptType);
+
+    // Grouped by what the classifier saw, so the documents — where the layout
+    // drawings are — are together and can be asked about directly. Returns null
+    // when a listing has no labels yet, in which case the flat grid is still right.
+    const sections = groupImagesByClassification(imageUrls, warehouse.imageLabels);
+
+    const counter = (
+      <div style={{ width: '100%', marginTop: '4px' }}>
+        <Text style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+          {isStandard
+            ? `Select up to 4 images • ${selected.length}/4 selected`
+            : `${selected.length} photo${selected.length !== 1 ? 's' : ''} selected`}
+          {cadCapable && cad.length > 0
+            && ` • ${cad.length} layout${cad.length !== 1 ? 's' : ''}, one slide each`}
+        </Text>
+      </div>
+    );
+
+    if (!sections) {
+      return (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {imageUrls.map((url) => renderTile(warehouse, url, 'photo'))}
+          {counter}
+        </div>
+      );
+    }
 
     return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-        {imageUrls.map((url) => {
-          const isActive = selected.includes(url);
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {sections.map((section) => {
+          // In the documents section of a v3 deck a click marks a layout drawing,
+          // because that is the only thing anyone wants from a document there — a
+          // khata extract does not belong in a client deck at all.
+          const mode = cadCapable && section.key === 'DOCUMENT' ? 'cad' : 'photo';
           return (
-            <div
-              key={url}
-              onClick={() => toggleImage(warehouse.id, url)}
-              style={{
-                position: 'relative',
-                width: '90px',
-                height: '90px',
-                borderRadius: '6px',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                border: isActive ? '2px solid #1890ff' : '2px solid transparent',
-                opacity: isActive ? 1 : 0.7,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <img
-                src={url}
-                alt="Warehouse"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  display: 'block',
-                }}
-                loading="lazy"
-                crossOrigin="anonymous"
-              />
-              {isActive && (
-                <div style={{
-                  position: 'absolute',
-                  top: '4px',
-                  right: '4px',
-                  background: '#1890ff',
-                  borderRadius: '50%',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <CheckCircleFilled style={{ color: '#fff', fontSize: '12px' }} />
+            <div key={section.key}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                <Text style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.55)' }}>
+                  {section.title}
+                </Text>
+                <Text style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+                  {section.urls.length}
+                </Text>
+              </div>
+              {mode === 'cad' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                  <FileTextOutlined style={{ color: '#fa8c16', fontSize: '11px' }} />
+                  <Text style={{ fontSize: '11px', color: '#fa8c16' }}>
+                    Pick the CAD / layout drawings — each gets a full slide of its own.
+                    Leave paperwork unselected.
+                  </Text>
                 </div>
               )}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {section.urls.map((url) => renderTile(warehouse, url, mode))}
+              </div>
             </div>
           );
         })}
-        {isStandard && (
-          <div style={{ width: '100%', marginTop: '4px' }}>
-            <Text style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-              Select up to 4 images • {selected.length}/4 selected
-            </Text>
-          </div>
-        )}
-        {pptType === 'detailed' && (
-          <div style={{ width: '100%', marginTop: '4px' }}>
-            <Text style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-              {selected.length} image{selected.length !== 1 ? 's' : ''} selected
-            </Text>
-          </div>
-        )}
+        {counter}
       </div>
     );
   };
