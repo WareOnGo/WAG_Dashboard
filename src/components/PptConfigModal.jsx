@@ -197,6 +197,11 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
     // Auto-select first 4 images per warehouse for detailed
     const autoSelected = {};
+    // Layout drawings the classifier already identified, pre-ticked. Only images
+    // sub-labelled LAYOUT — a DOCUMENT with no sub-label yet, or one labelled
+    // PAPERWORK or OTHER_DOCUMENT, is left for a human. Pre-ticking a khata
+    // extract would be far worse than pre-ticking nothing.
+    const autoCad = {};
     matched.forEach((wh) => {
       if (wh.photos) {
         const allUrls = wh.photos.split(',').map((u) => u.trim());
@@ -206,9 +211,14 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         } else {
           autoSelected[wh.id] = [];
         }
+        const layouts = imageUrls.filter(
+          (u) => wh.imageLabels?.[u]?.documentKind === 'LAYOUT',
+        );
+        if (layouts.length) autoCad[wh.id] = layouts;
       }
     });
     setSelectedImages(autoSelected);
+    setSelectedCad(autoCad);
     setStep(2);
   };
 
@@ -348,7 +358,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   /**
    * One image tile. `mode` decides what a click means in the section it sits in.
    */
-  const renderTile = (warehouse, url, mode) => {
+  const renderTile = (warehouse, url, mode, kind) => {
     const isCad = mode === 'cad';
     const active = isCad
       ? (selectedCad[warehouse.id] || []).includes(url)
@@ -378,6 +388,23 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           loading="lazy"
           crossOrigin="anonymous"
         />
+        {kind && (
+          // What the classifier called it, so a pre-ticked drawing is explained and
+          // a mislabelled one is visibly arguable rather than silently trusted.
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: 'rgba(0,0,0,0.6)',
+            color: kind === 'LAYOUT' ? '#ffd591' : 'rgba(255,255,255,0.6)',
+            fontSize: '9px',
+            padding: '1px 3px',
+            textAlign: 'center',
+          }}>
+            {kind === 'LAYOUT' ? 'layout' : kind === 'PAPERWORK' ? 'paperwork' : 'other'}
+          </div>
+        )}
         {active && (
           <div style={{
             position: 'absolute',
@@ -479,7 +506,16 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
                 </div>
               )}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {section.urls.map((url) => renderTile(warehouse, url, mode))}
+                {(mode === 'cad'
+                  // Drawings first: they are what this section is being read for,
+                  // and paperwork below them needs no attention at all.
+                  ? [...section.urls].sort((a, b) => {
+                    const rank = (u) => (warehouse.imageLabels?.[u]?.documentKind === 'LAYOUT' ? 0 : 1);
+                    return rank(a) - rank(b);
+                  })
+                  : section.urls
+                ).map((url) => renderTile(warehouse, url, mode,
+                  mode === 'cad' ? warehouse.imageLabels?.[url]?.documentKind : null))}
               </div>
             </div>
           );
