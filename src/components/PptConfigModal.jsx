@@ -11,6 +11,7 @@ import {
   TruckOutlined,
   ExperimentOutlined,
   FileTextOutlined,
+  FileExcelOutlined,
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts';
@@ -44,6 +45,12 @@ const PPT_TYPES = [
     title: 'TCI (External)',
     desc: 'TCI-branded 4:3 deck for external sharing',
   },
+  {
+    value: 'last-mile',
+    icon: <FileExcelOutlined />,
+    title: 'Last Mile (Excel)',
+    desc: 'Excel comparison with property, building and commercial details',
+  },
   // Kept last: still being trialled, so it should not be the first thing the eye
   // lands on when picking a deck for a client.
   {
@@ -72,6 +79,8 @@ const CAD_CAPABLE_TYPES = ['v3'];
 /** Decks that accept the deck-content redaction flags. */
 const REDACTABLE_TYPES = ['v2', 'v3'];
 
+const photoLimit = (type) => type === 'last-mile' || CAPPED_PHOTO_TYPES.includes(type) ? 4 : Infinity;
+
 /**
  * Multi-step modal for PPT configuration:
  *   Step 1 — Select PPT type
@@ -94,6 +103,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
   // Step 1 state
   const [pptType, setPptType] = useState('v2');
+  const isExcel = pptType === 'last-mile';
 
   // Step 2 state
   const [warehouses, setWarehouses] = useState([]);
@@ -246,15 +256,15 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     setSelectedImages((prev) => {
       const current = prev[warehouseId] || [];
       const isSelected = current.includes(url);
-      const isStandard = CAPPED_PHOTO_TYPES.includes(pptType);
+      const limit = photoLimit(pptType);
 
       if (isSelected) {
         return { ...prev, [warehouseId]: current.filter((u) => u !== url) };
       }
 
       // Standard: max 4 images per warehouse
-      if (isStandard && current.length >= 4) {
-        message.warning('Maximum 4 images per warehouse for standard PPT');
+      if (current.length >= limit) {
+        message.warning(isExcel ? 'Maximum 4 images per warehouse for Last Mile Excel' : 'Maximum 4 images per warehouse for standard PPT');
         return prev;
       }
 
@@ -265,7 +275,9 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const handleSubmit = () => {
     const isDetailed = pptType === 'detailed';
     const clientSite = describeLatLngInput(clientLocation);
-    const customDetails = isDetailed
+    const customDetails = isExcel
+      ? { clientName: 'Last Mile', clientRequirement: clientRequirement.trim() }
+      : isDetailed
       ? {
           companyName: clientName.trim(),
           clientRequirement: clientRequirement.trim(),
@@ -305,7 +317,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const renderStep1 = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <Text style={{ fontSize: '14px', color: 'rgba(255,255,255,0.65)' }}>
-        Select the type of presentation to generate for warehouse IDs: <strong style={{ color: 'rgba(255,255,255,0.9)' }}>{warehouseIds}</strong>
+        Select the export format for warehouse IDs: <strong style={{ color: 'rgba(255,255,255,0.9)' }}>{warehouseIds}</strong>
       </Text>
 
       <Radio.Group
@@ -450,7 +462,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
     const selected = selectedImages[warehouse.id] || [];
     const cad = selectedCad[warehouse.id] || [];
-    const isStandard = CAPPED_PHOTO_TYPES.includes(pptType);
+    const limit = photoLimit(pptType);
     const cadCapable = CAD_CAPABLE_TYPES.includes(pptType);
 
     // Grouped by what the classifier saw, so the documents — where the layout
@@ -461,8 +473,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     const counter = (
       <div style={{ width: '100%', marginTop: '4px' }}>
         <Text style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-          {isStandard
-            ? `Select up to 4 images • ${selected.length}/4 selected`
+          {Number.isFinite(limit)
+            ? `Select up to ${limit} image${limit === 1 ? '' : 's'} • ${selected.length}/${limit} selected`
             : `${selected.length} photo${selected.length !== 1 ? 's' : ''} selected`}
           {cadCapable && cad.length > 0
             && ` • ${cad.length} layout${cad.length !== 1 ? 's' : ''}, one slide each`}
@@ -566,17 +578,17 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         gap: '14px',
       }}>
         <Text strong style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)' }}>
-          Presentation Details
+          {isExcel ? 'Workbook Details' : 'Presentation Details'}
         </Text>
 
-        <div>
+        {!isExcel && <div>
           <label style={labelStyle}>Client / Company Name</label>
           <Input
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             placeholder="e.g., XYZ Corp"
           />
-        </div>
+        </div>}
 
         <div>
           <label style={labelStyle}>Client Requirement</label>
@@ -611,7 +623,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           );
         })()}
 
-        <div>
+        {!isExcel && <div>
           <label style={labelStyle}>
             {pptType === 'detailed' ? 'Employee (POC)' : 'WareOnGo POC'}
           </label>
@@ -627,7 +639,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
               Contact: +91 {pocContact}
             </Text>
           )}
-        </div>
+        </div>}
 
         {REDACTABLE_TYPES.includes(pptType) && (
           <div>
@@ -670,7 +682,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       <Spin indicator={<LoadingOutlined style={{ fontSize: 44 }} spin />} />
       <div style={{ textAlign: 'center' }}>
         <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: '15px', display: 'block', marginBottom: '6px' }}>
-          Generating presentation…
+          {isExcel ? 'Generating Excel workbook…' : 'Generating presentation…'}
         </Text>
         <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px' }}>
           {pptType === 'detailed'
@@ -701,7 +713,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <Button onClick={() => setStep(1)}>← Back</Button>
         <Button type="primary" onClick={handleSubmit}>
-          Generate PPT
+          {isExcel ? 'Generate Excel' : 'Generate PPT'}
         </Button>
       </div>
     );
@@ -711,7 +723,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     <Modal
       title={
         <span style={{ fontSize: '15px', fontWeight: 600, fontFamily: 'Verdana, sans-serif' }}>
-          {step === 1 ? 'Select Presentation Type' : 'Configure Presentation'}
+          {step === 1 ? 'Select Export Format' : isExcel ? 'Configure Last Mile Excel' : 'Configure Presentation'}
         </span>
       }
       open={open}

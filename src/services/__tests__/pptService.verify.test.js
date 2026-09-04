@@ -43,8 +43,10 @@ describe('PPT generation requests', () => {
   it.each([
     ['generateDetailedPpt', '/generate-detailed-ppt'],
     ['generatePptV2', '/generate-ppt-v2'],
+    ['generatePptV3', '/generate-ppt-v3'],
     ['generateGodamwalePpt', '/generate-ppt-godamwale'],
     ['generateTciPpt', '/generate-ppt-tci'],
+    ['generateLastMileExcel', '/generate-xlsx-last-mile'],
   ])('%s posts to the backend at %s', async (fn, endpoint) => {
     global.fetch.mockResolvedValue(ok());
 
@@ -77,5 +79,27 @@ describe('PPT generation requests', () => {
     });
 
     await expect(service.generateTciPpt(PPT_ARGS)).rejects.toThrow('Engine exploded');
+  });
+
+  it.each([
+    [{ clientRequirement: 'Indore 25000 sft' }, 'Last Mile - WH options_Indore 25000 sft.xlsx'],
+    [{}, 'Last Mile_Warehouses_101_102_103.xlsx'],
+  ])('downloads Last Mile with an Excel filename (%p)', async (customDetails, filename) => {
+    global.fetch.mockResolvedValue(ok());
+    let downloaded;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () {
+      downloaded = this.download;
+    });
+    await service.generateLastMileExcel({ ...PPT_ARGS, customDetails });
+    expect(downloaded).toBe(filename);
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ ...PPT_ARGS, customDetails });
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith('blob:x');
+    click.mockRestore();
+  });
+
+  it('surfaces Last Mile generation errors without downloading a broken workbook', async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({ error: 'Excel generation failed' }) });
+    await expect(service.generateLastMileExcel(PPT_ARGS)).rejects.toThrow('Excel generation failed');
+    expect(global.URL.createObjectURL).not.toHaveBeenCalled();
   });
 });

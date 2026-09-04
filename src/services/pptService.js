@@ -169,3 +169,12 @@ export async function generateTciPpt({ ids, selectedImages, customDetails }) {
       : `TCI_Warehouses_Preview.pptx`;
   await postPpt('/generate-ppt-tci', { ids, selectedImages, customDetails }, filename);
 }
+
+/** Generate and download the Last Mile Excel comparison using the shared export flow. */
+export async function generateLastMileExcel({ ids, selectedImages, customDetails }) {
+  const requirement = customDetails?.clientRequirement?.trim();
+  const filename = requirement
+    ? `Last Mile - WH options_${requirement}.xlsx`
+    : `Last Mile_Warehouses_${ids.replace(/,\s*/g, '_')}.xlsx`;
+  await postPpt('/generate-xlsx-last-mile', { ids, selectedImages, customDetails }, filename);
+}

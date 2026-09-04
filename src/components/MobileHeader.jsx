@@ -18,7 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMobileTools } from '../contexts/MobileToolsContext';
 import { warehouseService } from '../services/warehouseService';
 import RevealReasonModal from './RevealReasonModal';
-import { generateDetailedPpt, generatePptV2, generatePptV3, generateGodamwalePpt, generateTciPpt } from '../services/pptService';
+import { generateDetailedPpt, generatePptV2, generatePptV3, generateGodamwalePpt, generateTciPpt, generateLastMileExcel } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
 
 const { Header } = Layout;
@@ -313,7 +313,7 @@ const MobileHeader = ({ onMenuToggle }) => {
     },
   ];
 
-  const pptTooltip = 'Generate warehouse presentation (PPT)';
+  const pptTooltip = 'Generate warehouse presentation (PPT) or Last Mile Excel';
   const itineraryTooltip = 'Generate copy-pastable itinerary details for on-ground teams';
 
   // Handle PPT inline toggle
@@ -370,16 +370,18 @@ const MobileHeader = ({ onMenuToggle }) => {
         await generateGodamwalePpt({ ids, selectedImages, customDetails });
       } else if (pptType === 'tci') {
         await generateTciPpt({ ids, selectedImages, customDetails });
+      } else if (pptType === 'last-mile') {
+        await generateLastMileExcel({ ids, selectedImages, customDetails });
       } else {
         throw new Error(`Unsupported PPT type: ${pptType}`);
       }
-      message.success('Presentation downloaded successfully!');
+      message.success(pptType === 'last-mile' ? 'Excel workbook downloaded successfully!' : 'Presentation downloaded successfully!');
       setPptModalOpen(false);
       setPptWarehouseIds('');
       setPptExpanded(false);
     } catch (error) {
       console.error('PPT generation error:', error);
-      message.error(error.message || 'Failed to generate presentation');
+      message.error(error.message || (pptType === 'last-mile' ? 'Failed to generate Excel workbook' : 'Failed to generate presentation'));
     } finally {
       setGeneratingPpt(false);
     }
