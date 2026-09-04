@@ -387,8 +387,11 @@ const Dashboard = () => {
                 prev.map(w => w.id === editingWarehouse.id ? updatedWarehouse : w)
               );
             } else {
-              // Create new warehouse -> now staged for admin review (PENDING).
-              // It does NOT enter the master list until an admin approves it.
+              // Create new warehouse -> goes through the staging layer. With autopilot on
+              // it is promoted to master immediately and comes back with a numeric
+              // `warehouseId`; with autopilot off it waits in the PENDING review queue and
+              // `warehouseId` is null. Either way the response is a submission receipt
+              // (see backend utils/submissionResult.js), not a full warehouse row.
               result = await withRetry(
                 () => warehouseService.create(formData),
                 {
@@ -407,9 +410,32 @@ const Dashboard = () => {
               showSuccessMessage('update', {
                 details: `${result.warehouseType || formData.warehouseType} in ${result.city || formData.city}`
               });
+            } else if (result.warehouseId != null) {
+              // Autopilot promoted it straight to master, so there is a real warehouse to
+              // name. Surface that ID, not the staging uuid, and pull the new row into the
+              // list — the create path otherwise never refreshes it, which would leave a
+              // live warehouse missing from the table until a manual reload.
+              modal.success({
+                title: 'Warehouse created',
+                content: (
+                  <div>
+                    <p style={{ marginBottom: 12 }}>
+                      {formData.warehouseType} in {formData.city} is live.
+                    </p>
+                    <p style={{ marginBottom: 4, color: 'rgba(255, 255, 255, 0.65)' }}>
+                      Warehouse ID:
+                    </p>
+                    <Text copyable={{ text: String(result.warehouseId) }} strong style={{ fontSize: 15 }}>
+                      {result.warehouseId}
+                    </Text>
+                  </div>
+                ),
+                okText: 'Done',
+              });
+              fetchWarehouses();
             } else {
-              // Surface the staged entry's reference ID (uuid) so the employee can keep it
-              // to track the submission through review later.
+              // Left in the review queue. Surface the staged entry's reference ID (uuid) so
+              // the employee can keep it to track the submission through review later.
               modal.success({
                 title: 'Submitted for review',
                 content: (
@@ -421,11 +447,11 @@ const Dashboard = () => {
                       Reference ID — save this to track it later:
                     </p>
                     <Text
-                      copyable={{ text: result.id }}
+                      copyable={{ text: result.submissionId ?? result.id }}
                       strong
                       style={{ fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}
                     >
-                      {result.id}
+                      {result.submissionId ?? result.id}
                     </Text>
                   </div>
                 ),

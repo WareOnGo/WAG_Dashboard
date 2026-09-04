@@ -10,21 +10,33 @@ export const handlers = [
   }),
 
   // POST /warehouses - Create new warehouse
+  //
+  // The real endpoint does NOT return a warehouse. Submissions go through the staging
+  // layer, so the 201 body is a submission receipt: `submissionId` (staging uuid, always
+  // present) plus `warehouseId` (master Int) which is populated only when autopilot
+  // promoted the submission and null when it was left PENDING for review. Callers branch
+  // their success copy on that. See Backend_Repository/src/utils/submissionResult.js.
   http.post(`${API_BASE_URL}/warehouses`, async ({ request }) => {
     const newWarehouse = await request.json();
-    
+
     // Simulate validation error for testing
     if (!newWarehouse.warehouseType) {
       return HttpResponse.json(mockApiErrors.validation, { status: 400 });
     }
-    
-    // Return created warehouse with ID
-    const createdWarehouse = {
-      ...newWarehouse,
-      id: Date.now(), // Simple ID generation for testing
-    };
-    
-    return HttpResponse.json(createdWarehouse, { status: 201 });
+
+    // Mocks the autopilot-on path (the production default).
+    const submissionId = '00000000-0000-4000-8000-000000000001';
+    return HttpResponse.json({
+      submissionId,
+      id: submissionId,
+      warehouseId: Date.now(),
+      reviewStatus: 'APPROVED',
+      autoApproved: true,
+      warehouseType: newWarehouse.warehouseType ?? null,
+      city: newWarehouse.city ?? null,
+      state: newWarehouse.state ?? null,
+      zone: newWarehouse.zone ?? null,
+    }, { status: 201 });
   }),
 
   // PUT /warehouses/:id - Update warehouse

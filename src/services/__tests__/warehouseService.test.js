@@ -44,13 +44,21 @@ describe('warehouseService', () => {
       }
     };
 
-    it('should create a new warehouse successfully', async () => {
+    it('should return a submission receipt rather than a warehouse', async () => {
+      // Create goes through the staging layer, so the 201 body is a receipt, not the
+      // submitted warehouse echoed back. Both ids are named: `submissionId` is the staging
+      // uuid and is always present; `warehouseId` is the master Int and is populated only
+      // when autopilot promoted the submission (the mock covers that path).
       const result = await warehouseService.create(newWarehouseData);
-      
-      expect(result).toHaveProperty('id');
+
+      expect(result).toHaveProperty('submissionId');
+      expect(typeof result.submissionId).toBe('string');
+      // `id` is retained as the staging uuid for backward compatibility.
+      expect(result.id).toBe(result.submissionId);
+      expect(result.reviewStatus).toBe('APPROVED');
+      expect(result.autoApproved).toBe(true);
+      expect(typeof result.warehouseId).toBe('number');
       expect(result.warehouseType).toBe(newWarehouseData.warehouseType);
-      expect(result.address).toBe(newWarehouseData.address);
-      expect(result.contactPerson).toBe(newWarehouseData.contactPerson);
     });
 
     it('should handle validation error when creating warehouse', async () => {
