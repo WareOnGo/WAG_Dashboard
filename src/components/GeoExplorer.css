@@ -137,6 +137,7 @@
 .geo-layer-drawer .ant-drawer-close, .geo-editor-drawer .ant-drawer-close { width: 44px; height: 44px; }
 .geo-layer-drawer .ant-drawer-header, .geo-editor-drawer .ant-drawer-header { padding: 8px 16px; }
 .geo-layer-drawer .ant-drawer-body, .geo-editor-drawer .ant-drawer-body { padding: 16px; overscroll-behavior: contain; }
+.geo-editor-drawer .ant-drawer-body { min-height: 0; scroll-padding-block: 12px; }
 .geo-layer-drawer .ant-drawer-content, .geo-editor-drawer .ant-drawer-content { border-radius: 18px 18px 0 0; }
 .geo-layer-drawer .ant-drawer-footer, .geo-editor-drawer .ant-drawer-footer { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
 .geo-map-heading, .geo-position-hint { position: absolute; top: 16px; left: 16px; right: 76px; z-index: 2; padding: 12px 16px; border: 1px solid var(--border-primary); background: rgba(26,26,26,.96); border-radius: 12px; box-shadow: 0 4px 16px #0003; pointer-events: none; max-width: 350px; }
@@ -202,4 +203,12 @@
   .geo-popup.mapboxgl-popup { transform: none !important; top: auto !important; left: 12px !important; bottom: 32px; max-width: 320px !important; }
   .geo-popup .mapboxgl-popup-tip { display: none; }
   .geo-popup .mapboxgl-popup-content { overflow-y: auto; }
+}
+
+/* Keep the dismiss row outside the card's scrolling content on phones,
+   including landscape. Text cannot slide behind or beside the close button. */
+@media (max-width: 767px), (max-height: 500px) and (max-width: 1023px) {
+  .geo-popup .mapboxgl-popup-content { display: flex; flex-direction: column; overflow: hidden; }
+  .geo-popup .mapboxgl-popup-close-button { position: static; flex-shrink: 0; background: #1a1a1a; }
+  .geo-popup .mapboxgl-popup-content > div { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 }

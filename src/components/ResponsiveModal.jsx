@@ -1,9 +1,10 @@
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Card } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { useViewport } from '../hooks/useViewport';
 import { useVisualViewportBounds } from '../hooks/useVisualViewportBounds';
+import { useRevealFocusedField } from '../hooks/useRevealFocusedField';
 
 /**
  * ResponsiveModal Component
@@ -24,6 +25,7 @@ const ResponsiveModal = ({
   onClose,
   title,
   children,
+  footer,
   width = 'auto',
   maxWidth,
   height = 'auto',
@@ -44,22 +46,7 @@ const ResponsiveModal = ({
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
 
-  // When the keyboard changes the usable area, reveal the active field inside
-  // its own scroll container. Never move focus or scroll the underlying page.
-  useLayoutEffect(() => {
-    const active = document.activeElement;
-    if (!visible || !bodyRef.current?.contains(active)) return;
-    let scroller = active.parentElement;
-    while (scroller && bodyRef.current.contains(scroller)) {
-      if (/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight) break;
-      scroller = scroller.parentElement;
-    }
-    if (!scroller || !bodyRef.current.contains(scroller)) return;
-    const field = active.getBoundingClientRect();
-    const area = scroller.getBoundingClientRect();
-    if (field.bottom > area.bottom - 12) scroller.scrollTop += field.bottom - area.bottom + 12;
-    else if (field.top < area.top + 12) scroller.scrollTop += field.top - area.top - 12;
-  }, [visible, viewport.height, viewport.top]);
+  useRevealFocusedField(bodyRef, visible, viewport);
 
   // Handle escape key and body scroll lock — only re-run when visible changes
   useEffect(() => {
@@ -278,6 +265,16 @@ const ResponsiveModal = ({
         <div ref={bodyRef} className="responsive-modal__body" style={bodyStyles}>
           {children}
         </div>
+        {footer && (
+          <div className="responsive-modal__footer" style={{
+            flexShrink: 0,
+            padding: isMobile ? '16px' : '24px',
+            background: 'var(--bg-secondary)',
+            borderTop: '1px solid var(--border-primary)',
+          }}>
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body

@@ -665,7 +665,10 @@ body .ant-input-number-focused,
 body .ant-picker-focused,
 .warehouse-form-modal input:focus,
 .warehouse-form-modal select:focus,
-.warehouse-form-modal textarea:focus {
+.warehouse-form-modal textarea:focus,
+.warehouse-details-modal input:focus,
+.warehouse-details-modal select:focus,
+.warehouse-details-modal textarea:focus {
   outline: 1px solid rgba(var(--accent-primary-rgb), 0.55) !important;
   outline-offset: 1px !important;
 }

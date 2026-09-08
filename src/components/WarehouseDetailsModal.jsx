@@ -323,6 +323,26 @@ const WarehouseDetailsModal = ({
     </Space>
   );
 
+  const actions = (
+    <div style={{
+      marginTop: m ? 0 : 32,
+      display: 'flex',
+      flexDirection: m ? 'column' : 'row',
+      justifyContent: 'flex-end',
+      gap: 12,
+    }}>
+      {footerActions && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginRight: m ? 0 : 'auto' }}>
+          {footerActions}
+        </div>
+      )}
+      <Button size="large" onClick={onClose}
+        style={{ minWidth: 120, minHeight: m ? 44 : 'auto', height: 'auto', whiteSpace: 'normal' }}>
+        Close
+      </Button>
+    </div>
+  );
+
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <ResponsiveModal
@@ -331,6 +351,7 @@ const WarehouseDetailsModal = ({
       title={`Warehouse #${warehouse.id}`}
       maxWidth="900px"
       className="warehouse-details-modal"
+      footer={m ? actions : undefined}
     >
       <div style={{ color: 'var(--text-primary)' }}>
 
@@ -789,34 +810,7 @@ const WarehouseDetailsModal = ({
         )}
 
         {/* ── Actions ─────────────────────────────────────────── */}
-        <div
-          className={m ? 'warehouse-form-actions' : ''}
-          style={{
-            marginTop: 32,
-            display: 'flex',
-            flexDirection: m ? 'column' : 'row',
-            justifyContent: 'flex-end',
-            gap: 12,
-            position: m ? 'sticky' : 'static',
-            bottom: m ? 0 : 'auto',
-            background: m ? 'var(--bg-secondary)' : 'transparent',
-            padding: m ? '16px 0' : 0,
-            borderTop: m ? '1px solid var(--border-primary)' : 'none',
-          }}
-        >
-          {footerActions && (
-            <div style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto' }}>
-              {footerActions}
-            </div>
-          )}
-          <Button
-            size="large"
-            onClick={onClose}
-            style={{ minWidth: 120, minHeight: m ? 44 : 'auto' }}
-          >
-            Close
-          </Button>
-        </div>
+        {!m && actions}
       </div>
     </ResponsiveModal>
   );

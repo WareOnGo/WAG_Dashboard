@@ -1,20 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Alert, Button, Drawer, Modal } from 'antd'
 import { POI_CATEGORIES } from '../utils/geoIcons'
+import { useVisualViewportBounds } from '../hooks/useVisualViewportBounds'
+import { useRevealFocusedField } from '../hooks/useRevealFocusedField'
 
 export default function GeoPointEditor({ at, existing, draft, isMobile, onCancel, onChangeLocation, onSave }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [viewport, setViewport] = useState(null)
-  useEffect(() => {
-    if (!isMobile || !window.visualViewport) return
-    const visual = window.visualViewport
-    const update = () => setViewport({ height: visual.height, top: visual.offsetTop, bottom: Math.max(0, window.innerHeight - visual.height - visual.offsetTop) })
-    update()
-    visual.addEventListener('resize', update)
-    visual.addEventListener('scroll', update)
-    return () => { visual.removeEventListener('resize', update); visual.removeEventListener('scroll', update) }
-  }, [isMobile])
+  const formRef = useRef(null)
+  const viewport = useVisualViewportBounds(isMobile)
+  useRevealFocusedField(formRef, isMobile, viewport)
   const values = existing || draft
   const title = existing ? 'Edit point' : 'Add point details'
   const submit = async event => {
@@ -29,7 +24,7 @@ export default function GeoPointEditor({ at, existing, draft, isMobile, onCancel
       setSaving(false)
     }
   }
-  const content = <form id="geo-point-form" className="geo-point-form" onSubmit={submit}>
+  const content = <form ref={formRef} id="geo-point-form" className="geo-point-form" onSubmit={submit}>
     <p className="geo-panel-help">{existing ? 'Update the details for this saved place.' : 'Step 2 of 2 · Save this place in Our points.'}</p>
     <div className="geo-location-summary"><span>Pin location<br /><strong>{at.lat.toFixed(5)}, {at.lng.toFixed(5)}</strong></span>
       {!existing && <Button disabled={saving} onClick={() => onChangeLocation(Object.fromEntries(new FormData(document.getElementById('geo-point-form'))))}>Reposition</Button>}
@@ -51,8 +46,8 @@ export default function GeoPointEditor({ at, existing, draft, isMobile, onCancel
     <Button type="primary" htmlType="submit" form="geo-point-form" loading={saving}>Save point</Button>
   </div>
   return isMobile
-    ? <Drawer open placement="bottom" title={title} height={viewport ? Math.min(viewport.height * .82, 680) : 'min(82dvh, 680px)'} rootClassName="geo-editor-drawer"
-        rootStyle={viewport ? { top: viewport.top, bottom: viewport.bottom } : undefined}
+    ? <Drawer open placement="bottom" title={title} height={Math.min(viewport.height * .82, 680)} rootClassName="geo-editor-drawer"
+        rootStyle={{ top: viewport.top, bottom: Math.max(0, window.innerHeight - viewport.height - viewport.top) }}
         onClose={onCancel} maskClosable={false} closable={!saving} keyboard={!saving} footer={footer}>{content}</Drawer>
     : <Modal open title={title} onCancel={onCancel} maskClosable={false} closable={!saving} keyboard={!saving} footer={footer}>{content}</Modal>
 }
