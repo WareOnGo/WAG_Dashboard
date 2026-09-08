@@ -240,7 +240,7 @@ function AppContent() {
         } />
         {/* Map view: POI plotting over warehouses, OSM reference points and our own points */}
         <Route path="/map" element={
-          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
+          <Layout style={{ background: 'var(--bg-primary)' }} className="geo-route">
             <MobileHeader
               onMenuToggle={handleMenuToggle}
               isMenuOpen={mobileMenuOpen}
@@ -252,9 +252,8 @@ function AppContent() {
             {/* No padding and a fixed height, unlike the other routes: the map
                 fills its pane edge to edge and manages its own internal spacing.
                 height (not minHeight) so the map can size to 100% of it. */}
-            <Content style={{
+            <Content className="geo-route-content" style={{
               background: 'var(--bg-primary)',
-              height: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
               padding: 0,
               overflow: 'hidden',
               // GeoExplorer pins itself to this box. ProtectedRoute's wrapper

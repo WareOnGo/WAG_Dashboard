@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Card, Checkbox, Typography, Button, Spin, Alert, App, Empty, Result } from 'antd'
-import { PlusOutlined, AimOutlined } from '@ant-design/icons'
+import { Checkbox, Typography, Button, Spin, Alert, App, Empty, Result, Collapse, Drawer, Input } from 'antd'
+import { PlusOutlined, AppstoreOutlined, SearchOutlined, CloseOutlined } from '@ant-design/icons'
 import GeoExplorerMap from './GeoExplorerMap'
+import GeoPointEditor from './GeoPointEditor'
 import {
   CATEGORY_COLORS, FALLBACK_COLOR, OWN_POINT_COLOR, AVAILABILITY_COLORS,
   poiCategoryLabel, poiCategoryGlyph,
@@ -14,7 +15,7 @@ import { useViewport } from '../hooks/useViewport'
 import { useAuth } from '../contexts'
 import './GeoExplorer.css'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 /**
  * Legend badge — renders the exact glyph the map draws, so the sidebar and the
@@ -36,7 +37,8 @@ const Badge = ({ color, glyph }) => (
  * legible.
  */
 const GeoExplorer = () => {
-  const { isMobile } = useViewport()
+  const { isMobile: phone, width, height } = useViewport()
+  const isMobile = phone || (height < 500 && width < 1024)
   const { user } = useAuth()
   // Sessions predating the capabilities map are treated as allowed.
   const hasDashboardAccess = !(user?.capabilities && !user.capabilities.DASHBOARD)
@@ -50,6 +52,14 @@ const GeoExplorer = () => {
   const [truncated, setTruncated] = useState(false)
   const [layersError, setLayersError] = useState(null)
 
+  const [layersOpen, setLayersOpen] = useState(false)
+  const [layerSearch, setLayerSearch] = useState('')
+  const [placementLocation, setPlacementLocation] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const [editor, setEditor] = useState(null)
+  const [mapBusy, setMapBusy] = useState(false)
+  const [mapError, setMapError] = useState(null)
+  const [mapReady, setMapReady] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [detail, setDetail] = useState(null)
@@ -61,6 +71,7 @@ const GeoExplorer = () => {
   useEffect(() => {
     // /api/geo is gated on DASHBOARD, so skip the round trip that would only 403.
     if (!hasDashboardAccess) return
+    setLayersError(null)
     geoService.layers()
       .then((d) => setLayers({ osm: d?.osm ?? [], internal: d?.internal ?? [] }))
       .catch((e) => { setLayersError(e?.message || 'Could not load layer list'); setLayers({ osm: [], internal: [] }) })
@@ -74,7 +85,8 @@ const GeoExplorer = () => {
   // the form the user is still looking at, rather than only as a toast.
   const createPoint = useCallback(async (body) => {
     await geoService.createPoint(body)
-    message.success('Point saved')
+    setShowOwnPoints(true)
+    message.success('Point saved in Our points')
     setRefreshKey((k) => k + 1)
   }, [message])
 
@@ -133,96 +145,55 @@ const GeoExplorer = () => {
     }
   }, [fetchWarehouse, message])
 
+  const activeCount = Number(showWarehouses) + Number(showOwnPoints) + enabledOsm.length
+  const startPlacing = () => { setPlacementLocation(null); setDraft(null); setLayersOpen(false); setPlacing(true) }
+  const editPoint = useCallback((at, existing = null) => {
+    setPlacing(false)
+    setEditor({ at, existing })
+  }, [])
   const sidebar = (
-    <Card size="small" variant="borderless" style={{ background: 'transparent' }} styles={{ body: { padding: 0 } }}>
-      <Title level={5} style={{ marginTop: 0 }}>Our data</Title>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <Checkbox checked={showWarehouses} onChange={(e) => setShowWarehouses(e.target.checked)}>
-          <Badge color={AVAILABILITY_COLORS.available} glyph="warehouse" />Warehouses
-        </Checkbox>
-        <Checkbox checked={showOwnPoints} onChange={(e) => setShowOwnPoints(e.target.checked)}>
-          <Badge color={OWN_POINT_COLOR} glyph="own" />Our points
-          {layers?.internal?.length > 0 && (
-            <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>
-              ({layers.internal.reduce((s, c) => s + c.count, 0)})
-            </Text>
-          )}
-        </Checkbox>
-
-        {/* Our points all share one purple badge and one toggle, but each type
-            draws a different glyph on the map. Listing them here is what makes
-            those glyphs readable — without it the legend claims a star and the
-            map shows six other shapes. */}
-        {showOwnPoints && (layers?.internal ?? []).length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginLeft: 24 }}>
-            {layers.internal.map(({ category, count }) => (
-              <div key={category} style={{ display: 'flex', alignItems: 'center', fontSize: 12 }}>
-                <Badge color={OWN_POINT_COLOR} glyph={poiCategoryGlyph(category)} />
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  {poiCategoryLabel(category)} ({count})
-                </Text>
-              </div>
+    <div className="geo-layers">
+      <p className="geo-panel-help">Choose what appears on the map. Counts cover all imported points.</p>
+      {layersError && <Alert type="warning" showIcon message="Layers could not load" description={layersError}
+        action={<Button onClick={() => mapReady ? setRefreshKey(k => k + 1) : window.location.reload()}>Retry</Button>} />}
+      <Collapse ghost defaultActiveKey={['ours']} items={[
+        { key: 'ours', label: 'Our data', children: <div className="geo-layer-list">
+          <Checkbox checked={showWarehouses} onChange={e => setShowWarehouses(e.target.checked)}>
+            <Badge color={AVAILABILITY_COLORS.available} glyph="warehouse" />Warehouses
+          </Checkbox>
+          <Checkbox checked={showOwnPoints} onChange={e => setShowOwnPoints(e.target.checked)}>
+            <Badge color={OWN_POINT_COLOR} glyph="own" />Our points
+            <Text type="secondary"> ({layers?.internal?.reduce((sum, c) => sum + c.count, 0) ?? '…'})</Text>
+          </Checkbox>
+          {showOwnPoints && <div className="geo-own-legend">
+            {(layers?.internal ?? []).map(({ category, count }) => <div key={category}>
+              <Badge color={OWN_POINT_COLOR} glyph={poiCategoryGlyph(category)} />{poiCategoryLabel(category)} ({count})
+            </div>)}
+            {layers && !layers.internal.length && <Text type="secondary">Save places with Add a point.</Text>}
+          </div>}
+        </div> },
+        { key: 'reference', label: `Reference places (OSM)${enabledOsm.length ? ` · ${enabledOsm.length} on` : ''}`, children: <>
+          <Input aria-label="Search reference layers" placeholder="Find a layer, e.g. Fuel" prefix={<SearchOutlined />} allowClear
+            value={layerSearch} onChange={e => setLayerSearch(e.target.value)} />
+          {!!enabledOsm.length && <Button type="text" className="geo-clear-layers" onClick={() => setEnabledOsm([])}>Clear reference layers</Button>}
+          {!layers && <div role="status" className="geo-panel-help"><Spin size="small" /> Loading layers…</div>}
+          {layers && !layersError && !layers.osm.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No reference places imported yet" />}
+          <div className="geo-layer-list">
+            {(layers?.osm ?? []).filter(({ category }) => humanise(category).toLowerCase().includes(layerSearch.toLowerCase())).map(({ category, count }) => (
+              <Checkbox key={category} checked={enabledOsm.includes(category)} onChange={e => toggleOsm(category, e.target.checked)}>
+                <Badge color={CATEGORY_COLORS[category] || FALLBACK_COLOR} glyph={category} />{humanise(category)}
+                <Text type="secondary"> ({count.toLocaleString('en-IN')})</Text>
+              </Checkbox>
             ))}
           </div>
-        )}
+          {layers?.osm.length > 0 && !layers.osm.some(({ category }) => humanise(category).toLowerCase().includes(layerSearch.toLowerCase())) && <p role="status">No matching layers.</p>}
+        </> },
+      ]} />
+      <div className="geo-availability-legend" aria-label="Warehouse availability legend">
+        <strong>Warehouse availability</strong>
+        <div>{Object.entries(AVAILABILITY_COLORS).map(([label, color]) => <span key={label}><Badge color={color} glyph="warehouse" />{humanise(label)}</span>)}</div>
       </div>
-
-      <Title level={5} style={{ marginTop: 18 }}>Reference (OSM)</Title>
-      {layersError && <Alert type="warning" showIcon message={layersError} style={{ marginBottom: 8 }} />}
-
-      {/* Skeleton rows sized like real toggles, so the panel does not reflow
-          when the categories arrive. */}
-      {!layers && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="geo-skel" style={{ width: 16, height: 16, borderRadius: '50%' }} />
-              <span className="geo-skel" style={{ height: 12, width: `${70 - i * 10}%` }} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {layers && !layersError && layers.osm.length === 0 && (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={<Text type="secondary" style={{ fontSize: 12 }}>No OSM points imported yet</Text>}
-        />
-      )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 320, overflowY: 'auto' }}>
-        {(layers?.osm ?? []).map(({ category, count }) => (
-          <Checkbox
-            key={category}
-            checked={enabledOsm.includes(category)}
-            onChange={(e) => toggleOsm(category, e.target.checked)}
-          >
-            <Badge color={CATEGORY_COLORS[category] || FALLBACK_COLOR} glyph={category} />
-            {humanise(category)}
-            <Text type="secondary" style={{ marginLeft: 6, fontSize: 12 }}>({count})</Text>
-          </Checkbox>
-        ))}
-      </div>
-
-      <Button
-        type={placing ? 'primary' : 'default'}
-        icon={placing ? <AimOutlined /> : <PlusOutlined />}
-        onClick={() => setPlacing((p) => !p)}
-        block
-        style={{ marginTop: 18 }}
-      >
-        {placing ? 'Click the map to place…' : 'Add a point'}
-      </Button>
-
-      {truncated && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginTop: 12, fontSize: 12 }}
-          message="Showing a partial view"
-          description="Too many points in this area — zoom in to see them all."
-        />
-      )}
-    </Card>
+    </div>
   )
 
   // Same gate as the dashboard: /api/geo requires the DASHBOARD capability, so
@@ -238,65 +209,49 @@ const GeoExplorer = () => {
   }
 
   return (
-    // position:absolute + inset:0 rather than height:100%: this sits inside
-    // ProtectedRoute's wrapper div, which has no height of its own, so a
-    // percentage height would collapse to zero.
-    <div style={{
-      position: 'absolute',
-      inset: 0,
-      display: 'flex',
-      flexDirection: isMobile ? 'column' : 'row',
-    }}>
-      {/* Sidebar owns its own padding; the map gets none so it runs to the edge. */}
-      <div style={{
-        width: isMobile ? '100%' : 280,
-        flex: isMobile ? '0 0 auto' : '0 0 280px',
-        padding: 16,
-        overflowY: 'auto',
-        borderRight: isMobile ? 'none' : '1px solid var(--border-primary)',
-        borderBottom: isMobile ? '1px solid var(--border-primary)' : 'none',
-        background: 'var(--bg-primary)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <Title level={4} style={{ margin: 0 }}>Map</Title>
-          {(loading || detailLoading) && <Spin size="small" />}
-        </div>
-        {/* Sits directly under the title so viewport fetches are visible without
-            moving anything: the bar occupies its 2px whether or not it is lit. */}
-        <div style={{ height: 2, marginBottom: 12, borderRadius: 2, overflow: 'hidden', background: 'transparent' }}>
-          {(loading || detailLoading) && (
-            <div className="geo-skel" style={{ height: '100%', width: '100%' }} />
-          )}
-        </div>
+    <div className="geo-explorer">
+      {!isMobile && <aside className="geo-sidebar" aria-label="Map layers">
+        <div className="geo-panel-heading"><h1>Map explorer</h1><span>{activeCount} layers on</span></div>
         {sidebar}
-      </div>
-
-      {/* Fills all remaining space. minHeight:0 stops the flex item from
-          refusing to shrink, which is what leaves a gap below the canvas. */}
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, position: 'relative' }}>
+        <Button type="primary" icon={<PlusOutlined aria-hidden="true" />} block disabled={!mapReady || placing || mapBusy || !!editor} onClick={startPlacing}>Add a point</Button>
+        <p className="geo-panel-help">Position a pin, then add a name and type.</p>
+      </aside>}
+      <div className="geo-map-pane">
         <GeoExplorerMap
-          enabledOsmCategories={enabledOsm}
-          showWarehouses={showWarehouses}
-          showOwnPoints={showOwnPoints}
-          placingPoint={placing}
-          canEditPoint={canEditPoint}
-          onCreatePoint={createPoint}
-          onUpdatePoint={updatePoint}
-          onDeletePoint={deletePoint}
-          onOpenWarehouse={openWarehouse}
-          onFetchWarehouse={fetchWarehouse}
-          onPlacingChange={setPlacing}
-          onLoadingChange={setLoading}
-          onTruncated={setTruncated}
-          refreshKey={refreshKey}
+          enabledOsmCategories={enabledOsm} showWarehouses={showWarehouses} showOwnPoints={showOwnPoints}
+          placingPoint={placing} placementLocation={placementLocation} canEditPoint={canEditPoint}
+          onEditPoint={editPoint} onUpdatePoint={updatePoint} onDeletePoint={deletePoint}
+          onOpenWarehouse={openWarehouse} onFetchWarehouse={fetchWarehouse}
+          onPlacingChange={setPlacing} onLoadingChange={setLoading} onTruncated={setTruncated}
+          onErrorChange={setMapError} onReadyChange={setMapReady} onBusyChange={setMapBusy}
+          overlayOpen={layersOpen || !!editor} refreshKey={refreshKey}
         />
+        {!placing && !mapBusy && <div className="geo-map-heading">
+          <strong>Map explorer</strong><span>{activeCount ? `${activeCount} layers on · Tap a pin for details` : 'All layers hidden · Open Layers to show places'}</span>
+        </div>}
+        <div className="geo-map-status" aria-live="polite">
+          {(loading || detailLoading) && <div className="geo-status-chip"><Spin size="small" />{detailLoading ? 'Opening warehouse…' : 'Loading places…'}</div>}
+          {mapError && <Alert type="warning" showIcon message={mapError} action={<Button onClick={() => mapReady ? setRefreshKey(k => k + 1) : window.location.reload()}>Retry</Button>} />}
+          {truncated && <div className="geo-status-chip">Some places are hidden. Zoom in to see more.</div>}
+        </div>
+        {isMobile && !placing && !mapBusy && !editor && <div className="geo-mobile-actions">
+          <Button icon={<AppstoreOutlined aria-hidden="true" />} aria-expanded={layersOpen} aria-controls="geo-layer-panel" onClick={() => setLayersOpen(true)}>Layers <span className="geo-count">{activeCount}</span></Button>
+          <Button type="primary" icon={<PlusOutlined aria-hidden="true" />} disabled={!mapReady} onClick={startPlacing}>Add a point</Button>
+        </div>}
       </div>
-
-      <WarehouseDetailsModal
-        visible={!!detail}
-        warehouse={detail}
-        onClose={() => setDetail(null)}
-      />
+      <Drawer title="Map layers" placement="bottom" height="min(72dvh, 620px)" open={isMobile && layersOpen}
+        onClose={() => setLayersOpen(false)} rootClassName="geo-layer-drawer" closeIcon={<CloseOutlined />}
+        footer={<Button type="primary" block onClick={() => setLayersOpen(false)}>Show map · {activeCount} layers on</Button>}>
+        <div id="geo-layer-panel">{sidebar}</div>
+      </Drawer>
+      {editor && <GeoPointEditor at={editor.at} existing={editor.existing} draft={draft} isMobile={isMobile}
+        onCancel={() => setEditor(null)} onChangeLocation={values => { setPlacementLocation(editor.at); setDraft(values); setEditor(null); setPlacing(true) }}
+        onSave={async body => {
+          if (editor.existing) await updatePoint(editor.existing.id, body)
+          else await createPoint({ ...body, ...editor.at })
+          setEditor(null)
+        }} />}
+      <WarehouseDetailsModal visible={!!detail} warehouse={detail} onClose={() => setDetail(null)} />
     </div>
   )
 }

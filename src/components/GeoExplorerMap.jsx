@@ -1,19 +1,17 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
+import { Button } from 'antd'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { geoService, boundsToBbox, bboxContains, padBbox } from '../services/geoService'
 import { EMPTY_FC } from '../utils/geoLayers'
 import {
-  warehousePopupHTML, osmPopupHTML, ownPopupHTML, pointFormHTML, esc as escHtml,
+  warehousePopupHTML, osmPopupHTML, ownPopupHTML,
 } from '../utils/geoPopups'
 import {
   registerMapIcons,
   ensureCategoryIcon,
   warehouseIconId,
   ownIconExpression,
-  OWN_POINT_COLOR,
-  moveHandleSvg,
-  poiCategoryGlyph,
   availabilityExpression,
 } from '../utils/geoIcons'
 
@@ -44,8 +42,9 @@ const GeoExplorerMap = ({
   showWarehouses = true,
   showOwnPoints = true,
   placingPoint = false,
+  placementLocation = null,
   canEditPoint = () => false,
-  onCreatePoint,
+  onEditPoint,
   onUpdatePoint,
   onDeletePoint,
   onOpenWarehouse,
@@ -53,6 +52,10 @@ const GeoExplorerMap = ({
   onPlacingChange,
   onLoadingChange,
   onTruncated,
+  onErrorChange,
+  onReadyChange,
+  onBusyChange,
+  overlayOpen = false,
   refreshKey = 0,
 }) => {
   const containerRef = useRef(null)
@@ -61,10 +64,16 @@ const GeoExplorerMap = ({
   const lastBboxRef = useRef({ osm: null, own: null, wh: null })
   const symbolOptsRef = useRef(null)
   const popupRef = useRef(null)
-  // The draggable handle and toolbar used while repositioning a point, so both
-  // can be torn down if the component unmounts mid-move.
-  const moveMarkerRef = useRef(null)
-  const moveBarRef = useRef(null)
+  const [moving, setMoving] = useState(null)
+  const positionMarkerRef = useRef(null)
+  const [center, setCenter] = useState({ lat: 12.95, lng: 77.60 })
+  const [savingMove, setSavingMove] = useState(false)
+  const [moveError, setMoveError] = useState('')
+  const movingRef = useRef(null)
+  movingRef.current = moving
+  const requestVersionRef = useRef(0)
+  const osmCategoriesRef = useRef('')
+  const truncatedRef = useRef({ osm: false, wh: false })
   // Cursor inputs. Kept in refs because they are read from map event handlers
   // that are bound once and never see re-rendered state.
   const cursorRef = useRef({ fetching: false, hovering: false })
@@ -72,7 +81,7 @@ const GeoExplorerMap = ({
   // must read the latest callbacks rather than the ones captured at bind time.
   const handlersRef = useRef({})
   handlersRef.current = {
-    onCreatePoint, onUpdatePoint, onDeletePoint, onOpenWarehouse, onPlacingChange, onFetchWarehouse,
+    onEditPoint, onUpdatePoint, onDeletePoint, onOpenWarehouse, onPlacingChange, onFetchWarehouse, onBusyChange, onReadyChange, onErrorChange,
   }
   // Read inside map event handlers, which close over their first render.
   const stateRef = useRef({ enabledOsmCategories, showWarehouses, showOwnPoints, placingPoint, canEdit: canEditPoint })
@@ -137,69 +146,70 @@ const GeoExplorerMap = ({
 
     const visible = boundsToBbox(map.getBounds())
     const bbox = padBbox(visible)
+    const categoryKey = [...cats].sort().join(',')
+    const version = ++requestVersionRef.current
     const jobs = []
-    let truncated = false
-
-    if (cats.length && (force || !bboxContains(lastBboxRef.current.osm, visible))) {
-      jobs.push(
-        geoService.osmPois({ bbox, categories: cats })
-          .then((fc) => {
-            map.getSource(OSM_SRC)?.setData(fc)
-            lastBboxRef.current.osm = bbox
-            if (fc.truncated) truncated = true
-          }),
-      )
+    const fetchLayer = (key, source, request) => {
+      jobs.push(request.then(fc => {
+        // A slow response must never overwrite a newer viewport or selection.
+        if (version !== requestVersionRef.current || mapRef.current !== map) return
+        map.getSource(source)?.setData(fc)
+        lastBboxRef.current[key] = bbox
+        truncatedRef.current[key] = !!fc.truncated
+        if (key === 'osm') osmCategoriesRef.current = categoryKey
+      }))
+    }
+    if (cats.length && (force || categoryKey !== osmCategoriesRef.current || !bboxContains(lastBboxRef.current.osm, visible))) {
+      fetchLayer('osm', OSM_SRC, geoService.osmPois({ bbox, categories: cats }))
     } else if (!cats.length) {
       map.getSource(OSM_SRC)?.setData(EMPTY_FC)
       lastBboxRef.current.osm = null
+      osmCategoriesRef.current = ''
+      truncatedRef.current.osm = false
     }
-
-    if (own && (force || !bboxContains(lastBboxRef.current.own, visible))) {
-      jobs.push(
-        geoService.points({ bbox })
-          .then((fc) => { map.getSource(OWN_SRC)?.setData(fc); lastBboxRef.current.own = bbox }),
-      )
+    if (own && (force || !bboxContains(lastBboxRef.current.own, visible))) fetchLayer('own', OWN_SRC, geoService.points({ bbox }))
+    if (wh && (force || !bboxContains(lastBboxRef.current.wh, visible))) fetchLayer('wh', WH_SRC, geoService.warehouses({ bbox }))
+    const updateTruncated = () => onTruncated?.((cats.length > 0 && truncatedRef.current.osm) || (wh && truncatedRef.current.wh))
+    if (!jobs.length) {
+      onLoadingChange?.(false)
+      cursorRef.current.fetching = false
+      updateTruncated()
+      applyCursor()
+      return
     }
-
-    if (wh && (force || !bboxContains(lastBboxRef.current.wh, visible))) {
-      jobs.push(
-        geoService.warehouses({ bbox })
-          .then((fc) => {
-            map.getSource(WH_SRC)?.setData(fc)
-            lastBboxRef.current.wh = bbox
-            if (fc.truncated) truncated = true
-          }),
-      )
-    }
-
-    if (!jobs.length) return
     onLoadingChange?.(true)
     cursorRef.current.fetching = true
     applyCursor()
-    try {
-      // allSettled: one failing layer must not blank the others.
-      await Promise.allSettled(jobs)
-      onTruncated?.(truncated)
-    } finally {
-      onLoadingChange?.(false)
-      cursorRef.current.fetching = false
-      applyCursor()
-    }
-  }, [onLoadingChange, onTruncated, applyCursor])
+    const results = await Promise.allSettled(jobs)
+    if (version !== requestVersionRef.current || mapRef.current !== map) return
+    onErrorChange?.(results.some(result => result.status === 'rejected') ? 'Some places could not load. Check your connection and retry.' : null)
+    updateTruncated()
+    onLoadingChange?.(false)
+    cursorRef.current.fetching = false
+    applyCursor()
+  }, [onLoadingChange, onTruncated, onErrorChange, applyCursor])
 
   // --- Map setup (once) ---
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return
     if (!mapboxgl.accessToken) return
 
-    const map = new mapboxgl.Map({
+    let map
+    try { map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2',
       center: [77.60, 12.95],
       zoom: 10,
-    })
+    }) } catch {
+      handlersRef.current.onErrorChange?.('The map could not start. Check your browser and reload the page.')
+      return
+    }
     mapRef.current = map
-    map.addControl(new mapboxgl.NavigationControl(), 'top-right')
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+    // The pane changes size independently of the window (drawers, rotation).
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(containerRef.current)
+    map.getCanvas().setAttribute('aria-label', 'Map. Use arrow keys to pan and plus or minus to zoom.')
 
     map.on('load', () => {
       // The base style ships its own POI labels from a different dataset; leaving
@@ -229,7 +239,7 @@ const GeoExplorerMap = ({
       const symbolLayout = {
         'icon-allow-overlap': true,
         'icon-ignore-placement': true,
-        'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.55, 12, 0.8, 16, 1],
+        'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.85, 12, 1, 16, 1.2],
       }
       const symbolPaint = { 'icon-emissive-strength': 1 }
 
@@ -247,7 +257,7 @@ const GeoExplorerMap = ({
         source: WH_SRC,
         layout: {
           ...symbolLayout,
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 12, 0.9, 16, 1.15],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.9, 12, 1.1, 16, 1.3],
           'icon-image': [
             'match', availabilityExpression,
             'available', warehouseIconId('available'),
@@ -265,7 +275,7 @@ const GeoExplorerMap = ({
         source: OWN_SRC,
         layout: {
           ...symbolLayout,
-          'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.65, 12, 0.95, 16, 1.2],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 8, 0.95, 12, 1.15, 16, 1.35],
           'icon-image': ownIconExpression,
         },
         paint: symbolPaint,
@@ -282,11 +292,7 @@ const GeoExplorerMap = ({
         popupRef.current?.remove()
         const popup = new mapboxgl.Popup({
           offset: 14,
-          // No close button: it renders in the same corner as the point's own
-          // action menu and the two collide. Clicking the map dismisses the
-          // popup, and forms carry an explicit Cancel — the same arrangement
-          // MapView already uses.
-          closeButton: false,
+          closeButton: true,
           closeOnClick: true,
           maxWidth: '300px',
           className: 'geo-popup',
@@ -295,147 +301,36 @@ const GeoExplorerMap = ({
           .setHTML(html)
           .addTo(map)
         popupRef.current = popup
+        handlersRef.current.onBusyChange?.(true)
+        popup.getElement().setAttribute('role', 'region')
+        popup.getElement().setAttribute('aria-label', 'Place details')
+        popup.getElement().querySelector('.mapboxgl-popup-close-button')?.setAttribute('aria-label', 'Close place details')
+        popup.on('close', () => handlersRef.current.onBusyChange?.(false))
         return popup
       }
 
-      /**
-       * Open the point form and wire it up. Serves both create and edit, since
-       * the only difference is whether an existing record is passed in and which
-       * handler the submit calls.
-       */
       const openPointForm = (at, existing = null) => {
-        const popup = showPopup([at.lng, at.lat], pointFormHTML(at, existing))
-        const el = popup.getElement()
-        const form = el.querySelector('[data-form="point"]')
-        const errorBox = el.querySelector('[data-role="error"]')
-        el.querySelector('[data-action="cancel-point"]')?.addEventListener('click', () => popup.remove())
-
-        form?.addEventListener('submit', async (ev) => {
-          ev.preventDefault()
-          const submit = form.querySelector('[data-action="save-point"]')
-          const data = Object.fromEntries(new FormData(form))
-          submit.disabled = true
-          submit.style.opacity = '0.75'
-          submit.innerHTML = '<span class="geo-spinner"></span>Saving'
-          try {
-            if (existing) await handlersRef.current.onUpdatePoint?.(existing.id, data)
-            else await handlersRef.current.onCreatePoint?.({ ...data, lat: at.lat, lng: at.lng })
-            popup.remove()
-          } catch (err) {
-            // Reported inside the popup rather than as a toast: the failure
-            // belongs next to the form the user is still looking at.
-            errorBox.textContent = err?.message || 'Could not save the point'
-            errorBox.style.display = 'block'
-            errorBox.classList.add('geo-reveal')
-            submit.disabled = false
-            submit.style.opacity = '1'
-            submit.textContent = 'Save'
-          }
-        })
-        return popup
+        popupRef.current?.remove()
+        handlersRef.current.onEditPoint?.(at, existing)
       }
-
-      /**
-       * Enter move mode: swap the popup for instructions and drop a draggable
-       * marker on the point. The marker, not the map, is what moves — dragging
-       * the map itself would be ambiguous with panning.
-       */
       const startMove = (props, coords) => {
         popupRef.current?.remove()
-
-        // Hide the point from its layer for the duration. Without this the
-        // original badge stays painted where it was, so the user sees two
-        // things and cannot tell which one they are actually moving.
         map.setFilter('own-poi-dots', ['!=', ['get', 'id'], props.id])
-
-        // The draggable handle IS the point's own badge, ringed — dragging a
-        // different-looking marker makes it feel like you are positioning some
-        // other object. Ring and badge are one SVG, so nothing about its shape
-        // depends on CSS box sizing of an element Mapbox styles itself.
-        const HANDLE_PX = 40
-        const handle = document.createElement('div')
-        handle.className = 'geo-move-handle'
-        handle.style.width = `${HANDLE_PX}px`
-        handle.style.height = `${HANDLE_PX}px`
-        handle.innerHTML = moveHandleSvg(OWN_POINT_COLOR, poiCategoryGlyph(props.category), HANDLE_PX)
-
-        const marker = new mapboxgl.Marker({ element: handle, draggable: true, anchor: 'center' })
-          .setLngLat(coords)
-          .addTo(map)
-        moveMarkerRef.current = marker
-
-        // A compact bar pinned to the bottom of the map, rather than a panel
-        // anchored to the point: the area around the point is exactly what the
-        // user needs to see while aiming.
-        const bar = document.createElement('div')
-        bar.className = 'geo-move-bar geo-reveal'
-        bar.innerHTML = `
-          <div class="geo-move-text">
-            <strong>Moving ${escHtml(props.name)}</strong>
-            <span data-role="coords"></span>
-          </div>
-          <div class="geo-move-actions">
-            <button type="button" data-action="cancel-move">Cancel</button>
-            <button type="button" data-action="save-move">Save</button>
-          </div>`
-        map.getContainer().appendChild(bar)
-        moveBarRef.current = bar
-
-        const coordBox = bar.querySelector('[data-role="coords"]')
-        const showCoords = () => {
-          const { lat, lng } = marker.getLngLat()
-          coordBox.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`
-        }
-        showCoords()
-        marker.on('drag', showCoords)
-
-        const end = () => {
-          marker.remove()
-          bar.remove()
-          moveMarkerRef.current = null
-          moveBarRef.current = null
-          // Restore the layer so the point reappears — the refresh that follows
-          // a successful save will bring back its updated position.
-          if (map.getLayer('own-poi-dots')) map.setFilter('own-poi-dots', null)
-        }
-
-        bar.querySelector('[data-action="cancel-move"]').addEventListener('click', end)
-
-        bar.querySelector('[data-action="save-move"]').addEventListener('click', async (ev) => {
-          const btn = ev.currentTarget
-          const { lat, lng } = marker.getLngLat()
-          btn.disabled = true
-          btn.innerHTML = '<span class="geo-spinner"></span>Saving'
-          try {
-            await handlersRef.current.onUpdatePoint?.(props.id, { lat, lng })
-            end()
-          } catch (err) {
-            coordBox.textContent = err?.message || 'Could not move the point'
-            coordBox.style.color = '#ef4444'
-            btn.disabled = false
-            btn.textContent = 'Save'
-          }
-        })
-
-        // Escape cancels, which is what a user reaches for to back out.
-        const onKey = (ev) => {
-          if (ev.key !== 'Escape') return
-          end()
-          window.removeEventListener('keydown', onKey)
-        }
-        window.addEventListener('keydown', onKey)
+        setMoving({ ...props, coords })
+        setMoveError('')
+        handlersRef.current.onBusyChange?.(true)
       }
 
       map.on('click', (e) => {
-        // Placing mode: the form opens where the click landed, so the location
-        // being named stays visible while it is named.
-        if (stateRef.current.placingPoint) {
-          openPointForm({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-          handlersRef.current.onPlacingChange?.(false)
+        if (stateRef.current.placingPoint || movingRef.current) {
+          positionMarkerRef.current?.setLngLat(e.lngLat)
+          setCenter({ lat: e.lngLat.lat, lng: e.lngLat.lng })
           return
         }
-
-        const hits = map.queryRenderedFeatures(e.point, { layers: clickableLayers() })
+        // Expand touch hit testing, then choose the nearest rendered feature.
+        const radius = e.originalEvent?.pointerType === 'touch' || e.originalEvent?.type?.startsWith('touch') ? 22 : 10
+        const hits = map.queryRenderedFeatures([[e.point.x - radius, e.point.y - radius], [e.point.x + radius, e.point.y + radius]], { layers: clickableLayers() })
+        hits.sort((a, b) => map.project(a.geometry.coordinates).dist(e.point) - map.project(b.geometry.coordinates).dist(e.point))
         if (!hits.length) return
         const feature = hits[0]
         const props = feature.properties
@@ -458,19 +353,31 @@ const GeoExplorerMap = ({
         const bindActions = () => {
           const el = popup.getElement()
           if (!el) return
+          const close = el.querySelector('.mapboxgl-popup-close-button')
+          if (close) {
+            close.setAttribute('aria-label', 'Close place details')
+            close.parentElement.prepend(close)
+          }
 
-          el.querySelector('[data-action="open-warehouse"]')?.addEventListener('click', (ev) => {
+          el.querySelector('[data-action="open-warehouse"]')?.addEventListener('click', async (ev) => {
             const btn = ev.currentTarget
             btn.disabled = true
             btn.style.opacity = '0.75'
             btn.innerHTML = '<span class="geo-spinner"></span>Opening'
-            handlersRef.current.onOpenWarehouse?.(Number(btn.dataset.id))
+            try {
+              await handlersRef.current.onOpenWarehouse?.(Number(btn.dataset.id))
+            } finally {
+              btn.disabled = false
+              btn.style.opacity = '1'
+              btn.textContent = 'Open details'
+            }
           })
 
           const menu = el.querySelector('[data-role="menu"]')
           el.querySelector('[data-action="toggle-menu"]')?.addEventListener('click', (ev) => {
             ev.stopPropagation()
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block'
+            ev.currentTarget.setAttribute('aria-expanded', String(menu.style.display === 'block'))
           })
 
           el.querySelector('[data-action="edit-point"]')?.addEventListener('click', () => {
@@ -484,6 +391,11 @@ const GeoExplorerMap = ({
 
           el.querySelector('[data-action="delete-point"]')?.addEventListener('click', async (ev) => {
             const btn = ev.currentTarget
+            if (btn.dataset.confirm !== 'true') {
+              btn.dataset.confirm = 'true'
+              btn.textContent = 'Confirm delete'
+              return
+            }
             btn.disabled = true
             btn.style.opacity = '0.75'
             btn.innerHTML = '<span class="geo-spinner"></span>Deleting'
@@ -527,12 +439,21 @@ const GeoExplorerMap = ({
       })
 
       loadedRef.current = true
-
+      for (const cat of stateRef.current.enabledOsmCategories) {
+        ensureCategoryLayer(cat)
+        map.setLayoutProperty(osmLayerId(cat), 'visibility', 'visible')
+      }
+      map.setLayoutProperty('warehouse-dots', 'visibility', stateRef.current.showWarehouses ? 'visible' : 'none')
+      map.setLayoutProperty('own-poi-dots', 'visibility', stateRef.current.showOwnPoints ? 'visible' : 'none')
+      handlersRef.current.onReadyChange?.(true)
       refreshData(true)
     })
 
     // Expression/style failures arrive here rather than as exceptions.
-    map.on('error', (e) => console.error('[GeoExplorerMap]', e?.error?.message || e))
+    map.on('error', (e) => {
+      console.error('[GeoExplorerMap]', e?.error?.message || e)
+      if (!loadedRef.current) handlersRef.current.onErrorChange?.('The map could not load. Check your connection and reload the page.')
+    })
 
     map.on('moveend', () => {
       applyCursor()
@@ -541,8 +462,8 @@ const GeoExplorerMap = ({
 
     return () => {
       popupRef.current?.remove()
-      moveMarkerRef.current?.remove()
-      moveBarRef.current?.remove()
+      resizeObserver.disconnect()
+      handlersRef.current.onReadyChange?.(false)
       map.remove()
       mapRef.current = null
       loadedRef.current = false
@@ -586,12 +507,68 @@ const GeoExplorerMap = ({
 
   useEffect(() => {
     applyCursor()
-  }, [placingPoint, applyCursor])
+    if (placingPoint || overlayOpen) popupRef.current?.remove()
+  }, [placingPoint, overlayOpen, applyCursor])
+
+  // Placing a pin never changes the camera. Map taps and marker drags only
+  // update coordinates, preserving the user's spatial context.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || (!placingPoint && !moving)) return
+    const at = moving ? { lng: moving.coords[0], lat: moving.coords[1] } : (placementLocation || map.getCenter())
+    const marker = new mapboxgl.Marker({ color: '#bc8cff', draggable: true, scale: 1.3 })
+      .setLngLat(at).addTo(map)
+    positionMarkerRef.current = marker
+    marker.getElement().classList.add('geo-position-marker')
+    marker.getElement().setAttribute('aria-label', 'Selected pin location. Drag to reposition, or tap the map.')
+    const update = () => { const point = marker.getLngLat(); setCenter({ lat: point.lat, lng: point.lng }) }
+    update()
+    marker.on('drag', update)
+    return () => { marker.remove(); positionMarkerRef.current = null }
+  }, [placingPoint, moving, placementLocation])
+
+  const cancelPosition = useCallback(() => {
+    if (savingMove) return
+    setMoving(null)
+    setMoveError('')
+    onPlacingChange?.(false)
+    onBusyChange?.(false)
+    if (mapRef.current?.getLayer('own-poi-dots')) mapRef.current.setFilter('own-poi-dots', null)
+  }, [savingMove, onPlacingChange, onBusyChange])
+
+  useEffect(() => {
+    const onKey = event => {
+      if (event.key === 'Escape') {
+        if (placingPoint || moving) cancelPosition()
+        else popupRef.current?.remove()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [placingPoint, moving, cancelPosition])
+
+  const confirmPosition = async () => {
+    const at = positionMarkerRef.current?.getLngLat()
+    if (!at) return
+    if (!moving) {
+      onPlacingChange?.(false)
+      onEditPoint?.({ lat: at.lat, lng: at.lng })
+      return
+    }
+    setSavingMove(true)
+    try {
+      await onUpdatePoint?.(moving.id, { lat: at.lat, lng: at.lng })
+      setMoving(null)
+      onBusyChange?.(false)
+      mapRef.current?.setFilter('own-poi-dots', null)
+    } catch (err) { setMoveError(err?.message || 'Could not move the point. Try again.') }
+    finally { setSavingMove(false) }
+  }
 
   if (!mapboxgl.accessToken) {
     return (
       <div style={{ padding: 24, color: 'var(--text-muted)' }}>
-        VITE_MAPBOX_TOKEN is not set — the map cannot render.
+        The map is unavailable. Please contact your administrator.
       </div>
     )
   }
@@ -599,7 +576,22 @@ const GeoExplorerMap = ({
   // Absolutely positioned rather than height:100% — the parent is a flex item,
   // and percentage heights through a flex chain resolve inconsistently, which is
   // what leaves a strip of background under the canvas.
-  return <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+  return <>
+    <div ref={containerRef} className="geo-map-surface" style={{ position: 'absolute', inset: 0 }} />
+    {(placingPoint || moving) && <>
+      <div className="geo-position-hint" role="status"><strong>{moving ? `Move ${moving.name}` : 'Step 1 of 2 · Position your pin'}</strong><span>Tap the map or drag the pin. Pan and zoom to explore.</span></div>
+      <div className="geo-position-bar">
+        <span className="geo-position-coords">{center.lat.toFixed(5)}, {center.lng.toFixed(5)}</span>
+        {moveError && <span role="alert" className="geo-position-error">{moveError}</span>}
+        <Button type="text" className="geo-use-center" disabled={savingMove} onClick={() => {
+          const at = mapRef.current.getCenter()
+          positionMarkerRef.current.setLngLat(at)
+          setCenter({ lat: at.lat, lng: at.lng })
+        }}>Place at map center</Button>
+        <div><Button disabled={savingMove} onClick={cancelPosition}>Cancel</Button><Button type="primary" loading={savingMove} onClick={confirmPosition}>{moving ? 'Save location' : 'Use this location'}</Button></div>
+      </div>
+    </>}
+  </>
 }
 
 export default GeoExplorerMap

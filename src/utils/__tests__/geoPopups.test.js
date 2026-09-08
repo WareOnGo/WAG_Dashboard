@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  esc, availabilityBucket, warehousePopupHTML, osmPopupHTML, ownPopupHTML, pointFormHTML,
+  esc, availabilityBucket, warehousePopupHTML, osmPopupHTML, ownPopupHTML,
 } from '../geoPopups';
 
 describe('esc', () => {
@@ -106,37 +106,6 @@ describe('warehousePopupHTML lazy rendering', () => {
   });
 });
 
-describe('pointFormHTML', () => {
-  const at = { lat: 12.95, lng: 77.61 };
-
-  it('carries the clicked coordinates and the fields the API requires', () => {
-    const html = pointFormHTML(at);
-    expect(html).toContain('12.95000, 77.61000');
-    expect(html).toContain('name="name"');
-    expect(html).toContain('name="category"');
-    expect(html).toContain('required');
-  });
-
-  it('has no city field — coordinates are the source of truth for location', () => {
-    expect(pointFormHTML(at)).not.toContain('name="city"');
-  });
-
-  it('prefills and switches to edit mode when given an existing point', () => {
-    const html = pointFormHTML(at, { id: 'abc', name: 'Depot', category: 'icd', notes: 'near gate' });
-    expect(html).toContain('Edit point');
-    expect(html).toContain('data-id="abc"');
-    expect(html).toContain('value="Depot"');
-    expect(html).toContain('value="icd"');
-    expect(html).toContain('near gate');
-  });
-
-  it('escapes prefilled values, which are user-authored', () => {
-    const html = pointFormHTML(at, { id: 'x', name: '"><script>alert(1)</script>', category: 'c', notes: '' });
-    expect(html).not.toContain('<script>');
-    expect(html).toContain('&lt;script&gt;');
-  });
-});
-
 describe('ownPopupHTML menu', () => {
   const point = { id: 'p1', name: 'Depot', category: 'icd', createdBy: 'alice@wareongo.com' };
 
@@ -161,6 +130,3 @@ describe('ownPopupHTML menu', () => {
     expect(ownPopupHTML({ ...point, city: 'Bengaluru' }, true)).not.toContain('Bengaluru');
   });
 });
-
-// Move mode is built from DOM nodes in GeoExplorerMap rather than an HTML
-// string, so there is nothing to assert here — its toolbar is not a popup.

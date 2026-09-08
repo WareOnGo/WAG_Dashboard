@@ -1,6 +1,6 @@
 import {
   AVAILABILITY_COLORS, colorForCategory, glyphForCategory, iconSvg, humaniseCategory,
-  OWN_POINT_COLOR, POI_CATEGORIES, poiCategoryLabel, poiCategoryGlyph,
+  OWN_POINT_COLOR, poiCategoryLabel, poiCategoryGlyph,
 } from './geoIcons';
 import { getMediaFromWarehouse } from './mediaUtils';
 
@@ -177,64 +177,3 @@ export const ownPopupHTML = (p, canEdit = false) => `
       ${p.createdBy ? `<div><div style="${LABEL}">Added by</div><div style="${VALUE}">${esc(p.createdBy)}</div></div>` : ''}
     </div>
   </div>`;
-
-// Move mode has no popup: it uses a toolbar pinned to the bottom of the map
-// (see GeoExplorerMap.startMove and .geo-move-bar), because a panel anchored to
-// the point covers the ground the user is aiming at.
-
-const INPUT = 'width:100%;box-sizing:border-box;padding:7px 8px;font-size:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);border-radius:4px;color:#fff;';
-
-// The style string is interpolated into a double-quoted HTML attribute, so it
-// must stay free of quote characters — which rules out a `url("data:...")`
-// custom arrow. The native arrow follows the select's `color`, so it reads white
-// on this dark popup anyway.
-const SELECT = 'cursor:pointer;';
-
-// Options are painted by the OS on Linux/Windows and would otherwise inherit a
-// white background with the select's white text.
-const OPTION = 'background:#242424;color:#fff;';
-
-// A point created before this list existed keeps its old category in the
-// database and in the popup, but the form deliberately does NOT preselect it:
-// the API only accepts the fixed codes now, so offering the stale value back
-// would produce a form that cannot be saved. Editing such a point requires
-// picking a real type, which is the migration.
-/**
- * Point form, used for both creating and editing.
- *
- * A form in a popup rather than a centred dialog keeps the location you are
- * naming on screen while you name it.
- *
- * There is deliberately no city field: the point already carries coordinates, so
- * a city typed by hand is a second source of truth that can only disagree with
- * them. It is derivable by reverse geocoding whenever it is actually needed.
- *
- * @param {{lat:number,lng:number}} at - where the point sits
- * @param {Object|null} existing - populate for an edit; omit to create
- */
-export const pointFormHTML = (at, existing = null) => {
-  const editing = !!existing;
-  return `
-  <form data-form="point" ${editing ? `data-id="${esc(existing.id)}"` : ''} style="${SHELL}">
-    <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:2px;">${editing ? 'Edit point' : 'Add point'}</div>
-    <div style="font-size:10px;color:rgba(255,255,255,0.45);margin-bottom:10px;">${at.lat.toFixed(5)}, ${at.lng.toFixed(5)}</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <input name="name" placeholder="Name" required autocomplete="off"
-        value="${esc(existing?.name ?? '')}" style="${INPUT}" />
-      <select name="category" required style="${INPUT}${SELECT}">
-        <option value="" disabled ${existing?.category ? '' : 'selected'} style="${OPTION}">Point type\u2026</option>
-        ${POI_CATEGORIES.map((c) => `
-          <option value="${esc(c.value)}" ${existing?.category === c.value ? 'selected' : ''} style="${OPTION}">${esc(c.label)}</option>`).join('')}
-      </select>
-      <textarea name="notes" placeholder="Notes (optional)" rows="2"
-        style="${INPUT}resize:vertical;font-family:inherit;">${esc(existing?.notes ?? '')}</textarea>
-    </div>
-    <div data-role="error" style="display:none;font-size:11px;color:#ef4444;margin-top:8px;"></div>
-    <div style="display:flex;gap:6px;${DIVIDER}">
-      <button type="button" data-action="cancel-point"
-        style="flex:1;padding:7px;font-size:12px;background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:4px;cursor:pointer;">Cancel</button>
-      <button type="submit" data-action="save-point"
-        style="flex:1;padding:7px;font-size:12px;font-weight:500;background:#1890ff;color:#fff;border:none;border-radius:4px;cursor:pointer;">Save</button>
-    </div>
-  </form>`;
-};
