@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Card } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { useViewport } from '../hooks/useViewport';
+import { useVisualViewportBounds } from '../hooks/useVisualViewportBounds';
 
 /**
  * ResponsiveModal Component
@@ -36,10 +37,29 @@ const ResponsiveModal = ({
   ...props
 }) => {
   const { isMobile, isTablet } = useViewport();
+  const viewport = useVisualViewportBounds(visible);
   const modalRef = useRef(null);
   const contentRef = useRef(null);
+  const bodyRef = useRef(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
+
+  // When the keyboard changes the usable area, reveal the active field inside
+  // its own scroll container. Never move focus or scroll the underlying page.
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    if (!visible || !bodyRef.current?.contains(active)) return;
+    let scroller = active.parentElement;
+    while (scroller && bodyRef.current.contains(scroller)) {
+      if (/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight) break;
+      scroller = scroller.parentElement;
+    }
+    if (!scroller || !bodyRef.current.contains(scroller)) return;
+    const field = active.getBoundingClientRect();
+    const area = scroller.getBoundingClientRect();
+    if (field.bottom > area.bottom - 12) scroller.scrollTop += field.bottom - area.bottom + 12;
+    else if (field.top < area.top + 12) scroller.scrollTop += field.top - area.top - 12;
+  }, [visible, viewport.height, viewport.top]);
 
   // Handle escape key and body scroll lock — only re-run when visible changes
   useEffect(() => {
@@ -71,7 +91,7 @@ const ResponsiveModal = ({
   useEffect(() => {
     if (visible && contentRef.current) {
       // Focus the modal content for screen readers
-      contentRef.current.focus();
+      contentRef.current.focus({ preventScroll: true });
     }
   }, [visible]);
 
@@ -88,17 +108,18 @@ const ResponsiveModal = ({
       // Full width on mobile with safe margins
       modalWidth = '100%';
       modalMaxWidth = '100%';
-      modalMaxHeight = '100vh';
+      modalHeight = '100%';
+      modalMaxHeight = '100%';
     } else if (isTablet) {
       // Tablet sizing with comfortable margins
       modalWidth = width === 'auto' ? '90%' : width;
       modalMaxWidth = maxWidth || '700px';
-      modalMaxHeight = maxHeight || '85vh';
+      modalMaxHeight = maxHeight ? `min(${maxHeight}, 100%)` : '100%';
     } else {
       // Desktop sizing
       modalWidth = width === 'auto' ? '80%' : width;
       modalMaxWidth = maxWidth || '900px';
-      modalMaxHeight = maxHeight || '90vh';
+      modalMaxHeight = maxHeight ? `min(${maxHeight}, 100%)` : '100%';
     }
 
     return {
@@ -114,20 +135,21 @@ const ResponsiveModal = ({
   // Modal overlay styles
   const overlayStyles = {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    top: viewport.top,
+    left: viewport.left,
+    width: viewport.width,
+    height: viewport.height,
     background: 'rgba(0, 0, 0, 0.7)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'flex-start',
     zIndex: 1000,
-    overflowY: 'auto',
+    overflow: 'hidden',
     // Handle safe areas on mobile devices
-    padding: isMobile ? '0' : '40px 20px',
-    paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '40px',
-    paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0)' : '40px',
+    padding: isMobile ? '0' : viewport.height < 500 ? '12px 20px' : '24px 20px',
+    paddingTop: isMobile ? 'env(safe-area-inset-top, 0px)' : undefined,
+    paddingBottom: isMobile ? 'env(safe-area-inset-bottom, 0px)' : undefined,
+    boxSizing: 'border-box',
     ...style
   };
 
@@ -144,7 +166,7 @@ const ResponsiveModal = ({
     flexDirection: 'column',
     overflow: 'hidden',
     // Ensure modal doesn't exceed viewport on mobile
-    minHeight: isMobile ? '100vh' : 'auto',
+    minHeight: 0,
     // Flex-shrink 0 prevents the flex child from shrinking below its content size
     flexShrink: 0,
     // Remove focus outline
@@ -163,14 +185,17 @@ const ResponsiveModal = ({
     position: isMobile ? 'sticky' : 'static',
     top: 0,
     zIndex: 10,
+    flexShrink: 0,
     ...headerStyle
   };
 
   // Body styles
   const bodyStyles = {
     flex: 1,
+    minHeight: 0,
     overflow: 'auto',
-    padding: isMobile ? '20px' : '24px',
+    overscrollBehavior: 'contain',
+    padding: isMobile ? '16px' : '24px',
     // Smooth scrolling on mobile
     WebkitOverflowScrolling: 'touch',
     ...bodyStyle
@@ -178,6 +203,7 @@ const ResponsiveModal = ({
 
   // Close button styles
   const closeButtonStyles = {
+    flexShrink: 0,
     minWidth: '44px',
     minHeight: '44px',
     display: 'flex',
@@ -228,7 +254,9 @@ const ResponsiveModal = ({
                   color: 'var(--text-primary)',
                   fontSize: isMobile ? '18px' : '20px',
                   fontWeight: 600,
-                  flex: 1
+                  flex: 1,
+                  minWidth: 0,
+                  overflowWrap: 'anywhere'
                 }}
               >
                 {title}
@@ -247,7 +275,7 @@ const ResponsiveModal = ({
         )}
 
         {/* Body */}
-        <div style={bodyStyles}>
+        <div ref={bodyRef} className="responsive-modal__body" style={bodyStyles}>
           {children}
         </div>
       </div>

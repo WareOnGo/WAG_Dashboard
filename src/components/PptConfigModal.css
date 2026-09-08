@@ -1,0 +1,23 @@
+.ppt-config-wrap .ant-modal {
+  padding-bottom: 0;
+  max-width: calc(100% - 24px);
+}
+
+.ppt-config-modal .ant-modal-close {
+  width: 44px;
+  height: 44px;
+  top: 8px;
+  right: 8px;
+}
+
+.ppt-config-modal .ant-modal-body {
+  flex: 1 1 auto;
+}
+
+.ppt-config-modal .ant-modal-footer .ant-btn {
+  min-height: 44px;
+}
+
+.ppt-config-modal .ant-modal-footer > div {
+  flex-wrap: wrap;
+}

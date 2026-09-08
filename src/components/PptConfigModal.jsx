@@ -14,6 +14,8 @@ import {
   FileExcelOutlined,
 } from '@ant-design/icons';
 import { useViewport } from '../hooks';
+import { useVisualViewportBounds } from '../hooks/useVisualViewportBounds';
+import './PptConfigModal.css';
 import { useAuth } from '../contexts';
 import { describeLatLngInput } from '../utils/latLngInput';
 import { groupImagesByClassification } from '../utils/mediaUtils';
@@ -96,6 +98,7 @@ const photoLimit = (type) => type === 'last-mile' || CAPPED_PHOTO_TYPES.includes
  */
 const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerate, generating }) => {
   const { isMobile } = useViewport();
+  const viewport = useVisualViewportBounds(open);
   const { user } = useAuth();
 
   // Step management
@@ -721,6 +724,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
   return (
     <Modal
+      className="ppt-config-modal"
+      wrapClassName="ppt-config-wrap"
       title={
         <span style={{ fontSize: '15px', fontWeight: 600, fontFamily: 'Verdana, sans-serif' }}>
           {step === 1 ? 'Select Export Format' : isExcel ? 'Configure Last Mile Excel' : 'Configure Presentation'}
@@ -734,7 +739,11 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       closable={!generating}
       footer={getFooter()}
       styles={{
-        body: { maxHeight: '70vh', overflowY: 'auto', fontFamily: 'Verdana, sans-serif' },
+        wrapper: { top: viewport.top, left: viewport.left, width: viewport.width, height: viewport.height, bottom: 'auto', right: 'auto' },
+        content: { display: 'flex', flexDirection: 'column', maxHeight: viewport.height - 24 },
+        header: { flexShrink: 0, paddingRight: 40 },
+        footer: { flexShrink: 0 },
+        body: { minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', fontFamily: 'Verdana, sans-serif' },
       }}
     >
       {generating ? renderGenerating() : step === 1 ? renderStep1() : renderStep2()}

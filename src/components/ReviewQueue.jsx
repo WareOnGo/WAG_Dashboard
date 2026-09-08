@@ -433,6 +433,7 @@ const ReviewQueue = () => {
       >
         {/* Status tabs */}
         <Segmented
+          className="review-status-tabs"
           block={isMobile}
           options={STATUS_TABS}
           value={status}
@@ -469,7 +470,7 @@ const ReviewQueue = () => {
                 ? 'Autopilot: when ON, new submissions auto-publish without review. Turn OFF to route them here for manual approval.'
                 : 'Autopilot is admin-controlled. When ON, new submissions auto-publish without review.'}
             >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+              <span className="review-autopilot" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', minHeight: 44 }}>
                 <RobotOutlined style={{ color: autoApprove ? '#52c41a' : 'rgba(255, 255, 255, 0.45)' }} />
                 <span style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.65)' }}>Autopilot</span>
                 <Switch

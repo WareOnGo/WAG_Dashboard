@@ -20,6 +20,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import performanceService from './services/performanceService'
 import './App.css'
 import './styles/compatibility.css'
+import './styles/dashboard-mobile.css'
 
 const { Content } = Layout
 

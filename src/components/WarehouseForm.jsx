@@ -780,6 +780,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
       title={initialData ? 'Edit Warehouse' : 'Create New Warehouse'}
       maxWidth="900px"
       className="warehouse-form-modal"
+      bodyStyle={m ? { padding: 0, overflow: 'hidden' } : undefined}
     >
       <Spin
         spinning={loading || submitting}
@@ -789,6 +790,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         size={m ? 'large' : 'default'}
       >
         <form onSubmit={handleSubmit} style={{ color: 'var(--text-primary)' }}>
+
+          <div className="warehouse-form-fields">
 
           {/* ── Owner Details ───────────────────────────────────── */}
           <Section title="Owner Details">
@@ -1480,19 +1483,21 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             <ToggleSwitch checked={values.wogVerified} onChange={set('wogVerified')} />
           </div>
 
+          </div>
+
           {/* ── Actions ─────────────────────────────────────────── */}
           <div
             className={m ? 'warehouse-form-actions' : ''}
             style={{
-              marginTop: 32,
+              marginTop: m ? 0 : 32,
               display: 'flex',
               flexDirection: m ? 'column' : 'row',
               justifyContent: 'flex-end',
               gap: 12,
-              position: m ? 'sticky' : 'static',
+              position: 'static',
               bottom: m ? 0 : 'auto',
               background: m ? 'var(--bg-secondary)' : 'transparent',
-              padding: m ? '16px 0' : 0,
+              padding: m ? '12px 16px' : 0,
               borderTop: m ? '1px solid var(--border-primary)' : 'none',
             }}
           >

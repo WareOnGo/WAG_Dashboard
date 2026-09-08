@@ -1,0 +1,73 @@
+/* Keep the existing controls and card sections; adapt the space around them. */
+@media (max-width: 1199px) {
+  .ant-layout-content:has(.dashboard-page) { padding: 16px !important; }
+  .dashboard-page { padding: 0 !important; }
+  .dashboard-panel > .ant-card-body { padding: 0 !important; }
+  .dashboard-card-results { padding: 0 !important; }
+  .dashboard-panel { border: none !important; }
+  .dashboard-search-row { flex: 1 1 100% !important; flex-wrap: wrap; min-width: 0 !important; }
+  .dashboard-search-row .ant-input-affix-wrapper { flex: 1; min-width: 180px; }
+  .dashboard-actions-row { flex: 1 1 auto; }
+  .dashboard-toolbar .view-switcher {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 4px 8px;
+  }
+  .dashboard-toolbar .view-switcher__description { grid-column: 1 / -1; }
+}
+
+.modern-header .brand-link { flex-shrink: 0; white-space: nowrap; }
+.modern-header .nav-link-btn { white-space: nowrap; line-height: 1.4; min-height: 44px; }
+.modern-header .header-main { min-width: 0; flex: 1; flex-wrap: wrap; }
+.modern-header .header-nav { min-width: 0; flex-wrap: wrap; }
+.modern-header .header-account { flex-shrink: 0; }
+.modern-header .header-tool { flex-wrap: wrap; min-width: 0; }
+.modern-header .header-tool-input { flex-wrap: wrap; max-width: 100%; }
+.modern-header .header-tool-input .ant-input { min-width: 0; max-width: 100%; }
+.modern-header.ant-layout-header { height: auto !important; min-height: 60px; line-height: 1.4; }
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  .modern-header.ant-layout-header { padding: 8px 16px !important; gap: 12px; }
+  .modern-header .header-main { gap: 4px 12px !important; }
+  .modern-header .header-nav { gap: 4px !important; margin-left: 0 !important; }
+  .modern-header .nav-link-btn { padding: 6px 8px !important; }
+  .modern-header .user-profile-btn { max-width: 160px; }
+}
+
+@media (max-width: 767px) {
+  .modern-header.ant-layout-header { min-height: 64px; }
+  .dashboard-actions-row { flex: 0 0 100%; }
+  .dashboard-page .mobile-filter-panel { padding: 12px; }
+  .dashboard-page .mobile-filter-panel .ant-collapse-content-box { padding: 12px !important; }
+  .dashboard-page .mobile-filter-panel .ant-collapse-header { padding: 12px !important; }
+  .dashboard-page .mobile-filter-panel .ant-input-affix-wrapper > .ant-input { padding-inline: 0 !important; }
+  .dashboard-page .mobile-filter-panel .mfp-field-label { font-size: 12px; }
+  .dashboard-page .mobile-filter-panel .mfp-quick .ant-btn { min-height: 44px !important; }
+  .review-status-tabs .ant-segmented-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .review-status-tabs .ant-segmented-item-label { min-height: 44px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; }
+}
+
+@media (max-width: 1024px), (pointer: coarse) {
+  .dashboard-page .ant-pagination { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+  .dashboard-page .ant-pagination-item,
+  .dashboard-page .ant-pagination-prev,
+  .dashboard-page .ant-pagination-next,
+  .dashboard-page .ant-pagination-jump-prev,
+  .dashboard-page .ant-pagination-jump-next { min-width: 44px; height: 44px; line-height: 42px; }
+  .dashboard-page .ant-pagination-item-link { min-width: 44px; min-height: 44px; }
+  .admin-users__card-cap { min-height: 44px; }
+  .review-autopilot .ant-switch-small::before {
+    content: '';
+    position: absolute;
+    inset: -14px -8px;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 768px) and (max-width: 1199px) {
+  .ant-layout-content:has(.dashboard-page) { padding-block: 8px !important; }
+  .dashboard-toolbar { gap: 8px !important; margin-bottom: 8px !important; }
+  .dashboard-search-row { flex: 1 1 100% !important; }
+  .dashboard-actions-row { justify-content: flex-start !important; }
+  .dashboard-toolbar .view-switcher { grid-template-columns: auto auto auto; }
+  .dashboard-toolbar .view-switcher__description { grid-column: auto; max-width: 80px; }
+}

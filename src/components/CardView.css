@@ -3,6 +3,7 @@
 .card-view {
   width: 100%;
   padding: 0;
+  container-type: inline-size;
 }
 
 .card-view--mobile {
@@ -50,6 +51,19 @@
 .card-view .ant-col {
   display: flex;
   flex-direction: column;
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+/* Size columns from the space the grid actually has, including split-map view. */
+@container (min-width: 600px) {
+  .card-view .ant-col { flex-basis: 50%; max-width: 50%; }
+}
+@container (min-width: 900px) {
+  .card-view:not(.card-view--two-columns) .ant-col { flex-basis: 33.333333%; max-width: 33.333333%; }
+}
+@container (min-width: 1200px) {
+  .card-view:not(.card-view--two-columns) .ant-col { flex-basis: 25%; max-width: 25%; }
 }
 
 /* Ensure cards have equal height in each row with proper spacing */

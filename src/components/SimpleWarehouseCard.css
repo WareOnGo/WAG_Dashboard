@@ -161,6 +161,18 @@
   font-size: 13px;
 }
 
+.simple-warehouse-card__location > span:not(.anticon):not(.simple-warehouse-card__zone-tag),
+.simple-warehouse-card__contact > span:not(.anticon) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.simple-warehouse-card__zone-tag,
+.simple-warehouse-card__contact > button,
+.simple-warehouse-card__contact > a {
+  flex-shrink: 0;
+}
+
 .simple-warehouse-card__icon {
   color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
@@ -409,9 +421,7 @@
    have to come after the mobile media query to win on source order. */
 .simple-warehouse-card--skeleton {
   cursor: default;
-  /* Lets the stand-in lines respond to the card's own width. They have to: the
-     narrowest cards in this grid appear at a ~1024px viewport (four across at
-     195px), which is wider than a phone, so a media query cannot see them. */
+  /* Stand-in lines follow the card's available width, including split view. */
   container-type: inline-size;
 }
 
@@ -560,6 +570,15 @@
   }
 }
 
+/* In this width range the contact name wraps onto two lines beside the reveal
+   button. Match the row rather than reserving a separate phone line. */
+@container (min-width: 245px) and (max-width: 284px) {
+  @media (min-width: 1025px) and (pointer: fine) {
+    .swc-skeleton__line--contact { height: 41px; margin-bottom: 8px; }
+    .swc-skeleton__line--phone { display: none; }
+  }
+}
+
 /* On a phone stylesheet, the contact name and its reveal button share a line only
    while the card is genuinely wide (a single column at 390px gives 292px of
    content). Two columns at 600px leave 230px, where the real row already wraps. */
@@ -607,4 +626,37 @@
   .swc-skeleton__block {
     animation: none;
   }
+}
+
+/* Keep the same card sections, with readable labels and usable touch targets. */
+@media (max-width: 1024px), (pointer: coarse) {
+  .simple-warehouse-card__status {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .simple-warehouse-card__location,
+  .simple-warehouse-card__contact { font-size: 13px; }
+  .simple-warehouse-card__icon--secondary { margin-left: 0; }
+  .simple-warehouse-card__contact > button,
+  .simple-warehouse-card__contact > a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .simple-warehouse-card__metric-label { font-size: 11px; }
+  .simple-warehouse-card__metric-value { font-size: 14px; }
+  .simple-warehouse-card__action-btn { min-height: 44px; font-size: 13px; }
+
+  .swc-skeleton__line--status { height: 44px; }
+  .swc-skeleton__line--contact { height: 44px; margin-bottom: 8px; }
+  .swc-skeleton__line--phone { display: none; }
+  .swc-skeleton__line--metric-label { height: 17px; }
+  .swc-skeleton__line--metric-value { height: 17px; }
+  .swc-skeleton__line--action { height: 44px; }
+}
+
+@media (max-width: 768px) {
+  .swc-skeleton__line--contact { margin-bottom: 6px; }
 }

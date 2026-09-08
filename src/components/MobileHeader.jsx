@@ -405,7 +405,7 @@ const MobileHeader = ({ onMenuToggle }) => {
         }}
       >
         {/* Left section */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="header-main" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {isMobile && (
             <Button
               type="text"
@@ -448,9 +448,9 @@ const MobileHeader = ({ onMenuToggle }) => {
 
           {/* Desktop nav links */}
           {!isMobile && (
-            <nav style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '28px' }}>
+            <nav className="header-nav" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '28px' }}>
               {/* PPT Generator inline */}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="header-tool" style={{ display: 'flex', alignItems: 'center' }}>
                 <Tooltip title={pptTooltip} placement="bottom">
                   <a
                     href="#"
@@ -475,7 +475,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   </a>
                 </Tooltip>
                 {pptExpanded && (
-                  <div style={{
+                  <div className="header-tool-input" style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
@@ -534,7 +534,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   </a>
                 </Tooltip>
               ))}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="header-tool" style={{ display: 'flex', alignItems: 'center' }}>
                 <Tooltip title={itineraryTooltip} placement="bottom">
                   <a
                     href="#"
@@ -559,7 +559,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   </a>
                 </Tooltip>
                 {itineraryExpanded && (
-                  <div style={{
+                  <div className="header-tool-input" style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
@@ -599,7 +599,7 @@ const MobileHeader = ({ onMenuToggle }) => {
         </div>
 
         {/* Right section */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px' }}>
+        <div className="header-account" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px' }}>
           {/* Mobile tool/nav icons intentionally removed — they now live in the
               hamburger drawer (MobileNavigation) as labeled rows, so the mobile
               header stays as: menu + brand + avatar. */}

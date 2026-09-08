@@ -866,8 +866,9 @@ const Dashboard = () => {
   }
 
   return (
-    <div style={{ padding: isMobile ? '8px' : '24px' }}>
+    <div className="dashboard-page" style={{ padding: isMobile ? '8px' : '24px' }}>
       <Card
+        className="dashboard-panel"
         style={{
           background: isMobile ? 'rgba(31, 31, 31, 0.85)' : 'rgba(31, 31, 31, 0.6)',
           backdropFilter: isMobile ? 'none' : 'blur(20px)',
@@ -877,7 +878,7 @@ const Dashboard = () => {
         bodyStyle={isMobile ? { padding: '12px' } : undefined}
       >
         {/* Search Bar and Actions */}
-        <div style={{
+        <div className="dashboard-toolbar" style={{
           display: 'flex',
           gap: isMobile ? '10px' : '12px',
           marginBottom: isMobile ? '10px' : '16px',
@@ -885,7 +886,7 @@ const Dashboard = () => {
           justifyContent: 'space-between',
           flexWrap: 'wrap'
         }}>
-          <div style={{
+          <div className="dashboard-search-row" style={{
             display: 'flex',
             gap: '12px',
             alignItems: 'center',
@@ -923,7 +924,7 @@ const Dashboard = () => {
             )}
           </div>
 
-          <div style={{
+          <div className="dashboard-actions-row" style={{
             display: 'flex',
             gap: isMobile ? '8px' : '12px',
             alignItems: 'center',
@@ -1171,7 +1172,7 @@ const Dashboard = () => {
               className="dark-table"
             />
           ) : (
-            <div style={{ padding: isMobile ? '4px' : '16px' }}>
+            <div className="dashboard-card-results" style={{ padding: isMobile ? '4px' : '16px' }}>
               <CardView
                 warehouses={warehouses}
                 loading={loading}

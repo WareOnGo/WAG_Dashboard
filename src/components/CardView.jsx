@@ -145,7 +145,7 @@ const CardView = ({
     // don't collapse the layout while the next page loads.
     const skeletonCount = isMobile ? 4 : (columnsPerRow === 2 ? 6 : 8);
     return (
-      <div className="card-view card-view--loading">
+      <div className={`card-view card-view--loading${columnsPerRow === 2 ? ' card-view--two-columns' : ''}`}>
         <Row gutter={[16, 16]}>
           {Array.from({ length: skeletonCount }, (_, i) => (
             <Col key={i} {...colSpan}>
@@ -172,7 +172,7 @@ const CardView = ({
   }
 
   return (
-    <div className="card-view">
+    <div className={`card-view${columnsPerRow === 2 ? ' card-view--two-columns' : ''}`}>
       <Row gutter={[16, 16]}>
         {paginatedData.map((warehouse) => (
           <Col key={warehouse.id} {...colSpan}>

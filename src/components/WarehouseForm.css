@@ -2,6 +2,23 @@
 
 /* Mobile form layout optimizations */
 @media (max-width: 767px) {
+  .warehouse-form-modal .responsive-modal__body > .ant-spin-nested-loading,
+  .warehouse-form-modal .ant-spin-container,
+  .warehouse-form-modal form {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .warehouse-form-modal form { display: flex; flex-direction: column; }
+
+  .warehouse-form-fields {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px;
+    scroll-padding-block: 16px;
+  }
   .warehouse-form-modal .ant-form {
     /* Add breathing room for mobile */
     padding: 0 8px;
@@ -69,15 +86,19 @@
     font-weight: 500;
   }
 
-  /* Form actions sticky positioning */
+  /* Reserve footer space so the keyboard cannot leave fields behind buttons. */
   .warehouse-form-actions {
-    position: sticky;
-    bottom: 0;
+    flex-shrink: 0;
     background: var(--bg-secondary);
-    padding: 16px 8px;
-    margin: 16px -28px -20px -28px;
+    padding: 12px 0;
+    margin: 0;
     border-top: 1px solid var(--border-primary);
     z-index: 10;
+  }
+
+  .warehouse-form-actions .ant-btn {
+    height: auto;
+    white-space: normal;
   }
 
   /* Collapse panel optimizations */

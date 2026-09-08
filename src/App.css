@@ -655,6 +655,28 @@ body {
   box-shadow: none !important;
 }
 
+/* A subtle theme-colored stroke marks the field being edited without changing
+   its dimensions or replacing validation borders. Composite inputs get one
+   outline around their wrapper, rather than a second outline around the text. */
+body .ant-input:focus,
+body .ant-input-affix-wrapper-focused,
+body .ant-select-focused .ant-select-selector,
+body .ant-input-number-focused,
+body .ant-picker-focused,
+.warehouse-form-modal input:focus,
+.warehouse-form-modal select:focus,
+.warehouse-form-modal textarea:focus {
+  outline: 1px solid rgba(var(--accent-primary-rgb), 0.55) !important;
+  outline-offset: 1px !important;
+}
+
+.ant-input-affix-wrapper input.ant-input:focus,
+.ant-select-selector input.ant-select-selection-search-input:focus,
+.ant-input-number input.ant-input-number-input:focus,
+body .ant-picker input:focus {
+  outline: none !important;
+}
+
 /* Progress bar */
 .ant-progress-bg {
   background: var(--accent-primary);
