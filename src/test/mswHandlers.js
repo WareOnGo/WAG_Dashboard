@@ -4,9 +4,24 @@ import { mockWarehouses, mockWarehouse, mockApiErrors } from './mockData';
 const API_BASE_URL = 'http://localhost:3001/api';
 
 export const handlers = [
-  // GET /warehouses - Get all warehouses
-  http.get(`${API_BASE_URL}/warehouses`, () => {
-    return HttpResponse.json(mockWarehouses);
+  // Match the list envelope, including full-data consumers that use all=true.
+  http.get(`${API_BASE_URL}/warehouses`, ({ request }) => {
+    const params = new URL(request.url).searchParams;
+    let data = mockWarehouses;
+    if (params.has('ids')) {
+      const ids = params.get('ids').split(',').map(Number);
+      data = data.filter(row => ids.includes(row.id));
+    }
+    if (params.get('search')) {
+      const search = params.get('search').toLowerCase();
+      data = data.filter(row => [row.id, row.warehouseType, row.city, row.address]
+        .some(value => String(value).toLowerCase().includes(search)));
+    }
+    const page = Number(params.get('page') || 1);
+    const limit = Number(params.get('limit') || 20);
+    const total = data.length;
+    if (params.get('all') !== 'true') data = data.slice((page - 1) * limit, page * limit);
+    return HttpResponse.json({ data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   }),
 
   // POST /warehouses - Create new warehouse

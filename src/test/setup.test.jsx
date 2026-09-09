@@ -1,36 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import { renderWithProviders } from './testUtils';
-import { mockWarehouses, mockWarehouse } from './mockData';
+import { useAuth } from '../contexts/AuthContext';
+import { warehouseService } from '../services/warehouseService';
 
-describe('Test Setup', () => {
-  it('should have testing environment configured', () => {
-    expect(true).toBe(true);
+describe('shared test environment', () => {
+  it('provides an explicit auth state through the real context', () => {
+    const Probe = () => <span>{useAuth().user.name}</span>;
+    const view = renderWithProviders(<Probe />, { auth: { user: { name: 'Test user' } } });
+    expect(view.getByText('Test user')).toBeInTheDocument();
   });
 
-  it('should have jsdom environment available', () => {
-    expect(typeof window).toBe('object');
-    expect(typeof document).toBe('object');
+  it('intercepts the API and returns the paginated contract', async () => {
+    const result = await warehouseService.list({ limit: 1, page: 2 });
+    expect(result.data.map(row => row.id)).toEqual([2]);
+    expect(result.pagination).toEqual({ page: 2, limit: 1, total: 2, totalPages: 2 });
   });
 
-  it('should have React Testing Library utilities available', () => {
-    const TestComponent = () => <div data-testid="test">Test Component</div>;
-    const { getByTestId } = renderWithProviders(<TestComponent />);
-    expect(getByTestId('test')).toBeInTheDocument();
-  });
-
-  it('should have mock data available', () => {
-    expect(mockWarehouses).toBeDefined();
-    expect(Array.isArray(mockWarehouses)).toBe(true);
-    expect(mockWarehouses.length).toBeGreaterThan(0);
-    
-    expect(mockWarehouse).toBeDefined();
-    expect(mockWarehouse.id).toBeDefined();
-    expect(mockWarehouse.warehouseType).toBeDefined();
-  });
-
-  it('should have MSW server configured', () => {
-    // MSW server should be running (configured in mswServer.js)
-    // This test just verifies the setup doesn't throw errors
-    expect(true).toBe(true);
+  it('preserves computed styles for visibility assertions', () => {
+    const { getByText } = renderWithProviders(<span style={{ display: 'none' }}>Hidden content</span>);
+    expect(getByText('Hidden content')).not.toBeVisible();
   });
 });

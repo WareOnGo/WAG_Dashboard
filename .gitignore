@@ -23,6 +23,7 @@ logs/
 
 # Test coverage
 coverage/
+test-results/
 
 # Editor-specific
 .vscode/

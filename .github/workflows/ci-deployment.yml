@@ -15,7 +15,7 @@ jobs:
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
-        node-version: '22.21.1'
+        node-version-file: .nvmrc
         cache: 'npm'
         
     - name: Verify Node.js version
@@ -24,22 +24,32 @@ jobs:
     - name: Install Dependencies
       run: npm ci
       
-    # 🔍 NEW STEP: Run Linting
     - name: Run Lint
       run: npm run lint
-      
-    # 🧪 NEW STEP: Run Tests - TEMPORARILY DISABLED
-    # If this fails, the workflow stops here and will NOT deploy.
-    # - name: Run Tests
-    #   run: npm test
-    #   env:
-    #     CI: true # Crucial: Forces the test runner to run once and exit (no watch mode)
-        
+
+    # Validate this same checkout before building or touching AWS.
+    - name: Run tests and coverage
+      run: npm run test:coverage
+
+    - name: Publish validation summary
+      if: always()
+      run: node scripts/test-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: deployment-test-results
+        path: |
+          test-results/
+          coverage/
+        retention-days: 30
+
     # 🏗️ Build Step
     - name: Build
       run: npm run build
       env:
-        CI: false # Optional: Prevents the build from failing just because of warnings
+        CI: true
         # 👇 Inject environment variables from GitHub secrets - these get "baked" into the static files
         VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
         VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}

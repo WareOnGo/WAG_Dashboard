@@ -1,170 +1,50 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { renderWithProviders } from '../../test/testUtils';
 import MobileHeader from '../MobileHeader';
+import { useViewport } from '../../hooks/useViewport';
 
-// Mock the useViewport hook
-vi.mock('../../hooks', () => ({
-  useViewport: vi.fn()
-}));
+vi.mock('../../hooks/useViewport', () => ({ useViewport: vi.fn() }));
+const auth = { user: { name: 'Employee', email: 'employee@wareongo.com' }, logout: vi.fn() };
+const open = () => {
+  const onMenuToggle = vi.fn();
+  return { onMenuToggle, ...renderWithProviders(<MobileHeader onMenuToggle={onMenuToggle} />, { auth, mobileTools: true }) };
+};
+beforeEach(() => { vi.clearAllMocks(); useViewport.mockReturnValue({ isMobile: false }); });
 
-// Mock the useAuth hook
-vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: vi.fn(() => ({
-    user: {
-      name: 'Admin User',
-      email: 'admin@wareongo.com',
-      picture: null
-    },
-    logout: vi.fn()
-  }))
-}));
-
-// Skip these tests - MobileHeader component not yet implemented
-describe.skip('MobileHeader Component', () => {
-  const mockOnMenuToggle = vi.fn();
-  
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe('current header navigation', () => {
+  it('opens the mobile menu from the hamburger button', async () => {
+    useViewport.mockReturnValue({ isMobile: true });
+    const { onMenuToggle } = open();
+    await userEvent.click(screen.getByRole('button', { name: 'Toggle navigation menu' }));
+    expect(onMenuToggle).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('link', { name: 'WareOnGo' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.queryByRole('link', { name: /PPT Generator/ })).not.toBeInTheDocument();
   });
 
-  describe('Mobile Layout', () => {
-    beforeEach(() => {
-      const { useViewport } = require('../../hooks');
-      useViewport.mockReturnValue({
-        isMobile: true,
-        isTablet: false
-      });
-    });
-
-    it('should render hamburger menu button on mobile', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      const hamburgerButton = screen.getByLabelText('Toggle navigation menu');
-      expect(hamburgerButton).toBeInTheDocument();
-    });
-
-    it('should call onMenuToggle when hamburger button is clicked', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      const hamburgerButton = screen.getByLabelText('Toggle navigation menu');
-      fireEvent.click(hamburgerButton);
-      
-      expect(mockOnMenuToggle).toHaveBeenCalledTimes(1);
-    });
-
-    it('should render brand name', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      expect(screen.getByText('WareOnGo')).toBeInTheDocument();
-    });
-
-    it('should render mobile action buttons with proper aria labels', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      expect(screen.getByLabelText('PPT Generator')).toBeInTheDocument();
-      expect(screen.getByLabelText('Chat Agent')).toBeInTheDocument();
-    });
-
-    it('should render user profile section', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      const userProfile = screen.getByText('Admin User');
-      expect(userProfile).toBeInTheDocument();
-    });
-
-    it('should have proper touch target sizes for mobile elements', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      const hamburgerButton = screen.getByLabelText('Toggle navigation menu');
-      const _styles = window.getComputedStyle(hamburgerButton);
-      
-      // Check that button has minimum touch target styling applied
-      expect(hamburgerButton).toHaveClass('hamburger-menu-btn');
-    });
+  it('renders desktop tools without a hamburger control', () => {
+    open();
+    expect(screen.queryByRole('button', { name: 'Toggle navigation menu' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /PPT Generator/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Itinerary/ })).toBeInTheDocument();
   });
 
-  describe('Desktop Layout', () => {
-    beforeEach(() => {
-      const { useViewport } = require('../../hooks');
-      useViewport.mockReturnValue({
-        isMobile: false,
-        isTablet: false
-      });
-    });
-
-    it('should not render hamburger menu button on desktop', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      const hamburgerButton = screen.queryByLabelText('Toggle navigation menu');
-      expect(hamburgerButton).not.toBeInTheDocument();
-    });
-
-    it('should render full text action buttons on desktop', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      expect(screen.getByText('PPT Generator')).toBeInTheDocument();
-      expect(screen.getByText('Chat Agent')).toBeInTheDocument();
-    });
+  it('opens and closes the desktop itinerary input', async () => {
+    open();
+    const toggle = screen.getByRole('link', { name: /Itinerary/ });
+    await userEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Generate' })).toBeInTheDocument();
+    await userEvent.click(toggle);
+    expect(screen.queryByRole('button', { name: 'Generate' })).not.toBeInTheDocument();
   });
 
-  describe('Accessibility', () => {
-    beforeEach(() => {
-      const { useViewport } = require('../../hooks');
-      useViewport.mockReturnValue({
-        isMobile: true,
-        isTablet: false
-      });
-    });
-
-    it('should have proper ARIA labels for interactive elements', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      expect(screen.getByLabelText('Toggle navigation menu')).toBeInTheDocument();
-      expect(screen.getByLabelText('PPT Generator')).toBeInTheDocument();
-      expect(screen.getByLabelText('Chat Agent')).toBeInTheDocument();
-    });
-
-    it('should have proper semantic structure', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      // Check that the header has proper semantic structure
-      const header = screen.getByRole('banner');
-      expect(header).toBeInTheDocument();
-    });
-  });
-
-  describe('Touch Interface Compliance', () => {
-    beforeEach(() => {
-      const { useViewport } = require('../../hooks');
-      useViewport.mockReturnValue({
-        isMobile: true,
-        isTablet: false
-      });
-    });
-
-    it('should provide visual feedback on button interactions', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      const hamburgerButton = screen.getByLabelText('Toggle navigation menu');
-      
-      // Simulate touch interaction
-      fireEvent.mouseDown(hamburgerButton);
-      fireEvent.mouseUp(hamburgerButton);
-      
-      expect(mockOnMenuToggle).toHaveBeenCalled();
-    });
-
-    it('should have proper CSS classes for touch optimization', () => {
-      render(<MobileHeader onMenuToggle={mockOnMenuToggle} isMenuOpen={false} />);
-      
-      const hamburgerButton = screen.getByLabelText('Toggle navigation menu');
-      expect(hamburgerButton).toHaveClass('hamburger-menu-btn');
-      
-      const actionButtons = screen.getAllByLabelText(/PPT Generator|Chat Agent/);
-      actionButtons.forEach(button => {
-        expect(button).toHaveClass('mobile-action-btn');
-      });
-    });
+  it('opens and closes the desktop PPT input', async () => {
+    open();
+    const toggle = screen.getByRole('link', { name: /PPT Generator/ });
+    await userEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeInTheDocument();
+    await userEvent.click(toggle);
+    expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument();
   });
 });

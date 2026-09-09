@@ -146,7 +146,8 @@ describe('RevealReasonModal', () => {
     expect(screen.queryByText(/left$/)).not.toBeInTheDocument();
 
     await user.clear(box);
-    await user.type(box, 'x'.repeat(250));
+    // A long pasted reason exercises the counter without 250 redundant renders.
+    await user.paste('x'.repeat(250));
     expect(screen.getByText('30 left')).toBeInTheDocument();
   });
 });

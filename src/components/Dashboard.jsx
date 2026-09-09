@@ -156,6 +156,10 @@ const Dashboard = () => {
 
   // Guards against out-of-order list responses (last request wins).
   const reqIdRef = useRef(0);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  // Mutations can finish after the user changes filters or pages. Refresh via
+  // the effects so both list and map use the current query and access state.
+  const refreshWarehouses = useCallback(() => setRefreshVersion(version => version + 1), []);
 
   // Split view state
   const [splitViewEnabled, setSplitViewEnabled] = useState(false);
@@ -165,7 +169,7 @@ const Dashboard = () => {
 
   // Fetch a page of warehouses with the current filters/page applied server-side.
   const fetchWarehouses = useCallback(async () => {
-    if (!isAuthenticated || !hasDashboardAccess) return;
+    if (authLoading || !isAuthenticated || !hasDashboardAccess) return;
 
     const reqId = ++reqIdRef.current;
     setLoading(true);
@@ -183,14 +187,22 @@ const Dashboard = () => {
       });
       // Ignore stale responses (a newer request has since been issued).
       if (reqId !== reqIdRef.current) return;
+      const nextTotal = res?.pagination?.total ?? 0;
+      // A deletion can remove the final row of the final page. Ask for the last
+      // remaining page instead of leaving the user stranded on an empty page.
+      const lastPage = Math.max(1, Math.ceil(nextTotal / pageSize));
+      if (currentPage > lastPage) {
+        setCurrentPage(lastPage);
+        return;
+      }
       setWarehouses(Array.isArray(res?.data) ? res.data : []);
-      setTotal(res?.pagination?.total ?? 0);
+      setTotal(nextTotal);
     } catch (err) {
       if (reqId === reqIdRef.current) setError(err.message);
     } finally {
       if (reqId === reqIdRef.current) setLoading(false);
     }
-  }, [isAuthenticated, hasDashboardAccess, debouncedParams, currentPage, pageSize]);
+  }, [authLoading, isAuthenticated, hasDashboardAccess, debouncedParams, currentPage, pageSize]);
 
   // Network/connection failures (no HTTP response) get a connection-specific
   // message + icon; everything else is a generic error.
@@ -200,29 +212,35 @@ const Dashboard = () => {
   useEffect(() => {
     if (!authLoading && isAuthenticated && hasDashboardAccess) {
       fetchWarehouses();
+    } else {
+      setWarehouses([]);
+      setTotal(0);
+      setLoading(false);
     }
-  }, [authLoading, isAuthenticated, hasDashboardAccess, fetchWarehouses]);
+    // Access changes and unmounts also invalidate pending requests, even when
+    // there is no replacement request to advance the sequence number.
+    return () => { reqIdRef.current += 1; };
+  }, [authLoading, isAuthenticated, hasDashboardAccess, fetchWarehouses, refreshVersion]);
 
   // Debounce filter changes into `debouncedParams` and reset to page 1. `queryParams`
   // is a stable memo (only changes when a filter changes), so this fires once per change.
   useEffect(() => {
+    if (sameParams(debouncedParams, queryParams)) return;
     const t = setTimeout(() => {
-      // Commit only a real change. `queryParams` is a fresh object whenever a
-      // filter re-renders, and committing one that is value-identical to what is
-      // already stored still re-creates `fetchWarehouses` and refires the fetch
-      // effect. Returning `prev` lets React bail out instead — which is what kept
-      // mounting the dashboard from issuing the same request twice, and stops a
-      // filter typed and undone inside the debounce window from issuing another.
-      setDebouncedParams((prev) => (sameParams(prev, queryParams) ? prev : queryParams));
+      // Reset pagination only when the effective filters actually change.
+      setDebouncedParams(queryParams);
       setCurrentPage(1);
     }, 300);
     return () => clearTimeout(t);
-  }, [queryParams]);
+  }, [queryParams, debouncedParams]);
 
   // Keep the split-view map complete: fetch coordinates for ALL filtered rows
-  // (not just the current page) whenever the map is visible and filters change.
+  // (not just the current page) when filters change or a mutation completes.
   useEffect(() => {
-    if (!isAuthenticated || !hasDashboardAccess) return;
+    if (authLoading || !isAuthenticated || !hasDashboardAccess) {
+      setMapCoords([]);
+      return;
+    }
     const mapVisible = splitViewEnabled && effectiveView === 'cards';
     if (!mapVisible) return;
     let active = true;
@@ -230,7 +248,7 @@ const Dashboard = () => {
       .then((rows) => { if (active) setMapCoords(Array.isArray(rows) ? rows : []); })
       .catch(() => { if (active) setMapCoords([]); });
     return () => { active = false; };
-  }, [isAuthenticated, hasDashboardAccess, debouncedParams, splitViewEnabled, effectiveView]);
+  }, [authLoading, isAuthenticated, hasDashboardAccess, debouncedParams, splitViewEnabled, effectiveView, refreshVersion]);
 
   // MapView reads coordinates from top-level latitude/longitude; adapt the
   // lightweight { id, lat, lng } payload from the coordinates endpoint.
@@ -293,12 +311,13 @@ const Dashboard = () => {
           // Update local state after successful deletion
           setWarehouses(prev => prev.filter(w => w.id !== warehouse.id));
           showSuccessMessage('delete');
+          refreshWarehouses();
         } catch {
           // Error already handled by withRetry
         }
       },
     });
-  }, [modal]);
+  }, [modal, refreshWarehouses]);
 
   const handleEdit = useCallback((warehouse) => {
     setEditingWarehouse(warehouse);
@@ -410,6 +429,7 @@ const Dashboard = () => {
               showSuccessMessage('update', {
                 details: `${result.warehouseType || formData.warehouseType} in ${result.city || formData.city}`
               });
+              refreshWarehouses();
             } else if (result.warehouseId != null) {
               // Autopilot promoted it straight to master, so there is a real warehouse to
               // name. Surface that ID, not the staging uuid, and pull the new row into the
@@ -432,7 +452,7 @@ const Dashboard = () => {
                 ),
                 okText: 'Done',
               });
-              fetchWarehouses();
+              refreshWarehouses();
             } else {
               // Left in the review queue. Surface the staged entry's reference ID (uuid) so
               // the employee can keep it to track the submission through review later.
@@ -511,6 +531,7 @@ const Dashboard = () => {
 
       // Show success message
       message.success(`Warehouse ${newVisibility === 'visible' ? 'shown' : 'hidden'} successfully`);
+      refreshWarehouses();
 
     } catch {
       // Revert the optimistic update on error
@@ -519,7 +540,7 @@ const Dashboard = () => {
       );
       // Error already handled by withRetry
     }
-  }, [message]);
+  }, [message, refreshWarehouses]);
 
   // Right-click context menu
   const handleRowContextMenu = (record, event) => {

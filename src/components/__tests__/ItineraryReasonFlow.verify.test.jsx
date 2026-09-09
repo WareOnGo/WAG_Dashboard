@@ -79,10 +79,8 @@ describe('itinerary reason flow', () => {
     await user.type(screen.getByPlaceholderText(/Warehouse IDs/i), '1, 5, 12');
     await user.click(generate);
 
-    await user.type(
-      await screen.findByLabelText('Reason for revealing'),
-      'Flipkart Bhiwandi site visit'
-    );
+    await user.click(await screen.findByLabelText('Reason for revealing'));
+    await user.paste('Flipkart Bhiwandi site visit');
     await user.click(screen.getByRole('button', { name: 'Reveal 3 numbers' }));
 
     await waitFor(() => expect(getContactNumber).toHaveBeenCalledTimes(3));

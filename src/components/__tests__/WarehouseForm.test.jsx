@@ -1,274 +1,198 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouse } from '../../test/mockData';
 import WarehouseForm from '../WarehouseForm';
 
-// Mock the error handler utilities
-vi.mock('../../utils/errorHandler', () => ({
-  handleOperationError: vi.fn(),
-  showSuccessMessage: vi.fn(),
-  clearErrors: vi.fn(),
-}));
+// Visit notes persist independently of the form; uploads have a separate API
+// boundary. These tests exercise the real form and its submitted payload.
+vi.mock('../VisitNotes', () => ({ default: () => <div>Visit notes</div> }));
 
-describe('WarehouseForm Component', () => {
-  const user = userEvent.setup();
-  const mockOnSubmit = vi.fn();
-  const mockOnCancel = vi.fn();
+const record = {
+  ...mockWarehouse, listing_type: 'Rent', warehouseType: 'PEB',
+  state: 'Karnataka', city: 'Bangalore', zone: 'SOUTH', photos: '', media: null,
+};
+const field = label => {
+  const node = screen.getByText((_, element) => element.tagName === 'LABEL'
+    && element.textContent.replace(/\s*\*\s*$/, '').trim() === label);
+  return node.parentElement.querySelector('input, textarea, select, [role="switch"]');
+};
+const change = (label, value) => fireEvent.change(field(label), { target: { value } });
+const chooseLocation = (label, value) => {
+  fireEvent.focus(field(label));
+  fireEvent.change(field(label), { target: { value } });
+  fireEvent.mouseDown(screen.getByText(value, { selector: 'li' }));
+};
+const open = (overrides = {}) => {
+  const props = { visible: true, onSubmit: vi.fn().mockResolvedValue({}), onCancel: vi.fn(), ...overrides };
+  return { props, ...renderWithProviders(<WarehouseForm {...props} />) };
+};
+const submit = () => act(async () => {
+  fireEvent.click(screen.getByText(/^(Create|Update) Warehouse$/).closest('button'));
+});
 
-  const defaultProps = {
-    visible: true,
-    onCancel: mockOnCancel,
-    onSubmit: mockOnSubmit,
-    initialData: null,
-    loading: false,
-  };
+beforeEach(() => {
+  vi.clearAllMocks();
+  localStorage.clear();
+});
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe('WarehouseForm current fields and payload', () => {
+  it('renders current sections and a native warehouse-type selection', () => {
+    open();
+    expect(screen.getByText('Create New Warehouse')).toBeInTheDocument();
+    expect(screen.getByText('Owner Details')).toBeInTheDocument();
+    expect(screen.getByText('Location Details')).toBeInTheDocument();
+    expect(field('Warehouse Type')).toHaveRole('combobox');
+    expect(field('Offered Area (sq ft)')).toHaveValue('1000');
+    expect(field('City')).toBeDisabled();
   });
 
-  describe('Form Rendering', () => {
-    it('should render create form when no initial data provided', () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      expect(screen.getByText('Create New Warehouse')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /create warehouse/i })).toBeInTheDocument();
-    });
-
-    it('should render edit form when initial data provided', () => {
-      renderWithProviders(
-        <WarehouseForm {...defaultProps} initialData={mockWarehouse} />
-      );
-
-      expect(screen.getByText('Edit Warehouse')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /update warehouse/i })).toBeInTheDocument();
-    });
-
-    it('should not render when visible is false', () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} visible={false} />);
-
-      expect(screen.queryByText('Create New Warehouse')).not.toBeInTheDocument();
-    });
-
-    it('should render all required form sections', () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      expect(screen.getByText('Basic Information')).toBeInTheDocument();
-      expect(screen.getByText('Contact Information')).toBeInTheDocument();
-      expect(screen.getByText('Warehouse Details')).toBeInTheDocument();
-      expect(screen.getByText('Location Data')).toBeInTheDocument();
-      expect(screen.getByText('Warehouse Media')).toBeInTheDocument();
-    });
+  it('does not render a closed form', () => {
+    open({ visible: false });
+    expect(screen.queryByText('Create New Warehouse')).not.toBeInTheDocument();
   });
 
-  describe('Form Fields', () => {
-    it('should render all required fields with proper labels', () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      // Check for required field labels (they contain asterisk in the HTML structure)
-      expect(screen.getByText('Warehouse Type')).toBeInTheDocument();
-      expect(screen.getByText('Zone')).toBeInTheDocument();
-      expect(screen.getByText('Address')).toBeInTheDocument();
-      expect(screen.getByText('City')).toBeInTheDocument();
-      expect(screen.getByText('State')).toBeInTheDocument();
-      expect(screen.getByText('Contact Person')).toBeInTheDocument();
-      expect(screen.getByText('Contact Number')).toBeInTheDocument();
-      expect(screen.getByText('Total Space (sq ft)')).toBeInTheDocument();
-      expect(screen.getByText('Rate per sq ft (₹)')).toBeInTheDocument();
-      expect(screen.getByText('Compliances')).toBeInTheDocument();
-      expect(screen.getByText('Uploaded By')).toBeInTheDocument();
-    });
-
-    it('should populate form fields when editing existing warehouse', () => {
-      renderWithProviders(
-        <WarehouseForm {...defaultProps} initialData={mockWarehouse} />
-      );
-
-      // Check that form fields are populated
-      expect(screen.getByDisplayValue('Industrial')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('123 Test Street')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('Test City')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('John Doe')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('1234567890')).toBeInTheDocument();
-    });
-
-    it('should handle dynamic space fields correctly', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      // Form starts with one default space field (value: 1000)
-      const initialSpaceInputs = screen.getAllByPlaceholderText('Enter space');
-      expect(initialSpaceInputs).toHaveLength(1);
-
-      // Add button should be visible
-      const addButton = screen.getByRole('button', { name: /add space value/i });
-      expect(addButton).toBeInTheDocument();
-
-      // Add another space field
-      await user.click(addButton);
-
-      // Should now have two space fields
-      const updatedSpaceInputs = screen.getAllByPlaceholderText('Enter space');
-      expect(updatedSpaceInputs).toHaveLength(2);
-    });
+  it('preserves legacy select values while editing', () => {
+    open({ initialData: { ...record, warehouseType: 'Industrial', state: 'Legacy State', city: 'Legacy City' } });
+    expect(field('Warehouse Type')).toHaveValue('Industrial');
+    expect(field('State')).toHaveValue('Legacy State');
+    expect(field('City')).toHaveValue('Legacy City');
+    expect(field('Contact Number')).toHaveValue(record.contactNumber);
   });
 
-  describe('Form Validation', () => {
-    it('should show validation errors for required fields', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      const submitButton = screen.getByRole('button', { name: /create warehouse/i });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        // The form has some default values set (totalSpaceSqft, visibility, etc.)
-        // So we expect validation errors only for truly required fields without defaults
-        expect(screen.getAllByText('This field is required').length).toBeGreaterThan(0);
-      });
-    });
-
-    it('should validate latitude range', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      const latitudeInput = screen.getByPlaceholderText('Enter latitude (-90 to 90)');
-      await user.type(latitudeInput, '100'); // Invalid latitude
-
-      const submitButton = screen.getByRole('button', { name: /create warehouse/i });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Latitude must be between -90 and 90')).toBeInTheDocument();
-      });
-    });
-
-    it('should validate longitude range', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      const longitudeInput = screen.getByPlaceholderText('Enter longitude (-180 to 180)');
-      await user.type(longitudeInput, '200'); // Invalid longitude
-
-      const submitButton = screen.getByRole('button', { name: /create warehouse/i });
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(screen.getByText('Longitude must be between -180 and 180')).toBeInTheDocument();
-      });
-    });
-
-    it('should have default space value and allow submission with it', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      // The form should start with a default space value
-      const spaceInputs = screen.getAllByPlaceholderText('Enter space');
-      expect(spaceInputs.length).toBeGreaterThan(0);
-      
-      // Verify the default value is set (displayed as "1,000" due to formatter)
-      expect(spaceInputs[0]).toHaveDisplayValue('1,000');
-    });
+  it('rejects an incomplete submission with current field-specific errors', async () => {
+    const { props } = open();
+    await submit();
+    expect(await screen.findByText('Listing type is required')).toBeInTheDocument();
+    expect(screen.getByText('Warehouse type is required')).toBeInTheDocument();
+    expect(screen.getByText('Contact number is required')).toBeInTheDocument();
+    expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
-  describe('Form Submission', () => {
-    it('should show submit button and handle basic form interaction', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      // Check submit button is present
-      const submitButton = screen.getByRole('button', { name: /create warehouse/i });
-      expect(submitButton).toBeInTheDocument();
-
-      // Fill a basic field
-      await user.type(screen.getByPlaceholderText('Enter warehouse type (e.g., Cold Storage, Dry Storage)'), 'Test Warehouse');
-      
-      // Verify field was filled
-      expect(screen.getByDisplayValue('Test Warehouse')).toBeInTheDocument();
-    });
-
-    it('should show loading state during submission', () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} loading={true} />);
-
-      expect(screen.getByText('Loading...')).toBeInTheDocument();
-    });
-
-    it('should handle form validation on submit', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      // Try to submit empty form
-      const submitButton = screen.getByRole('button', { name: /create warehouse/i });
-      await user.click(submitButton);
-
-      // Should show validation errors
-      await waitFor(() => {
-        const errorMessages = screen.getAllByText('This field is required');
-        expect(errorMessages.length).toBeGreaterThan(0);
-      });
-    });
+  it('submits a new warehouse with the default area and derived zone', async () => {
+    const { props } = open();
+    change('Listing Type', 'Rent');
+    change('Warehouse Type', 'PEB');
+    change('Address', 'Nelamangala');
+    chooseLocation('State', 'Karnataka');
+    chooseLocation('City', 'Bangalore');
+    change('Contact Person', 'Test Owner');
+    change('Contact Number', '9876543210');
+    change('Rate per sq ft', '25');
+    change('Uploaded By', 'Test Employee');
+    change('Compliances', 'Fire Safety');
+    await submit();
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(1));
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      listing_type: 'Rent', warehouseType: 'PEB', city: 'Bangalore', state: 'Karnataka', zone: 'SOUTH',
+      contactNumber: '9876543210', totalSpaceSqft: [1000], ratePerSqft: '25',
+      suitableFor: [], warehouseData: expect.objectContaining({ latitude: null, longitude: null }),
+    }));
   });
 
-  describe('Form Actions', () => {
-    it('should call onCancel when cancel button is clicked', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      const cancelButton = screen.getByRole('button', { name: /cancel/i });
-      await user.click(cancelButton);
-
-      expect(mockOnCancel).toHaveBeenCalled();
-    });
-
-    it('should call onCancel when close button is clicked', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      const closeButton = screen.getByRole('button', { name: /close/i });
-      await user.click(closeButton);
-
-      expect(mockOnCancel).toHaveBeenCalled();
-    });
-
-    it('should reset form when cancelled', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
-
-      // Fill a field
-      const warehouseTypeInput = screen.getByPlaceholderText('Enter warehouse type (e.g., Cold Storage, Dry Storage)');
-      await user.type(warehouseTypeInput, 'Test Warehouse');
-
-      expect(warehouseTypeInput.value).toBe('Test Warehouse');
-
-      // Cancel the form
-      const cancelButton = screen.getByRole('button', { name: /cancel/i });
-      await user.click(cancelButton);
-
-      expect(mockOnCancel).toHaveBeenCalled();
-    });
+  it('submits edited values and preserves coordinate precision', async () => {
+    const { props } = open({ initialData: record });
+    change('Address', 'Updated locality');
+    change('Latitude', '12.9716123456789');
+    change('Longitude', '77.5946123456789');
+    await submit();
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(1));
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      address: 'Updated locality', totalSpaceSqft: [10000, 5000],
+      warehouseData: expect.objectContaining({ latitude: '12.9716123456789', longitude: '77.5946123456789' }),
+    }));
   });
 
-  describe('Switch Components', () => {
-    it('should handle visibility switch correctly', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
+  it('adds an area and includes both numeric values in the submission', async () => {
+    const { props } = open({ initialData: { ...record, totalSpaceSqft: [1000] } });
+    fireEvent.click(screen.getByText('Add Space Value').closest('button'));
+    const areas = screen.getAllByPlaceholderText('Enter space');
+    expect(areas).toHaveLength(2);
+    fireEvent.change(areas[1], { target: { value: '2500' } });
+    await submit();
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalled());
+    expect(props.onSubmit.mock.lastCall[0].totalSpaceSqft).toEqual([1000, 2500]);
+  });
 
-      const visibilitySwitch = screen.getByRole('switch', { name: /visibility/i });
-      expect(visibilitySwitch).toBeChecked(); // Default should be true
+  it('rejects a warehouse whose offered areas are all empty or zero', async () => {
+    const { props } = open({ initialData: { ...record, totalSpaceSqft: [0] } });
+    await submit();
+    expect(await screen.findByText('At least one space value is required')).toBeInTheDocument();
+    expect(props.onSubmit).not.toHaveBeenCalled();
+  });
 
-      await user.click(visibilitySwitch);
-      expect(visibilitySwitch).not.toBeChecked();
-    });
+  it('clears the city on state change and respects a manually chosen zone', () => {
+    open({ initialData: record });
+    change('Zone', 'WEST');
+    chooseLocation('State', 'Tamil Nadu');
+    expect(field('City')).toHaveValue('');
+    expect(field('Zone')).toHaveValue('WEST');
+  });
 
-    it('should handle fire NOC switch correctly', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
+  it('preserves hidden RCC details when changing the warehouse type', async () => {
+    const { props } = open({ initialData: { ...record, warehouseType: 'RCC', totalFloors: 'G+3', liftAccess: true, liftLoadCapacity: '2T' } });
+    expect(screen.getByPlaceholderText('e.g. G+3')).toHaveValue('G+3');
+    change('Warehouse Type', 'PEB');
+    expect(screen.queryByPlaceholderText('e.g. G+3')).not.toBeInTheDocument();
+    await submit();
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalled());
+    expect(props.onSubmit.mock.lastCall[0]).toEqual(expect.objectContaining({ totalFloors: 'G+3', liftAccess: true, liftLoadCapacity: '2T' }));
+  });
+});
 
-      const fireNocSwitch = screen.getByRole('switch', { name: /fire noc available/i });
-      expect(fireNocSwitch).not.toBeChecked(); // Default should be false
+describe('WarehouseForm submission and edit lifecycle', () => {
+  it('keeps entered values on a failed save so the user can retry', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { props } = open({ initialData: record, onSubmit: vi.fn().mockRejectedValueOnce(new Error('Save failed')).mockResolvedValueOnce({}) });
+    change('Address', 'Keep this locality');
+    await submit();
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(1));
+    expect(field('Address')).toHaveValue('Keep this locality');
+    await waitFor(() => expect(screen.getByText('Update Warehouse').closest('button')).not.toHaveClass('ant-btn-loading'));
+    await submit();
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(2));
+    expect(props.onSubmit.mock.lastCall[0].address).toBe('Keep this locality');
+    error.mockRestore();
+  });
 
-      await user.click(fireNocSwitch);
-      expect(fireNocSwitch).toBeChecked();
-    });
+  it('prevents repeated clicks while a save is pending', async () => {
+    let finish;
+    const { props } = open({ initialData: record, onSubmit: vi.fn(() => new Promise(resolve => { finish = resolve; })) });
+    await submit();
+    expect(await screen.findByText('Saving', { selector: 'button span' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Saving', { selector: 'button span' }).closest('button'));
+    expect(props.onSubmit).toHaveBeenCalledTimes(1);
+    await act(async () => finish({}));
+  });
 
-    it('should handle vaastu compliance switch correctly', async () => {
-      renderWithProviders(<WarehouseForm {...defaultProps} />);
+  it('disables submission while externally loading', () => {
+    open({ initialData: record, loading: true });
+    expect(screen.getByText('Update Warehouse').closest('button')).toBeDisabled();
+  });
 
-      const vaastuSwitch = screen.getByRole('switch', { name: /vaastu compliance/i });
-      expect(vaastuSwitch).not.toBeChecked(); // Default should be false
+  it('resets the draft when cancelled and reopened in create mode', async () => {
+    const view = open();
+    change('Contact Person', 'Discard this draft');
+    fireEvent.click(screen.getByText('Cancel').closest('button'));
+    expect(view.props.onCancel).toHaveBeenCalledTimes(1);
+    view.rerender(<WarehouseForm {...view.props} visible={false} />);
+    view.rerender(<WarehouseForm {...view.props} />);
+    expect(field('Contact Person')).toHaveValue('');
+    expect(field('Offered Area (sq ft)')).toHaveValue('1000');
+  });
 
-      await user.click(vaastuSwitch);
-      expect(vaastuSwitch).toBeChecked();
-    });
+  it('fills the background contact number without losing other edits', () => {
+    const view = open({ initialData: { ...record, contactNumber: '******7890' } });
+    change('Address', 'Draft locality');
+    view.rerender(<WarehouseForm {...view.props} initialData={{ ...record, contactNumber: '9876543210' }} />);
+    expect(field('Contact Number')).toHaveValue('9876543210');
+    expect(field('Address')).toHaveValue('Draft locality');
+  });
+
+  it('does not overwrite a contact number the user has edited', () => {
+    const view = open({ initialData: { ...record, contactNumber: '******7890' } });
+    change('Contact Number', '9123456789');
+    view.rerender(<WarehouseForm {...view.props} initialData={{ ...record, contactNumber: '9876543210' }} />);
+    expect(field('Contact Number')).toHaveValue('9123456789');
   });
 });

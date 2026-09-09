@@ -1,6 +1,8 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import { App, ConfigProvider, theme } from 'antd';
+import AuthContext from '../contexts/AuthContext';
+import { MobileToolsProvider } from '../contexts/MobileToolsContext';
 
 /**
  * Custom render function that wraps components with necessary providers
@@ -9,20 +11,18 @@ import { App, ConfigProvider, theme } from 'antd';
  * @returns {Object} - Render result with additional utilities
  */
 export function renderWithProviders(ui, options = {}) {
-  const { initialProps: _initialProps = {}, ...renderOptions } = options;
+  const { auth, mobileTools = false, ...renderOptions } = options;
 
   function Wrapper({ children }) {
+    let content = children;
+    if (mobileTools) content = <MobileToolsProvider>{content}</MobileToolsProvider>;
+    if (auth) content = <AuthContext.Provider value={auth}>{content}</AuthContext.Provider>;
     return (
       <ConfigProvider
-        theme={{
-          algorithm: theme.darkAlgorithm,
-          token: {
-            colorPrimary: '#1890ff',
-          },
-        }}
+        theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#1890ff', motion: false } }}
       >
         <App>
-          {children}
+          {content}
         </App>
       </ConfigProvider>
     );
