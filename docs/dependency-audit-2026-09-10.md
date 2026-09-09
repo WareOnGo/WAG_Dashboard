@@ -76,9 +76,9 @@ The normal project toolchain, Node 22.21.1 with npm 10.9.4, then passed `npm ci 
 | Unit tests and coverage | Passed: 207 tests across 23 files, zero failures/skips, 239.27 seconds; existing coverage thresholds satisfied |
 | Production build | Passed; Vite 7.3.6, 20.30 seconds; existing large-chunk warnings remain |
 | Dashboard browser evaluations | Passed: 93 tests, zero failures/skips/flaky tests, retries disabled; all five visual comparisons matched; 276.25 seconds |
-| GitHub CI for this update | Run through the dependency pull request after publication; see its checks for the remote result |
+| GitHub CI for this update | Passed for dependency commit `41a96a9`: [CI Testing result](https://github.com/WareOnGo/WAG_Dashboard/actions/runs/34416054414) |
 
-The dependency-update branch runs GitHub CI through a draft pull request. The deployment workflow runs on pushes to `main`; this update is validated separately before merging.
+Changes are published directly to `origin/main`. Each push triggers both `CI Testing` and `CI + Deployment`.
 
 Global coverage after the tool updates is 33.68% lines, 33.31% statements, 32.02% functions, and 32.65% branches. Dashboard and WarehouseForm coverage are unchanged from the repair recheck. JUnit, JSON, HTML coverage, LCOV, and the validation summary were generated successfully.
 
