@@ -129,10 +129,11 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const [pocsLoading, setPocsLoading] = useState(false);
   const [selectedPocId, setSelectedPocId] = useState(undefined);
 
-  // v2 redaction flags — default enabled (full, unredacted deck)
+  // v2/v3 redaction flags — default enabled (full, unredacted deck)
   const [commercials, setCommercials] = useState(true);
   const [mapsLocation, setMapsLocation] = useState(true);
   const [pocSlide, setPocSlide] = useState(true);
+  const [proximitySlide, setProximitySlide] = useState(false);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -151,6 +152,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setCommercials(true);
       setMapsLocation(true);
       setPocSlide(true);
+      setProximitySlide(false);
     }
   }, [open]);
 
@@ -298,6 +300,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           // Deck-level redaction flags, sent only to the decks that honour them;
           // unchecked → false redacts the corresponding content.
           ...(REDACTABLE_TYPES.includes(pptType) && { commercials, mapsLocation, pocSlide }),
+          ...(pptType === 'v3' && { proximitySlide }),
         };
 
     // v3 renders layout drawings on their own slides, so its selection carries the
@@ -660,6 +663,14 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
                   <span style={checkboxHintStyle}>Unchecked shows “Available on Demand”</span>
                 </span>
               </Checkbox>
+              {pptType === 'v3' && (
+                <Checkbox checked={proximitySlide} onChange={(e) => setProximitySlide(e.target.checked)}>
+                  <span style={checkboxLabelStyle}>
+                    Include distances and map slide
+                    <span style={checkboxHintStyle}>Adds each property’s Connectivity slide with landmark distances and a dedicated map</span>
+                  </span>
+                </Checkbox>
+              )}
               <Checkbox checked={pocSlide} onChange={(e) => setPocSlide(e.target.checked)}>
                 <span style={checkboxLabelStyle}>
                   Include WareOnGo POC slide
