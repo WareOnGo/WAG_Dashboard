@@ -1,5 +1,7 @@
 # Push readiness recheck — 10 September 2026
 
+Follow-up: the [compatible dependency update audit](dependency-audit-2026-09-10.md) records the subsequent dependency work. The results below describe the original repair before those upgrades.
+
 This recheck validates the frontend working tree based on `43a5b7851d445f9a93dca95e2554e5c5702bcda6`, including the test/CI repairs, Dashboard fixes, and general documentation updates. Validation was performed before committing, pushing, or deploying these changes.
 
 **Result:** all local CI validation commands and the complete dashboard evaluation pass after correcting three stale harness screenshots. The dependency audit remains failing, so this is not an unconditional clean bill of health.
