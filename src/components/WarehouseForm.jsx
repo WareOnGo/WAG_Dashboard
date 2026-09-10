@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement } from 'react';
 import { Button, Switch, Spin, Tooltip, message, DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
 import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
@@ -240,7 +240,7 @@ const inputBase = (mobile) => ({
   outline: 'none',
   boxSizing: 'border-box',
 });
-const errorStyle = { color: '#ff4d4f', fontSize: 13, marginTop: 4 };
+const errorStyle = { color: 'var(--text-danger, #ff4d4f)', fontSize: 13, marginTop: 4 };
 const sectionTitle = { color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, margin: '24px 0 16px' };
 
 // Scroll to a form field, walking up to the nearest scrollable ancestor and
@@ -279,30 +279,36 @@ const scrollFieldIntoView = (fieldNameOrList) => {
 
 // ── Reusable field components ─────────────────────────────────────────────────
 
-const Field = ({ label, required, error, children, style, mobile, tooltip }) => (
-  <div style={{ marginBottom: 20, ...style }}>
-    {label && (
-      <label style={labelStyle(mobile)}>
-        {label}
-        {required && <span style={{ color: '#ff4d4f' }}> *</span>}
-        {tooltip && (
-          <Tooltip title={tooltip} placement="top">
-            <QuestionCircleOutlined
-              style={{
-                marginLeft: 6,
-                color: 'var(--text-secondary, #888)',
-                cursor: 'help',
-                fontSize: mobile ? 13 : 13,
-              }}
-            />
-          </Tooltip>
-        )}
-      </label>
-    )}
-    {children}
-    {error && <div style={errorStyle}>{error}</div>}
-  </div>
-);
+const Field = ({ label, required, error, children, style, mobile, tooltip }) => {
+  const id = useId();
+  let controlIndex = 0;
+  const connect = nodes => Children.map(nodes, child => {
+    if (!isValidElement(child)) return child;
+    const isControl = ['input', 'textarea', 'select', TextInput, TextAreaInput, SelectInput, MultiSelectInput, ComboBox, DateInput, ToggleSwitch, Select, Switch].includes(child.type);
+    if (isControl) {
+      const index = controlIndex++;
+      const name = label === 'Handover' ? `Handover ${child.props.placeholder === 'Mode' ? 'mode' : child.props.placeholder === 'Unit' ? 'unit' : child.type === DateInput ? 'date' : 'lead time'}` : undefined;
+      return cloneElement(child, {
+        id: `${id}-${index}`,
+        'aria-labelledby': name ? undefined : `${id}-label`,
+        'aria-label': child.props['aria-label'] || name,
+        'aria-required': required || undefined,
+        'aria-invalid': error ? true : undefined,
+        'aria-describedby': error ? `${id}-error` : undefined,
+      });
+    }
+    return child.props.children ? cloneElement(child, {}, connect(child.props.children)) : child;
+  });
+  const connected = connect(children);
+  return <div style={{ marginBottom: 20, ...style }}>
+    {label && <label id={`${id}-label`} htmlFor={controlIndex ? `${id}-0` : undefined} style={labelStyle(mobile)}>
+      {label}{required && <span aria-hidden="true" style={{ color: 'var(--text-danger, #ff4d4f)' }}> *</span>}
+      {tooltip && <Tooltip title={tooltip} placement="top"><QuestionCircleOutlined style={{ marginLeft: 6, color: 'var(--text-secondary, #888)', cursor: 'help', fontSize: 13 }} /></Tooltip>}
+    </label>}
+    {connected}
+    {error && <div id={`${id}-error`} role="alert" style={errorStyle}>{error}</div>}
+  </div>;
+};
 
 const TextInput = ({ value, onChange, mobile, placeholder, type = 'text', inputMode, maxLength, autoComplete, ...rest }) => (
   <input
@@ -361,7 +367,7 @@ const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest })
  *
  * `value` is always an array; the caller stores exactly what the API expects.
  */
-const MultiSelectInput = ({ value, onChange, mobile, placeholder, options }) => (
+const MultiSelectInput = ({ value, onChange, mobile, placeholder, options, ...rest }) => (
   <Select
     mode="multiple"
     allowClear
@@ -374,11 +380,14 @@ const MultiSelectInput = ({ value, onChange, mobile, placeholder, options }) => 
     optionFilterProp="label"
     style={{ width: '100%', minHeight: mobile ? 44 : 36 }}
     size={mobile ? 'large' : 'middle'}
+    {...rest}
     maxTagCount="responsive"
   />
 );
 
 const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...rest }) => {
+  const listId = useId();
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -394,6 +403,8 @@ const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...
 
   const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
 
+  const availableOptions = hasCustomValue && !query ? [value, ...filtered] : filtered;
+
   const select = (opt) => {
     onChange(opt);
     setOpen(false);
@@ -403,17 +414,35 @@ const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <input
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+        onKeyDown={e => {
+          if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); return; }
+          if (e.key === 'Tab') { setOpen(false); return; }
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault(); setOpen(true);
+            if (availableOptions.length) {
+              const next = activeIndex < 0 ? (e.key === 'ArrowDown' ? 0 : availableOptions.length - 1) : (activeIndex + (e.key === 'ArrowDown' ? 1 : availableOptions.length - 1)) % availableOptions.length;
+              setActiveIndex(next);
+              document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: 'nearest' });
+            }
+          }
+          if (e.key === 'Enter' && open && availableOptions[activeIndex]) { e.preventDefault(); select(availableOptions[activeIndex]); }
+        }}
         value={open ? query : (value || '')}
         placeholder={disabled ? 'Select state first' : placeholder}
         disabled={!!disabled}
-        onFocus={() => { if (!disabled) { setOpen(true); setQuery(''); } }}
-        onChange={e => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => { if (!disabled) { setOpen(true); setQuery(''); setActiveIndex(-1); } }}
+        onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIndex(-1); }}
         autoComplete="off"
         style={{ ...inputBase(mobile), cursor: disabled ? 'not-allowed' : 'text' }}
         {...rest}
       />
       {open && (
-        <ul style={{
+        <ul id={listId} role="listbox" aria-label={placeholder} style={{
           position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 200,
           maxHeight: 220, overflowY: 'auto', margin: 0, padding: '4px 0', listStyle: 'none',
           background: 'var(--bg-secondary, #1f1f1f)',
@@ -424,23 +453,29 @@ const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...
         }}>
           {hasCustomValue && !query && (
             <li
-              onMouseDown={() => select(value)}
+              id={`${listId}-0`}
+              role="option"
+              aria-selected={activeIndex === 0}
+              onMouseDown={e => { e.preventDefault(); select(value); }}
               style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', color: 'var(--text-secondary, #888)', fontStyle: 'italic' }}
             >
               {value} (current)
             </li>
           )}
-          {filtered.length > 0 ? filtered.map(o => (
+          {filtered.length > 0 ? filtered.map((o, index) => (
             <li
               key={o}
-              onMouseDown={() => select(o)}
+              id={`${listId}-${index + (hasCustomValue && !query ? 1 : 0)}`}
+              role="option"
+              aria-selected={activeIndex === index + (hasCustomValue && !query ? 1 : 0)}
+              onMouseDown={e => { e.preventDefault(); select(o); }}
               style={{
                 padding: mobile ? '11px 14px' : '8px 12px',
                 fontSize: mobile ? 15 : 14,
                 cursor: 'pointer',
                 color: o === value ? 'var(--text-primary, #fff)' : 'var(--text-primary, #ddd)',
                 fontWeight: o === value ? 700 : 400,
-                background: o === value ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent',
+                background: o === value || activeIndex === index + (hasCustomValue && !query ? 1 : 0) ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent',
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.06))'}
               onMouseLeave={e => e.currentTarget.style.background = o === value ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent'}
@@ -458,13 +493,14 @@ const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...
   );
 };
 
-const DateInput = ({ value, onChange, mobile, placeholder }) => (
+const DateInput = ({ value, onChange, mobile, placeholder, ...rest }) => (
   <DatePicker
     value={value ? dayjs(value, 'YYYY-MM-DD') : null}
     onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : '')}
     format="DD/MM/YYYY"
     placeholder={placeholder || 'DD/MM/YYYY'}
     size={mobile ? 'large' : 'middle'}
+    {...rest}
     className="wf-datepicker"
     style={{
       width: '100%',
@@ -479,10 +515,11 @@ const DateInput = ({ value, onChange, mobile, placeholder }) => (
   />
 );
 
-const ToggleSwitch = ({ checked, onChange, yesLabel = 'Yes', noLabel = 'No' }) => (
+const ToggleSwitch = ({ checked, onChange, yesLabel = 'Yes', noLabel = 'No', ...rest }) => (
   <Switch
     checked={checked}
     onChange={onChange}
+    {...rest}
     checkedChildren={yesLabel}
     unCheckedChildren={noLabel}
   />
@@ -1137,7 +1174,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                       />
                       {values.totalSpaceSqft.length > 1 && (
                         <button type="button" onClick={() => removeSpace(i)}
-                          style={{ background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', fontSize: m ? 20 : 16, padding: 8 }}>
+                          style={{ background: 'none', border: 'none', color: 'var(--text-danger, #ff4d4f)', cursor: 'pointer', fontSize: m ? 20 : 16, padding: 8 }}>
                           <MinusCircleOutlined />
                         </button>
                       )}

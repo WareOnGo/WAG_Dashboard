@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useId } from 'react';
 import { DownOutlined, SearchOutlined, CheckOutlined, LoadingOutlined } from '@ant-design/icons';
 
 /**
@@ -19,7 +19,9 @@ import { DownOutlined, SearchOutlined, CheckOutlined, LoadingOutlined } from '@a
  */
 const toLocalDigits = (raw) => (raw || '').replace(/\D/g, '').slice(-10);
 
-const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = false, placeholder = 'Select a POC' }) => {
+const PocSelect = ({ id, pocs = [], loading = false, value, onChange, detailed = false, placeholder = 'Select a POC' }) => {
+  const panelId = useId();
+  const triggerRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef(null);
@@ -75,13 +77,29 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
   const handlePick = (id) => {
     onChange?.(id);
     setOpen(false);
+    triggerRef.current?.focus();
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
+    <div ref={containerRef} style={{ position: 'relative' }} onKeyDown={e => {
+      if (!open) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); triggerRef.current?.focus(); }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const options = [...panelRef.current.querySelectorAll('[data-poc-option]')];
+        if (!options.length) return;
+        e.preventDefault();
+        const current = options.indexOf(document.activeElement);
+        const next = current < 0 ? (e.key === 'ArrowDown' ? 0 : options.length - 1) : (current + (e.key === 'ArrowDown' ? 1 : options.length - 1)) % options.length;
+        options[next]?.focus();
+      }
+    }}>
       {/* Trigger */}
       <button
         type="button"
+        ref={triggerRef}
+        id={id}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((o) => !o)}
         style={{
           width: '100%',
@@ -92,9 +110,9 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
           height: '32px',
           padding: '4px 11px',
           borderRadius: '6px',
-          border: `1px solid ${open ? '#1890ff' : '#424242'}`,
-          background: '#141414',
-          color: selected ? 'rgba(255,255,255,0.88)' : 'rgba(255,255,255,0.4)',
+          border: `1px solid ${open ? 'var(--accent-primary, #1890ff)' : '#424242'}`,
+          background: 'var(--bg-primary, #141414)',
+          color: selected ? 'var(--text-primary)' : 'var(--text-muted)',
           cursor: 'pointer',
           fontSize: '14px',
           textAlign: 'left',
@@ -104,28 +122,32 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selected ? optionLabel(selected) : placeholder}
         </span>
-        <DownOutlined style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+        <DownOutlined style={{ fontSize: '11px', color: 'var(--text-muted, rgba(255,255,255,0.4))', flexShrink: 0 }} />
       </button>
 
       {/* In-flow dropdown panel */}
       {open && (
         <div
           ref={panelRef}
+          id={panelId}
+          role="group"
+          aria-label="Point of contact options"
           style={{
             marginTop: '4px',
             border: '1px solid #303030',
             borderRadius: '6px',
-            background: '#1f1f1f',
+            background: 'var(--bg-secondary, #1f1f1f)',
             boxShadow: '0 6px 16px rgba(0,0,0,0.4)',
             overflow: 'hidden',
           }}
         >
           {/* Search */}
           <div style={{ padding: '8px', borderBottom: '1px solid #303030' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', background: '#141414', border: '1px solid #303030', borderRadius: '6px' }}>
-              <SearchOutlined style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', background: 'var(--bg-primary, #141414)', border: '1px solid #303030', borderRadius: '6px' }}>
+              <SearchOutlined style={{ color: 'var(--text-muted, rgba(255,255,255,0.4))', fontSize: '13px' }} />
               <input
                 ref={searchRef}
+                aria-label="Search point of contact by name or number"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search name or number"
@@ -134,7 +156,7 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
                   border: 'none',
                   outline: 'none',
                   background: 'transparent',
-                  color: 'rgba(255,255,255,0.88)',
+                  color: 'var(--text-primary, rgba(255,255,255,0.88))',
                   fontSize: '13px',
                 }}
               />
@@ -150,21 +172,27 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
             }}
           >
             {loading ? (
-              <div style={{ padding: '16px', textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '13px' }}>
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted, rgba(255,255,255,0.45))', fontSize: '13px' }}>
                 <LoadingOutlined spin /> Loading…
               </div>
             ) : filtered.length === 0 ? (
-              <div style={{ padding: '16px', textAlign: 'center', color: 'rgba(255,255,255,0.45)', fontSize: '13px' }}>
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted, rgba(255,255,255,0.45))', fontSize: '13px' }}>
                 No POCs found
               </div>
             ) : (
               filtered.map((p) => {
                 const isSelected = p.id === value;
                 return (
-                  <div
+                  <button
+                    type="button"
+                    data-poc-option
+                    aria-pressed={isSelected}
                     key={p.id}
                     onClick={() => handlePick(p.id)}
                     style={{
+                      border: 'none',
+                      width: '100%',
+                      textAlign: 'left',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -172,8 +200,8 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
                       padding: '9px 12px',
                       cursor: 'pointer',
                       fontSize: '13px',
-                      color: isSelected ? '#1890ff' : 'rgba(255,255,255,0.85)',
-                      background: isSelected ? 'rgba(24,144,255,0.12)' : 'transparent',
+                      color: isSelected ? 'var(--accent-primary, #1890ff)' : 'rgba(255,255,255,0.85)',
+                      background: isSelected ? 'var(--accent-light, rgba(24,144,255,0.12))' : 'transparent',
                     }}
                     onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
                     onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
@@ -182,7 +210,7 @@ const PocSelect = ({ pocs = [], loading = false, value, onChange, detailed = fal
                       {optionLabel(p)}
                     </span>
                     {isSelected && <CheckOutlined style={{ fontSize: '12px', flexShrink: 0 }} />}
-                  </div>
+                  </button>
                 );
               })
             )}

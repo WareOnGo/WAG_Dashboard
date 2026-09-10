@@ -29,7 +29,7 @@ const inputBase = (mobile) => ({
   outline: 'none',
   boxSizing: 'border-box',
 });
-const errorStyle = { color: '#ff4d4f', fontSize: 13, marginTop: 4 };
+const errorStyle = { color: 'var(--text-danger, #ff4d4f)', fontSize: 13, marginTop: 4 };
 
 const EMPTY_DRAFT = {
   client: '',
@@ -52,7 +52,7 @@ const Field = ({ label, required, error, children, mobile, style }) => (
   <div style={{ marginBottom: 16, ...style }}>
     <label style={labelStyle(mobile)}>
       {label}
-      {required && <span style={{ color: '#ff4d4f' }}> *</span>}
+      {required && <span style={{ color: 'var(--text-danger, #ff4d4f)' }}> *</span>}
     </label>
     {children}
     {error && <div style={errorStyle}>{error}</div>}

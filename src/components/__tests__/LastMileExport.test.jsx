@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
@@ -123,7 +124,7 @@ describe('Last Mile configuration', () => {
 
 describe('dashboard export wiring', () => {
   const openExport = async (user) => {
-    render(<MobileToolsProvider><MobileHeader onMenuToggle={vi.fn()} /></MobileToolsProvider>);
+    render(<MemoryRouter><MobileToolsProvider><MobileHeader onMenuToggle={vi.fn()} /></MobileToolsProvider></MemoryRouter>);
     await user.click(screen.getByRole('link', { name: /PPT Generator/ }));
     await user.type(screen.getByPlaceholderText('Warehouse IDs (e.g. 1, 5, 12)'), '1');
     await user.click(screen.getByRole('button', { name: 'Submit' }));

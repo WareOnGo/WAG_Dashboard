@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, Card } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
@@ -40,6 +40,7 @@ const ResponsiveModal = ({
 }) => {
   const { isMobile, isTablet } = useViewport();
   const viewport = useVisualViewportBounds(visible);
+  const titleId = useId();
   const modalRef = useRef(null);
   const contentRef = useRef(null);
   const bodyRef = useRef(null);
@@ -48,38 +49,52 @@ const ResponsiveModal = ({
 
   useRevealFocusedField(bodyRef, visible, viewport);
 
-  // Handle escape key and body scroll lock — only re-run when visible changes
+  // Keep keyboard focus in the topmost dialog, including nested Ant dialogs.
+  // Portalled selects/date pickers are allowed to manage their own keyboard focus.
   useEffect(() => {
-    const handleEscapeKey = (event) => {
-      if (event.key === 'Escape' && onCloseRef.current) {
-        onCloseRef.current();
+    if (!visible) return;
+    const opener = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const dialog = modalRef.current;
+    const visibleNode = node => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
+    const isTopmost = () => [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].filter(visibleNode).at(-1) === dialog;
+    const inPopup = node => node instanceof Element && node.closest('.ant-select-dropdown, .ant-picker-dropdown, .ant-popover');
+    const focusables = () => [...contentRef.current.querySelectorAll('button, a[href], input, select, textarea, [tabindex]')]
+      .filter(node => !node.disabled && node.tabIndex >= 0 && visibleNode(node));
+    const onKey = event => {
+      if (event.defaultPrevented || !isTopmost()) return;
+      if (event.key === 'Escape') {
+        // An open control consumes Escape before the containing dialog does.
+        if (inPopup(event.target) || event.target.closest('[aria-expanded="true"]')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onCloseRef.current?.();
+      }
+      if (event.key !== 'Tab' || inPopup(event.target)) return;
+      const nodes = focusables();
+      const first = nodes[0];
+      const last = nodes.at(-1);
+      if (!first) { event.preventDefault(); contentRef.current.focus(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === contentRef.current)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !contentRef.current.contains(document.activeElement))) {
+        event.preventDefault(); first.focus();
       }
     };
-
-    if (visible) {
-      document.addEventListener('keydown', handleEscapeKey);
-      document.body.style.overflow = 'hidden';
-
-      // Reset scroll once on open
-      setTimeout(() => {
-        if (modalRef.current) {
-          modalRef.current.scrollTop = 0;
-        }
-      }, 0);
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
-      document.body.style.overflow = 'unset';
+    const onFocus = event => {
+      if (isTopmost() && !dialog.contains(event.target) && !inPopup(event.target)) contentRef.current?.focus({ preventScroll: true });
     };
-  }, [visible]);
-
-  // Focus management for accessibility
-  useEffect(() => {
-    if (visible && contentRef.current) {
-      // Focus the modal content for screen readers
-      contentRef.current.focus({ preventScroll: true });
-    }
+    document.body.style.overflow = 'hidden';
+    contentRef.current.focus({ preventScroll: true });
+    dialog.scrollTop = 0;
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('focusin', onFocus);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('focusin', onFocus);
+      document.body.style.overflow = previousOverflow;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
   }, [visible]);
 
   if (!visible) return null;
@@ -221,7 +236,7 @@ const ResponsiveModal = ({
       className={`responsive-modal ${className}`}
       role="dialog"
       aria-modal="true"
-      aria-labelledby={title ? "modal-title" : undefined}
+      aria-labelledby={title ? titleId : undefined}
     >
       <div
         ref={contentRef}
@@ -235,7 +250,7 @@ const ResponsiveModal = ({
           <div style={headerStyles}>
             {title && (
               <h3
-                id="modal-title"
+                id={titleId}
                 style={{
                   margin: 0,
                   color: 'var(--text-primary)',

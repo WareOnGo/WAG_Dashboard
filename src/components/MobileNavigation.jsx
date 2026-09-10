@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
 import { Drawer, Menu, Button, Space, Typography, Avatar, message } from 'antd';
 import {
@@ -24,6 +25,7 @@ const { Text } = Typography;
  * Requirements: 2.1, 2.3, 2.5, 3.5
  */
 const MobileNavigation = ({ visible, onClose }) => {
+  const { pathname } = useLocation();
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
   const { setPptOpen, setItineraryOpen } = useMobileTools();
@@ -212,6 +214,7 @@ const MobileNavigation = ({ visible, onClose }) => {
       {/* Navigation Menu */}
       <Menu
         mode="vertical"
+        selectedKeys={[pathname === "/" ? "dashboard" : pathname.split("/")[1]]}
         onClick={handleMenuClick}
         style={{
           background: 'transparent',
@@ -223,6 +226,7 @@ const MobileNavigation = ({ visible, onClose }) => {
         {menuItems.map((item) => (
           <Menu.Item
             key={item.key}
+            aria-current={pathname === item.href || (pathname === "/" && item.key === "dashboard") ? "page" : undefined}
             icon={item.icon}
             style={{
               height: 'var(--touch-target-recommended)',

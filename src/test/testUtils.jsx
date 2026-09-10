@@ -1,4 +1,5 @@
 import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { render } from '@testing-library/react';
 import { App, ConfigProvider, theme } from 'antd';
 import AuthContext from '../contexts/AuthContext';
@@ -21,9 +22,9 @@ export function renderWithProviders(ui, options = {}) {
       <ConfigProvider
         theme={{ algorithm: theme.darkAlgorithm, token: { colorPrimary: '#1890ff', motion: false } }}
       >
-        <App>
+        <MemoryRouter><App>
           {content}
-        </App>
+        </App></MemoryRouter>
       </ConfigProvider>
     );
   }

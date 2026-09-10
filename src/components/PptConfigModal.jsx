@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { Modal, Radio, Input, Button, Spin, Typography, Image, Checkbox, message } from 'antd';
 import { verifiedNumberService } from '../services/verifiedNumberService';
 import PocSelect from './PocSelect';
@@ -102,6 +102,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const { user } = useAuth();
 
   // Step management
+  const fieldId = useId();
   const [step, setStep] = useState(1);
 
   // Step 1 state
@@ -322,8 +323,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
   const renderStep1 = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <Text style={{ fontSize: '14px', color: 'rgba(255,255,255,0.65)' }}>
-        Select the export format for warehouse IDs: <strong style={{ color: 'rgba(255,255,255,0.9)' }}>{warehouseIds}</strong>
+      <Text style={{ fontSize: '14px', color: 'var(--text-secondary, rgba(255,255,255,0.65))' }}>
+        Select the export format for warehouse IDs: <strong style={{ color: 'var(--text-primary, rgba(255,255,255,0.9))' }}>{warehouseIds}</strong>
       </Text>
 
       <Radio.Group
@@ -342,10 +343,10 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
               padding: '14px 16px',
               borderRadius: '8px',
               border: pptType === t.value
-                ? '1px solid rgba(24, 144, 255, 0.5)'
+                ? '1px solid var(--accent-primary, rgba(24, 144, 255, 0.5))'
                 : '1px solid rgba(255,255,255,0.1)',
               background: pptType === t.value
-                ? 'rgba(24, 144, 255, 0.06)'
+                ? 'var(--accent-light, rgba(24, 144, 255, 0.06))'
                 : 'rgba(255,255,255,0.02)',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
@@ -363,7 +364,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
               }}>
                 {t.icon} {t.title}
               </span>
-              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-muted, rgba(255,255,255,0.5))', lineHeight: '1.5' }}>
                 {t.desc}
               </span>
             </div>
@@ -381,13 +382,20 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     const active = isCad
       ? (selectedCad[warehouse.id] || []).includes(url)
       : (selectedImages[warehouse.id] || []).includes(url);
-    const accent = isCad ? '#fa8c16' : '#1890ff';
+    const accent = isCad ? '#fa8c16' : 'var(--accent-primary, #1890ff)';
 
     return (
-      <div
+      <button
+        type="button"
+        className="ppt-media-tile"
+        aria-pressed={active}
+        aria-label={`${isCad ? "CAD" : "Photo"} for warehouse ${warehouse.id}: ${url.split("/").pop()}`}
         key={url}
         onClick={() => (isCad ? toggleCad(warehouse.id, url) : toggleImage(warehouse.id, url))}
         style={{
+          padding: 0,
+          background: 'transparent',
+          flexShrink: 0,
           position: 'relative',
           width: '90px',
           height: '90px',
@@ -438,11 +446,11 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
             justifyContent: 'center',
           }}>
             {isCad
-              ? <span style={{ color: '#fff', fontSize: '10px', fontWeight: 600 }}>CAD</span>
-              : <CheckCircleFilled style={{ color: '#fff', fontSize: '12px' }} />}
+              ? <span style={{ color: 'var(--on-accent, #fff)', fontSize: '10px', fontWeight: 600 }}>CAD</span>
+              : <CheckCircleFilled style={{ color: 'var(--on-accent, #fff)', fontSize: '12px' }} />}
           </div>
         )}
-      </div>
+      </button>
     );
   };
 
@@ -478,7 +486,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
     const counter = (
       <div style={{ width: '100%', marginTop: '4px' }}>
-        <Text style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+        <Text style={{ fontSize: '11px', color: 'var(--text-muted, rgba(255,255,255,0.4))' }}>
           {Number.isFinite(limit)
             ? `Select up to ${limit} image${limit === 1 ? '' : 's'} • ${selected.length}/${limit} selected`
             : `${selected.length} photo${selected.length !== 1 ? 's' : ''} selected`}
@@ -507,10 +515,10 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           return (
             <div key={section.key}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                <Text style={{ fontSize: '11px', fontWeight: 600, color: 'rgba(255,255,255,0.55)' }}>
+                <Text style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted, rgba(255,255,255,0.55))' }}>
                   {section.title}
                 </Text>
-                <Text style={{ fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+                <Text style={{ fontSize: '11px', color: 'var(--text-muted, rgba(255,255,255,0.3))' }}>
                   {section.urls.length}
                 </Text>
               </div>
@@ -547,7 +555,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Warehouse previews with image selection */}
       <div>
-        <Text strong style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', display: 'block', marginBottom: '12px' }}>
+        <Text strong style={{ fontSize: '14px', color: 'var(--text-primary, rgba(255,255,255,0.85))', display: 'block', marginBottom: '12px' }}>
           Select Images
         </Text>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -562,10 +570,10 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
               }}
             >
               <div style={{ marginBottom: '8px' }}>
-                <Text strong style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)' }}>
+                <Text strong style={{ fontSize: '13px', color: 'var(--text-primary, rgba(255,255,255,0.9))' }}>
                   #{wh.id} — {wh.city}, {wh.state}
                 </Text>
-                <Text style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', display: 'block' }}>
+                <Text style={{ fontSize: '12px', color: 'var(--text-muted, rgba(255,255,255,0.5))', display: 'block' }}>
                   {wh.address} • {wh.warehouseType} • ₹{wh.ratePerSqft}/sq ft
                 </Text>
               </div>
@@ -583,13 +591,14 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         flexDirection: 'column',
         gap: '14px',
       }}>
-        <Text strong style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)' }}>
+        <Text strong style={{ fontSize: '14px', color: 'var(--text-primary, rgba(255,255,255,0.85))' }}>
           {isExcel ? 'Workbook Details' : 'Presentation Details'}
         </Text>
 
         {!isExcel && <div>
-          <label style={labelStyle}>Client / Company Name</label>
+          <label htmlFor={`${fieldId}-clientName`} style={labelStyle}>Client / Company Name</label>
           <Input
+            id={`${fieldId}-clientName`}
             value={clientName}
             onChange={(e) => setClientName(e.target.value)}
             placeholder="e.g., XYZ Corp"
@@ -597,8 +606,9 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         </div>}
 
         <div>
-          <label style={labelStyle}>Client Requirement</label>
+          <label htmlFor={`${fieldId}-clientRequirement`} style={labelStyle}>Client Requirement</label>
           <Input
+            id={`${fieldId}-clientRequirement`}
             value={clientRequirement}
             onChange={(e) => setClientRequirement(e.target.value)}
             placeholder="e.g., Nelamangala, Bangalore - 100,000 sft"
@@ -609,9 +619,10 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           const site = describeLatLngInput(clientLocation);
           return (
             <div>
-              <label style={labelStyle}>Client&apos;s own location (optional)</label>
+              <label htmlFor={`${fieldId}-clientLocation`} style={labelStyle}>Client&apos;s own location (optional)</label>
               <Input
-                value={clientLocation}
+                id={`${fieldId}-clientLocation`}
+            value={clientLocation}
                 onChange={(e) => setClientLocation(e.target.value)}
                 placeholder="Paste coordinates or a Google Maps link"
                 status={site.status === 'error' ? 'error' : undefined}
@@ -630,10 +641,11 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         })()}
 
         {!isExcel && <div>
-          <label style={labelStyle}>
+          <label htmlFor={`${fieldId}-poc`} style={labelStyle}>
             {pptType === 'detailed' ? 'Employee (POC)' : 'WareOnGo POC'}
           </label>
           <PocSelect
+            id={`${fieldId}-poc`}
             pocs={pocs}
             loading={pocsLoading}
             value={selectedPocId}
@@ -641,7 +653,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
             detailed={pptType === 'detailed'}
           />
           {pptType !== 'detailed' && pocContact && (
-            <Text style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', display: 'block', marginTop: '6px' }}>
+            <Text style={{ fontSize: '12px', color: 'var(--text-muted, rgba(255,255,255,0.45))', display: 'block', marginTop: '6px' }}>
               Contact: +91 {pocContact}
             </Text>
           )}
@@ -695,10 +707,10 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     }}>
       <Spin indicator={<LoadingOutlined style={{ fontSize: 44 }} spin />} />
       <div style={{ textAlign: 'center' }}>
-        <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: '15px', display: 'block', marginBottom: '6px' }}>
+        <Text style={{ color: 'var(--text-secondary, rgba(255,255,255,0.75))', fontSize: '15px', display: 'block', marginBottom: '6px' }}>
           {isExcel ? 'Generating Excel workbook…' : 'Generating presentation…'}
         </Text>
-        <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px' }}>
+        <Text style={{ color: 'var(--text-muted, rgba(255,255,255,0.45))', fontSize: '13px' }}>
           {pptType === 'detailed'
             ? 'This may take 10–60 seconds per warehouse (geospatial enrichment).'
             : 'This should take a few seconds.'}
@@ -738,7 +750,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       className="ppt-config-modal"
       wrapClassName="ppt-config-wrap"
       title={
-        <span style={{ fontSize: '15px', fontWeight: 600, fontFamily: 'Verdana, sans-serif' }}>
+        <span style={{ fontSize: '15px', fontWeight: 600, fontFamily: 'var(--font-family, Verdana, sans-serif)' }}>
           {step === 1 ? 'Select Export Format' : isExcel ? 'Configure Last Mile Excel' : 'Configure Presentation'}
         </span>
       }
@@ -754,7 +766,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         content: { display: 'flex', flexDirection: 'column', maxHeight: viewport.height - 24 },
         header: { flexShrink: 0, paddingRight: 40 },
         footer: { flexShrink: 0 },
-        body: { minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', fontFamily: 'Verdana, sans-serif' },
+        body: { minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', fontFamily: 'var(--font-family, Verdana, sans-serif)' },
       }}
     >
       {generating ? renderGenerating() : step === 1 ? renderStep1() : renderStep2()}
@@ -767,8 +779,8 @@ const labelStyle = {
   marginBottom: '6px',
   fontSize: '13px',
   fontWeight: 500,
-  color: 'rgba(255,255,255,0.6)',
-  fontFamily: 'Verdana, sans-serif',
+  color: 'var(--text-secondary, rgba(255,255,255,0.6))',
+  fontFamily: 'var(--font-family, Verdana, sans-serif)',
 };
 
 const checkboxLabelStyle = {
@@ -776,13 +788,13 @@ const checkboxLabelStyle = {
   flexDirection: 'column',
   gap: '2px',
   fontSize: '13px',
-  color: 'rgba(255,255,255,0.85)',
-  fontFamily: 'Verdana, sans-serif',
+  color: 'var(--text-primary, rgba(255,255,255,0.85))',
+  fontFamily: 'var(--font-family, Verdana, sans-serif)',
 };
 
 const checkboxHintStyle = {
   fontSize: '11px',
-  color: 'rgba(255,255,255,0.4)',
+  color: 'var(--text-muted, rgba(255,255,255,0.4))',
 };
 
 export default PptConfigModal;

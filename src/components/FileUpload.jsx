@@ -218,7 +218,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
       {/* ── Images ── */}
       {media.images.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <Text strong style={{ color: 'rgba(255,255,255,0.85)', display: 'block', marginBottom: 8 }}>
+          <Text strong style={{ color: 'var(--text-primary, rgba(255,255,255,0.85))', display: 'block', marginBottom: 8 }}>
             Images ({media.images.length})
           </Text>
           <Row gutter={[8, 8]}>
@@ -231,13 +231,21 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
                   actions={[
                     <EyeOutlined
                       key="view"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open file ${i + 1}`}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => window.open(url, '_blank')}
-                      style={{ color: '#1890ff', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
+                      style={{ color: 'var(--accent-primary, #1890ff)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
                     />,
                     <DeleteOutlined
                       key="delete"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Remove file ${i + 1}`}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => handleRemove('images', url)}
-                      style={{ color: '#ff4d4f', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
+                      style={{ color: 'var(--text-danger, #ff4d4f)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
                       disabled={uploading}
                     />,
                   ]}
@@ -258,7 +266,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
       {/* ── Videos ── */}
       {media.videos.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <Text strong style={{ color: 'rgba(255,255,255,0.85)', display: 'block', marginBottom: 8 }}>
+          <Text strong style={{ color: 'var(--text-primary, rgba(255,255,255,0.85))', display: 'block', marginBottom: 8 }}>
             Videos ({media.videos.length})
           </Text>
           <Row gutter={[8, 8]}>
@@ -271,20 +279,28 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
                   actions={[
                     <EyeOutlined
                       key="view"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Open file ${i + 1}`}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => window.open(url, '_blank')}
-                      style={{ color: '#1890ff', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
+                      style={{ color: 'var(--accent-primary, #1890ff)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
                     />,
                     <DeleteOutlined
                       key="delete"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Remove file ${i + 1}`}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => handleRemove('videos', url)}
-                      style={{ color: '#ff4d4f', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
+                      style={{ color: 'var(--text-danger, #ff4d4f)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
                       disabled={uploading}
                     />,
                   ]}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                    <PlayCircleOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-                    <Text ellipsis style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, flex: 1 }}>
+                    <PlayCircleOutlined style={{ fontSize: 20, color: 'var(--accent-primary, #1890ff)' }} />
+                    <Text ellipsis style={{ color: 'var(--text-secondary, rgba(255,255,255,0.65))', fontSize: 12, flex: 1 }}>
                       {getFileName(url)}
                     </Text>
                   </div>
@@ -298,7 +314,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
       {/* ── Documents ── */}
       {media.docs.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <Text strong style={{ color: 'rgba(255,255,255,0.85)', display: 'block', marginBottom: 8 }}>
+          <Text strong style={{ color: 'var(--text-primary, rgba(255,255,255,0.85))', display: 'block', marginBottom: 8 }}>
             Documents ({media.docs.length})
           </Text>
           <Row gutter={[8, 8]}>
@@ -312,19 +328,23 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
                     <LinkOutlined
                       key="open"
                       onClick={() => window.open(url, '_blank')}
-                      style={{ color: '#1890ff', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
+                      style={{ color: 'var(--accent-primary, #1890ff)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
                     />,
                     <DeleteOutlined
                       key="delete"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Remove file ${i + 1}`}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => handleRemove('docs', url)}
-                      style={{ color: '#ff4d4f', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
+                      style={{ color: 'var(--text-danger, #ff4d4f)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
                       disabled={uploading}
                     />,
                   ]}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
                     <FileTextOutlined style={{ fontSize: 20, color: '#faad14' }} />
-                    <Text ellipsis style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12, flex: 1 }}>
+                    <Text ellipsis style={{ color: 'var(--text-secondary, rgba(255,255,255,0.65))', fontSize: 12, flex: 1 }}>
                       {getFileName(url)}
                     </Text>
                   </div>
@@ -340,10 +360,10 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
         <div style={{ marginBottom: 12 }}>
           {[...activeUploads.entries()].map(([id, { name, progress }]) => (
             <div key={id} style={{ marginBottom: 6 }}>
-              <Text ellipsis style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', display: 'block' }}>
+              <Text ellipsis style={{ fontSize: 12, color: 'var(--text-secondary, rgba(255,255,255,0.65))', display: 'block' }}>
                 {name}
               </Text>
-              <Progress percent={progress} size="small" strokeColor="#1890ff" />
+              <Progress percent={progress} size="small" strokeColor="var(--accent-primary, #1890ff)" />
             </div>
           ))}
         </div>
@@ -375,7 +395,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
       </Upload>
 
       <div style={{ marginTop: 8 }}>
-        <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>
+        <Text style={{ fontSize: 12, color: 'var(--text-muted, rgba(255,255,255,0.45))' }}>
           Max {maxSize}MB per file. Supports images, videos, and documents (PDF, Word, Excel).
         </Text>
       </div>

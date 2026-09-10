@@ -38,7 +38,6 @@ import {
   ResponsiveTable,
   CardView,
   ViewSwitcher,
-  MobileFilterAccordion
 } from './index';
 
 // Lazy-loaded heavy components:
@@ -48,7 +47,7 @@ const MapView = React.lazy(() => import('./MapView'));
 const WarehouseForm = React.lazy(() => import('./WarehouseForm'));
 import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
-import WarehouseFilterBar from './WarehouseFilterBar';
+import WarehouseFilterBar, { AppliedWarehouseFilters } from './WarehouseFilterBar';
 import RedactedPhone from './RedactedPhone';
 import './ResponsiveModal.css';
 import { useViewport, useViewPreference } from '../hooks';
@@ -109,19 +108,7 @@ const Dashboard = () => {
   const {
     queryParams,
     searchText, setSearchText,
-    selectedOwnerType,
-    selectedType,
-    selectedCity,
-    selectedState,
-    selectedZone,
-    selectedAvailability,
-    selectedBroker,
-    fireNocFilter,
-    selectedLandType,
-    selectedUploadedBy,
-    selectedVisibility,
-    areaRange,
-    budgetRange,
+
   } = filters;
 
   // View details modal state
@@ -285,7 +272,7 @@ const Dashboard = () => {
       content: (
         <div>
           <p>Are you sure you want to delete this warehouse?</p>
-          <div style={{ marginTop: '12px', padding: '12px', background: '#262626', borderRadius: '6px' }}>
+          <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-surface)', borderRadius: '6px' }}>
             <p><strong>ID:</strong> {warehouse.id}</p>
             <p><strong>Type:</strong> {warehouse.warehouseType}</p>
             <p><strong>Address:</strong> {warehouse.address}, {warehouse.city}</p>
@@ -360,7 +347,7 @@ const Dashboard = () => {
         content: (
           <div>
             <p>Are you sure you want to {actionText} this warehouse?</p>
-            <div style={{ marginTop: '12px', padding: '12px', background: '#262626', borderRadius: '6px' }}>
+            <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-surface)', borderRadius: '6px' }}>
               <p><strong>Type:</strong> {formData.warehouseType}</p>
               <p><strong>Address:</strong> {formData.address}, {formData.city}</p>
               <p><strong>Zone:</strong> {formData.zone}</p>
@@ -891,7 +878,7 @@ const Dashboard = () => {
       <Card
         className="dashboard-panel"
         style={{
-          background: isMobile ? 'rgba(31, 31, 31, 0.85)' : 'rgba(31, 31, 31, 0.6)',
+          background: 'var(--bg-secondary)',
           backdropFilter: isMobile ? 'none' : 'blur(20px)',
           WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
           border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
@@ -915,7 +902,8 @@ const Dashboard = () => {
             minWidth: isMobile ? '100%' : 'auto'
           }}>
             <Input
-              placeholder="Search warehouses..."
+              aria-label="Search warehouses"
+                placeholder="Search warehouses..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -927,6 +915,7 @@ const Dashboard = () => {
             {!isMobile && (
               <Button
                 icon={<FilterOutlined />}
+                aria-expanded={filtersVisible}
                 onClick={() => setFiltersVisible(!filtersVisible)}
                 type={filtersVisible ? 'primary' : 'default'}
                 size="middle"
@@ -958,7 +947,8 @@ const Dashboard = () => {
               {isMobile && (
                 <Button
                   icon={<FilterOutlined />}
-                  onClick={() => setFiltersVisible(!filtersVisible)}
+                  aria-expanded={filtersVisible}
+                onClick={() => setFiltersVisible(!filtersVisible)}
                   type={filtersVisible ? 'primary' : 'default'}
                   size="small"
                   aria-label="Filters"
@@ -1012,32 +1002,8 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Desktop Filter Panel (shared component) */}
-        {filtersVisible && !isMobile && <WarehouseFilterBar filters={filters} />}
-
-        {/* Mobile Filter Panel — inline single-open accordion (mobile only) */}
-        {filtersVisible && isMobile && (
-          <MobileFilterAccordion
-            {...filters}
-            resultCount={total}
-            activeFilterCount={
-              (searchText ? 1 : 0) +
-              (selectedOwnerType ? 1 : 0) +
-              (selectedType ? 1 : 0) +
-              (selectedCity ? 1 : 0) +
-              (selectedState ? 1 : 0) +
-              (selectedZone ? 1 : 0) +
-              (selectedAvailability ? 1 : 0) +
-              (selectedBroker ? 1 : 0) +
-              (fireNocFilter ? 1 : 0) +
-              (selectedLandType ? 1 : 0) +
-              (selectedUploadedBy ? 1 : 0) +
-              (selectedVisibility ? 1 : 0) +
-              (areaRange[0] > 0 || areaRange[1] < 100000 ? 1 : 0) +
-              (budgetRange[0] > 0 || budgetRange[1] < 1000 ? 1 : 0)
-            }
-          />
-        )}
+        <AppliedWarehouseFilters filters={filters} resultCount={total} loading={loading} />
+        {filtersVisible && <WarehouseFilterBar filters={filters} />}
 
         {/* Thin banner only when we already have rows to show (a refresh failed):
             the empty-load failure is surfaced inside the content box below instead. */}
@@ -1055,7 +1021,7 @@ const Dashboard = () => {
         )}
 
         <div style={{
-          background: isMobile ? 'rgba(31, 31, 31, 0.7)' : 'rgba(31, 31, 31, 0.4)',
+          background: 'var(--bg-secondary)',
           backdropFilter: isMobile ? 'none' : 'blur(15px)',
           WebkitBackdropFilter: isMobile ? 'none' : 'blur(15px)',
           border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',

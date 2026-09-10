@@ -1,212 +1,84 @@
-import { Card, Row, Col, Input, Select, Slider, Button, DatePicker } from 'antd';
+import { useId } from 'react';
+import { Input, InputNumber, Select, Slider, Button, DatePicker, Collapse } from 'antd';
 import dayjs from 'dayjs';
+import './WarehouseFilterBar.css';
 
-const { Option } = Select;
+// Preserve free-text matching and stored values from useWarehouseFilters.
+const fields = [
+  ['selectedCity', 'setSelectedCity', 'City', 'Filter by city', 'common'],
+  ['selectedState', 'setSelectedState', 'State', 'Filter by state', 'common'],
+  ['selectedType', 'setSelectedType', 'Warehouse Type', 'Filter by warehouse type', 'common'],
+  ['selectedAvailability', 'setSelectedAvailability', 'Availability', 'Filter by availability', 'common', [['Yes', 'Yes'], ['No', 'No']]],
+  ['selectedZone', 'setSelectedZone', 'Zone', 'Select zone', 'advanced', ['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'].map(v => [v, v[0] + v.slice(1).toLowerCase()])],
+  ['selectedOwnerType', 'setSelectedOwnerType', 'Owner Type', 'Filter by owner type', 'advanced'],
+  ['selectedBroker', 'setSelectedBroker', 'Broker Status', 'Select broker status', 'advanced', [['y', 'Y'], ['n', 'N']]],
+  ['fireNocFilter', 'setFireNocFilter', 'Fire NOC', 'Select Fire NOC status', 'advanced', [['available', 'Available'], ['not_available', 'Not Available']]],
+  ['selectedLandType', 'setSelectedLandType', 'Land Type', 'Filter by land type', 'advanced'],
+  ['selectedUploadedBy', 'setSelectedUploadedBy', 'Uploaded By', 'Filter by uploader', 'advanced'],
+  ['selectedVisibility', 'setSelectedVisibility', 'Visibility', 'Select visibility', 'advanced', [['visible', 'Visible'], ['hidden', 'Hidden']]],
+];
 
-// Calendar date picker, mirroring WarehouseForm's DateInput: value is a plain
-// 'YYYY-MM-DD' string, displayed as DD/MM/YYYY. onChange receives '' when cleared.
-const DateInput = ({ value, onChange, placeholder }) => (
-  <DatePicker
-    value={value ? dayjs(value, 'YYYY-MM-DD') : null}
-    onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : '')}
-    format="DD/MM/YYYY"
-    placeholder={placeholder || 'DD/MM/YYYY'}
-    style={{ width: '100%' }}
-    styles={{ popup: { root: { zIndex: 2000 } } }}
-    allowClear
-  />
-);
+function appliedFilters(filters) {
+  const active = fields.filter(([key]) => filters[key]).map(([key, setter, label, , , options]) => ({
+    key, label: `${label}: ${options?.find(([value]) => value === filters[key])?.[1] || filters[key]}`,
+    clear: () => filters[setter](''),
+  }));
+  if (filters.searchText) active.unshift({ key: 'search', label: `Search: ${filters.searchText}`, clear: () => filters.setSearchText('') });
+  [['areaRange', 'setAreaRange', 'Area', 100000, 'sq ft'], ['budgetRange', 'setBudgetRange', 'Budget', 1000, '₹/sq ft']].forEach(([key, setter, label, max, unit]) => {
+    if (filters[key][0] !== 0 || filters[key][1] !== max) active.push({ key, label: `${label}: ${filters[key][0].toLocaleString()}–${filters[key][1].toLocaleString()} ${unit}`, clear: () => filters[setter]([0, max]) });
+  });
+  [['submittedDateRange', 'setSubmittedDateRange', 'Submitted'], ['reviewedDateRange', 'setReviewedDateRange', 'Approved']].forEach(([key, setter, label]) => {
+    if (filters[key]?.some(Boolean)) active.push({ key, label: `${label}: ${filters[key][0] || 'Any'} → ${filters[key][1] || 'Any'}`, clear: () => filters[setter]([null, null]) });
+  });
+  return active;
+}
 
-/**
- * WarehouseFilterBar — the desktop filter panel, shared by the dashboard and the
- * review queue. Presentational: all state lives in useWarehouseFilters, passed in
- * via the `filters` bundle.
- *
- * @param {boolean} showDateFilter - when true, render the submission/approval date
- *   filters (review queue only; staged rows carry submittedAt/reviewedAt).
- */
-const WarehouseFilterBar = ({ filters, showDateFilter = false }) => {
-  const {
-    selectedOwnerType, setSelectedOwnerType,
-    selectedType, setSelectedType,
-    selectedCity, setSelectedCity,
-    selectedState, setSelectedState,
-    selectedZone, setSelectedZone,
-    selectedAvailability, setSelectedAvailability,
-    selectedBroker, setSelectedBroker,
-    fireNocFilter, setFireNocFilter,
-    selectedLandType, setSelectedLandType,
-    selectedUploadedBy, setSelectedUploadedBy,
-    selectedVisibility, setSelectedVisibility,
-    areaRange, setAreaRange,
-    budgetRange, setBudgetRange,
-    submittedDateRange, setSubmittedDateRange,
-    reviewedDateRange, setReviewedDateRange,
-    clearFilters,
-  } = filters;
+export function AppliedWarehouseFilters({ filters, resultCount, loading = false }) {
+  const active = appliedFilters(filters);
+  if (!active.length) return null;
+  return <div className="applied-filters" aria-label="Applied filters">
+    <span className="applied-filters__count" role="status">{active.length} active {active.length === 1 ? 'filter' : 'filters'}{!loading && resultCount === 0 ? ' · No matching results' : ''}</span>
+    {active.map(({ key, label, clear }) => <button type="button" className="filter-chip" key={key} onClick={clear} aria-label={`Remove ${label}`}><span>{label}</span><span aria-hidden="true">×</span></button>)}
+    <Button type="link" onClick={filters.clearFilters}>Clear All Filters</Button>
+  </div>;
+}
 
-  const labelStyle = { marginBottom: '4px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.65)' };
+function RangeField({ label, unit, value, onChange, max, step }) {
+  const update = (index, next) => {
+    if (next === null) return;
+    const bounded = Math.max(0, Math.min(max, next));
+    onChange(index === 0 ? [Math.min(bounded, value[1]), value[1]] : [value[0], Math.max(bounded, value[0])]);
+  };
+  return <div className="warehouse-filters__range">
+    <span className="warehouse-filters__label">{label} ({unit})</span>
+    <div className="warehouse-filters__numbers">
+      <label><span>Min</span><InputNumber aria-label={`Minimum ${label.toLowerCase()} (${unit})`} min={0} max={value[1]} value={value[0]} onChange={v => update(0, v)} controls={false} /></label>
+      <span aria-hidden="true">–</span>
+      <label><span>Max</span><InputNumber aria-label={`Maximum ${label.toLowerCase()} (${unit})`} min={value[0]} max={max} value={value[1]} onChange={v => update(1, v)} controls={false} /></label>
+    </div>
+    <Slider range min={0} max={max} step={step} value={value} onChange={onChange} ariaLabelForHandle={[`Minimum ${label.toLowerCase()}`, `Maximum ${label.toLowerCase()}`]} tooltip={{ formatter: v => `${v.toLocaleString()} ${unit}` }} />
+  </div>;
+}
 
-  return (
-    <Card
-      size="small"
-      style={{
-        background: 'rgba(31, 31, 31, 0.4)',
-        backdropFilter: 'blur(15px)',
-        WebkitBackdropFilter: 'blur(15px)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        marginBottom: '16px'
-      }}
-    >
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Owner Type</div>
-          <Input placeholder="Filter by owner type" value={selectedOwnerType}
-            onChange={(e) => setSelectedOwnerType(e.target.value)} allowClear />
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Warehouse Type</div>
-          <Input placeholder="Filter by warehouse type" value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)} allowClear />
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>City</div>
-          <Input placeholder="Filter by city" value={selectedCity}
-            onChange={(e) => setSelectedCity(e.target.value)} allowClear />
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>State</div>
-          <Input placeholder="Filter by state" value={selectedState}
-            onChange={(e) => setSelectedState(e.target.value)} allowClear />
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Zone</div>
-          <Select placeholder="Select zone" value={selectedZone || undefined}
-            onChange={setSelectedZone} allowClear style={{ width: '100%' }}>
-            <Option value="NORTH">North</Option>
-            <Option value="SOUTH">South</Option>
-            <Option value="EAST">East</Option>
-            <Option value="WEST">West</Option>
-            <Option value="CENTRAL">Central</Option>
-          </Select>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Availability</div>
-          <Select placeholder="Filter by availability" value={selectedAvailability || undefined}
-            onChange={(value) => setSelectedAvailability(value || '')} allowClear style={{ width: '100%' }}>
-            <Option value="Yes">Yes</Option>
-            <Option value="No">No</Option>
-          </Select>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Broker Status</div>
-          <Select placeholder="Select broker status" value={selectedBroker || undefined}
-            onChange={setSelectedBroker} allowClear style={{ width: '100%' }}>
-            <Option value="y">Y</Option>
-            <Option value="n">N</Option>
-          </Select>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Fire NOC</div>
-          <Select placeholder="Select Fire NOC status" value={fireNocFilter || undefined}
-            onChange={setFireNocFilter} allowClear style={{ width: '100%' }}>
-            <Option value="available">Available</Option>
-            <Option value="not_available">Not Available</Option>
-          </Select>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Land Type</div>
-          <Input placeholder="Filter by land type" value={selectedLandType}
-            onChange={(e) => setSelectedLandType(e.target.value)} allowClear />
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Uploaded By</div>
-          <Input placeholder="Filter by uploader" value={selectedUploadedBy}
-            onChange={(e) => setSelectedUploadedBy(e.target.value)} allowClear />
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Area Range (sq ft)</div>
-          <Slider range min={0} max={100000} step={1000} value={areaRange} onChange={setAreaRange}
-            tooltip={{ formatter: (value) => `${value.toLocaleString()} sq ft` }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)' }}>
-            <span>{areaRange[0].toLocaleString()}</span>
-            <span>{areaRange[1].toLocaleString()}</span>
-          </div>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Budget Range (₹/sq ft)</div>
-          <Slider range min={0} max={1000} step={5} value={budgetRange} onChange={setBudgetRange}
-            tooltip={{ formatter: (value) => `₹${value}/sq ft` }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)' }}>
-            <span>₹{budgetRange[0]}</span>
-            <span>₹{budgetRange[1]}</span>
-          </div>
-        </Col>
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <div style={labelStyle}>Visibility</div>
-          <Select placeholder="Select visibility" value={selectedVisibility || undefined}
-            onChange={setSelectedVisibility} allowClear style={{ width: '100%' }}>
-            <Option value="visible">Visible</Option>
-            <Option value="hidden">Hidden</Option>
-          </Select>
-        </Col>
-
-        {showDateFilter && (
-          <>
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div style={labelStyle}>Submission Date (From)</div>
-              <DateInput
-                value={submittedDateRange[0]}
-                onChange={(v) => setSubmittedDateRange([v || null, submittedDateRange[1]])}
-              />
-            </Col>
-
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div style={labelStyle}>Submission Date (To)</div>
-              <DateInput
-                value={submittedDateRange[1]}
-                onChange={(v) => setSubmittedDateRange([submittedDateRange[0], v || null])}
-              />
-            </Col>
-
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div style={labelStyle}>Approval Date (From)</div>
-              <DateInput
-                value={reviewedDateRange[0]}
-                onChange={(v) => setReviewedDateRange([v || null, reviewedDateRange[1]])}
-              />
-            </Col>
-
-            <Col xs={24} sm={12} md={8} lg={6}>
-              <div style={labelStyle}>Approval Date (To)</div>
-              <DateInput
-                value={reviewedDateRange[1]}
-                onChange={(v) => setReviewedDateRange([reviewedDateRange[0], v || null])}
-              />
-            </Col>
-          </>
-        )}
-
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <Button onClick={clearFilters} style={{ marginTop: '20px' }}>
-            Clear All Filters
-          </Button>
-        </Col>
-      </Row>
-    </Card>
-  );
-};
-
-export default WarehouseFilterBar;
+export default function WarehouseFilterBar({ filters, showDateFilter = false }) {
+  const id = useId();
+  const renderField = ([key, setter, label, placeholder, , options]) => <div className="warehouse-filters__field" key={key}>
+    <label className="warehouse-filters__label" htmlFor={`${id}-${key}`}>{label}</label>
+    {options ? <Select id={`${id}-${key}`} placeholder={placeholder} value={filters[key] || undefined} onChange={v => filters[setter](v || '')} allowClear showSearch optionFilterProp="label" options={options.map(([value, text]) => ({ value, label: text }))} />
+      : <Input id={`${id}-${key}`} placeholder={placeholder} value={filters[key]} onChange={e => filters[setter](e.target.value)} allowClear />}
+  </div>;
+  const advancedCount = fields.filter(([key, , , , group]) => group === 'advanced' && filters[key]).length;
+  const dateFields = [['submittedDateRange', 'setSubmittedDateRange', 'Submission Date'], ['reviewedDateRange', 'setReviewedDateRange', 'Approval Date']];
+  return <section className="warehouse-filters" aria-label="Warehouse filters">
+    <div className="warehouse-filters__heading"><div><strong>Filter warehouses</strong><p>Results update as you refine your filters.</p></div><Button onClick={filters.clearFilters}>Clear All Filters</Button></div>
+    <div className="warehouse-filters__grid">{fields.filter(f => f[4] === 'common').map(renderField)}</div>
+    <div className="warehouse-filters__ranges">
+      <RangeField label="Area" unit="sq ft" value={filters.areaRange} onChange={filters.setAreaRange} max={100000} step={1000} />
+      <RangeField label="Budget" unit="₹/sq ft" value={filters.budgetRange} onChange={filters.setBudgetRange} max={1000} step={5} />
+    </div>
+    <Collapse ghost items={[{
+      key: 'advanced', label: `More filters${advancedCount ? ` (${advancedCount} active)` : ''}`,
+      children: <div className="warehouse-filters__grid">{fields.filter(f => f[4] === 'advanced').map(renderField)}</div>,
+    }, ...(showDateFilter ? [{ key: 'dates', label: 'Submission & approval dates', children: <div className="warehouse-filters__grid">{dateFields.flatMap(([key, setter, label]) => [0, 1].map(index => <div key={`${key}-${index}`} className="warehouse-filters__field"><label className="warehouse-filters__label" htmlFor={`${id}-${key}-${index}`}>{label} ({index ? 'To' : 'From'})</label><DatePicker id={`${id}-${key}-${index}`} value={filters[key][index] ? dayjs(filters[key][index]) : null} onChange={d => filters[setter](filters[key].map((v, i) => i === index ? (d ? d.format('YYYY-MM-DD') : null) : v))} format="DD/MM/YYYY" placeholder="DD/MM/YYYY" allowClear /></div>))}</div> }] : [])]} />
+  </section>;
+}

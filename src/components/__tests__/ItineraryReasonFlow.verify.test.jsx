@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -31,9 +32,9 @@ const { MobileToolsProvider } = await import('../../contexts/MobileToolsContext'
 
 const renderHeader = () =>
   render(
-    <MobileToolsProvider>
+    <MemoryRouter><MobileToolsProvider>
       <MobileHeader onMenuToggle={vi.fn()} />
-    </MobileToolsProvider>
+    </MobileToolsProvider></MemoryRouter>
   );
 
 const WAREHOUSES = [

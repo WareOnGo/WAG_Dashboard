@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import React, { useState } from 'react';
 import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, Checkbox, message } from 'antd';
 import {
@@ -79,6 +80,7 @@ const buildItineraryText = (foundWarehouses, contactMap, hideOwner, hideRent) =>
 };
 
 const MobileHeader = ({ onMenuToggle }) => {
+  const { pathname } = useLocation();
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
   // PPT/Itinerary open-state is shared (via context) so the mobile nav drawer can
@@ -417,7 +419,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                 height: '36px',
                 padding: 0,
                 borderRadius: '10px',
-                color: 'rgba(255,255,255,0.7)',
+                color: 'var(--text-secondary, rgba(255,255,255,0.7))',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -455,6 +457,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   <a
                     href="#"
                     className="nav-link-btn"
+                    aria-expanded={pptExpanded}
                     onClick={(e) => { e.preventDefault(); handlePptToggle(); }}
                     style={{
                       display: 'flex',
@@ -485,6 +488,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                     <Input
                       value={pptWarehouseIds}
                       onChange={(e) => setPptWarehouseIds(e.target.value)}
+                      aria-label="Warehouse IDs (comma-separated)"
                       placeholder="Warehouse IDs (e.g. 1, 5, 12)"
                       size="small"
                       onPressEnter={handlePptSubmitIds}
@@ -514,6 +518,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                 <Tooltip key={item.key} title={item.tooltip} placement="bottom">
                   <a
                     href={item.href}
+                    aria-current={!item.external && (pathname === item.href || (pathname === "/" && item.href === "/dashboard")) ? "page" : undefined}
                     {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="nav-link-btn"
                     style={{
@@ -525,7 +530,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                       textDecoration: 'none',
                       fontSize: '13px',
                       fontWeight: 500,
-                      color: 'rgba(255, 255, 255, 0.5)',
+                      color: 'var(--text-muted, rgba(255, 255, 255, 0.5))',
                       transition: 'color 0.15s ease',
                     }}
                   >
@@ -569,6 +574,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                     <Input
                       value={warehouseIds}
                       onChange={(e) => setWarehouseIds(e.target.value)}
+                      aria-label="Warehouse IDs (comma-separated)"
                       placeholder="Warehouse IDs (e.g. 1, 5, 12)"
                       size="small"
                       onPressEnter={handleGenerateItinerary}
@@ -653,7 +659,7 @@ const MobileHeader = ({ onMenuToggle }) => {
               {!isMobile && (
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.3 }}>
                   <span style={{
-                    color: 'rgba(255, 255, 255, 0.9)',
+                    color: 'var(--text-primary, rgba(255, 255, 255, 0.9))',
                     fontSize: '13px',
                     fontWeight: 500,
                   }}>
@@ -707,7 +713,7 @@ const MobileHeader = ({ onMenuToggle }) => {
             icon={<CloseOutlined />}
             onClick={() => setPptExpanded(false)}
             aria-label="Close PPT generator"
-            style={{ color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}
+            style={{ color: 'var(--text-secondary, rgba(255,255,255,0.6))', flexShrink: 0 }}
           />
         </div>
       )}
@@ -726,7 +732,8 @@ const MobileHeader = ({ onMenuToggle }) => {
           <Input
             value={warehouseIds}
             onChange={(e) => setWarehouseIds(e.target.value)}
-            placeholder="Warehouse IDs (e.g. 1, 5, 12)"
+            aria-label="Warehouse IDs (comma-separated)"
+                      placeholder="Warehouse IDs (e.g. 1, 5, 12)"
             size="small"
             onPressEnter={handleGenerateItinerary}
             disabled={generatingItinerary}
@@ -754,7 +761,7 @@ const MobileHeader = ({ onMenuToggle }) => {
             icon={<CloseOutlined />}
             onClick={() => setItineraryExpanded(false)}
             aria-label="Close itinerary"
-            style={{ color: 'rgba(255,255,255,0.6)', flexShrink: 0 }}
+            style={{ color: 'var(--text-secondary, rgba(255,255,255,0.6))', flexShrink: 0 }}
           />
         </div>
       )}
@@ -777,7 +784,7 @@ const MobileHeader = ({ onMenuToggle }) => {
               gap: '8px',
               marginBottom: '10px'
             }}>
-              <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.65)' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary, rgba(255, 255, 255, 0.65))' }}>
                 Generated Itinerary (editable)
               </div>
               <Button

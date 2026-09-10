@@ -120,6 +120,10 @@ const SimpleWarehouseCard = ({
         {statusContent || (
           <div
             className={`simple-warehouse-card__status ${getVisibilityClass()}`}
+            role={onToggleVisibility ? "button" : undefined}
+            tabIndex={onToggleVisibility ? 0 : undefined}
+            aria-label={onToggleVisibility ? `Warehouse ${warehouse.id} visibility: ${getVisibilityStatus()}. Toggle visibility` : undefined}
+            onKeyDown={e => { if (onToggleVisibility && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); handleToggleVisibility(e); } }}
             onClick={handleToggleVisibility}
             style={{ cursor: onToggleVisibility ? 'pointer' : 'default' }}
             title={onToggleVisibility ? 'Click to toggle visibility' : ''}

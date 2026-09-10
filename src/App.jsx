@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { Layout, ConfigProvider, theme, App as AntApp, Spin } from 'antd'
+import { Layout, App as AntApp, Spin } from 'antd'
 // Import shell components directly (not via the ./components barrel) so the initial
 // bundle isn't forced to pull the whole barrel graph.
 import ErrorBoundary from './components/ErrorBoundary'
@@ -18,6 +18,7 @@ import { useViewport } from './hooks'
 import { useTokenExpiryWatcher } from './hooks/useTokenExpiryWatcher'
 import { useState, useEffect, lazy, Suspense } from 'react'
 import performanceService from './services/performanceService'
+import ProductTheme from './ProductTheme'
 import './App.css'
 import './styles/compatibility.css'
 import './styles/dashboard-mobile.css'
@@ -110,7 +111,7 @@ function AppContent() {
   // Main app with router (includes both auth and non-auth routes)
   return (
     <MobileToolsProvider>
-    <Router>
+
       <Suspense fallback={<RouteFallback />}>
       <Routes>
         {/* OAuth callback route - accessible without authentication */}
@@ -271,41 +272,17 @@ function AppContent() {
         } />
       </Routes>
       </Suspense>
-    </Router>
+
     </MobileToolsProvider>
   );
 }
 
 function App() {
   return (
+    <Router>
     <ErrorBoundary>
       <CompatibilityProvider>
-        <ConfigProvider
-          theme={{
-            algorithm: theme.darkAlgorithm,
-            token: {
-              // Dark theme configuration
-              colorBgContainer: '#1f1f1f',
-              colorBgElevated: '#262626',
-              colorBorder: '#303030',
-              colorText: 'rgba(255, 255, 255, 0.85)',
-              colorTextSecondary: 'rgba(255, 255, 255, 0.65)',
-              colorTextTertiary: 'rgba(255, 255, 255, 0.45)',
-              colorPrimary: '#1890ff',
-              colorSuccess: '#52c41a',
-              colorWarning: '#faad14',
-              colorError: '#ff4d4f',
-              colorInfo: '#1890ff',
-              // Layout colors
-              colorBgLayout: '#141414',
-              colorBgHeader: '#1f1f1f',
-              // Component specific colors
-              colorBgMask: 'rgba(0, 0, 0, 0.45)',
-              borderRadius: 6,
-              boxShadow: '0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05)',
-            },
-          }}
-        >
+        <ProductTheme>
           <AntApp>
             <AboveFoldOptimizer>
               <AuthErrorBoundary>
@@ -315,9 +292,10 @@ function App() {
               </AuthErrorBoundary>
             </AboveFoldOptimizer>
           </AntApp>
-        </ConfigProvider>
+        </ProductTheme>
       </CompatibilityProvider>
     </ErrorBoundary>
+    </Router>
   )
 }
 

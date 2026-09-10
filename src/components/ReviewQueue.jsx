@@ -13,7 +13,7 @@ import { warehouseService } from '../services/warehouseService';
 import useWarehouseFilters from '../hooks/useWarehouseFilters';
 import WarehouseForm from './WarehouseForm';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
-import WarehouseFilterBar from './WarehouseFilterBar';
+import WarehouseFilterBar, { AppliedWarehouseFilters } from './WarehouseFilterBar';
 import CardView from './CardView';
 
 const { Title } = Typography;
@@ -312,7 +312,7 @@ const ReviewQueue = () => {
       return (
         <>
           {header}
-          <div style={{ ...line, color: '#ff4d4f', marginTop: 6 }}>
+          <div style={{ ...line, color: 'var(--text-danger, #ff4d4f)', marginTop: 6 }}>
             <CloseCircleOutlined /> Rejected by {row.reviewedBy || '—'} · {fmtDate(row.reviewedAt)}
           </div>
           {row.rejectionReason && (
@@ -424,7 +424,7 @@ const ReviewQueue = () => {
 
       <Card
         style={{
-          background: isMobile ? 'rgba(31, 31, 31, 0.85)' : 'rgba(31, 31, 31, 0.6)',
+          background: 'var(--bg-secondary)',
           backdropFilter: isMobile ? 'none' : 'blur(20px)',
           WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
           border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
@@ -444,6 +444,7 @@ const ReviewQueue = () => {
         {/* One cohesive toolbar: search · filters · count · refresh */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           <Input
+            aria-label="Search submissions"
             placeholder="Search submissions..."
             prefix={<SearchOutlined />}
             value={filters.searchText}
@@ -452,6 +453,8 @@ const ReviewQueue = () => {
             style={{ flex: 1, minWidth: 220, maxWidth: 360 }}
           />
           <Button
+            aria-label="Filters"
+            aria-expanded={filtersVisible}
             icon={<FilterOutlined />}
             onClick={() => setFiltersVisible(!filtersVisible)}
             type={filtersVisible ? 'primary' : 'default'}
@@ -472,8 +475,9 @@ const ReviewQueue = () => {
             >
               <span className="review-autopilot" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', minHeight: 44 }}>
                 <RobotOutlined style={{ color: autoApprove ? '#52c41a' : 'rgba(255, 255, 255, 0.45)' }} />
-                <span style={{ fontSize: 13, color: 'rgba(255, 255, 255, 0.65)' }}>Autopilot</span>
+                <span style={{ fontSize: 13, color: 'var(--text-secondary, rgba(255, 255, 255, 0.65))' }}>Autopilot</span>
                 <Switch
+                  aria-label="Autopilot"
                   size="small"
                   checked={autoApprove}
                   loading={autoApproveSaving}
@@ -484,12 +488,13 @@ const ReviewQueue = () => {
             </Tooltip>
           )}
 
-          <div style={{ marginLeft: 'auto', color: 'rgba(255, 255, 255, 0.55)', fontSize: 13, whiteSpace: 'nowrap' }}>
+          <div style={{ marginLeft: 'auto', color: 'var(--text-muted, rgba(255, 255, 255, 0.55))', fontSize: 13, whiteSpace: 'nowrap' }}>
             {filters.filtered.length} of {rows.length}
           </div>
         </div>
 
-        {filtersVisible && !isMobile && <WarehouseFilterBar filters={filters} showDateFilter />}
+        <AppliedWarehouseFilters filters={filters} resultCount={filters.filtered.length} loading={loading} />
+        {filtersVisible && <WarehouseFilterBar filters={filters} showDateFilter />}
 
         <div style={{ padding: isMobile ? '4px' : '16px' }}>
           <CardView

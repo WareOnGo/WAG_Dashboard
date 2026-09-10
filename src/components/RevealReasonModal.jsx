@@ -3,7 +3,7 @@ import { Button, Input, Modal } from 'antd';
 import { InfoCircleOutlined, PhoneOutlined } from '@ant-design/icons';
 import { MAX_REASON_LENGTH, MIN_REASON_LENGTH } from '../utils/revealReason';
 
-const FONT = 'Verdana, sans-serif';
+const FONT = 'var(--font-family, Verdana, sans-serif)';
 
 // Only start counting down near the limit — a permanent counter is noise for a
 // field that usually holds a few words.
@@ -91,8 +91,8 @@ const RevealReasonModal = ({ open, count = 1, onCancel, onConfirm }) => {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(24, 144, 255, 0.12)',
-              color: '#1890ff',
+              background: 'var(--accent-light, rgba(24, 144, 255, 0.12))',
+              color: 'var(--accent-primary, #1890ff)',
               fontSize: '14px',
             }}
           >
@@ -161,7 +161,7 @@ const RevealReasonModal = ({ open, count = 1, onCancel, onConfirm }) => {
       {/* Error replaces the hint in place, so the modal never jumps height */}
       <div style={{ ...hintStyle, marginTop: '8px', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
         {error ? (
-          <span style={{ color: '#ff4d4f' }}>{error}</span>
+          <span style={{ color: 'var(--text-danger, #ff4d4f)' }}>{error}</span>
         ) : (
           <>
             <InfoCircleOutlined style={{ marginTop: '2px', flexShrink: 0 }} />
@@ -182,13 +182,13 @@ const labelStyle = {
   marginBottom: '6px',
   fontSize: '13px',
   fontWeight: 500,
-  color: 'rgba(255, 255, 255, 0.6)',
+  color: 'var(--text-secondary, rgba(255, 255, 255, 0.6))',
   fontFamily: FONT,
 };
 
 const hintStyle = {
   fontSize: '11px',
-  color: 'rgba(255, 255, 255, 0.4)',
+  color: 'var(--text-muted, rgba(255, 255, 255, 0.4))',
   fontFamily: FONT,
   lineHeight: 1.5,
 };
