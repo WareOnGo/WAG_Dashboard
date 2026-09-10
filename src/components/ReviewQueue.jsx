@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useId } from 'react';
 import {
-  Alert, App, Button, Card, Input, Result, Segmented, Switch, Tag, Tooltip, Typography,
+  Alert, App, Button, Card, Input, Modal, Result, Segmented, Switch, Tag, Tooltip, Typography,
 } from 'antd';
 import {
   CheckCircleOutlined, CheckOutlined, ClockCircleOutlined, CloseCircleOutlined, CloseOutlined,
@@ -58,6 +58,10 @@ const ReviewQueue = () => {
   const [viewingRow, setViewingRow] = useState(null); // APPROVED/REJECTED → read-only modal
   const [acting, setActing] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [rejection, setRejection] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionError, setRejectionError] = useState(null);
+  const rejectionErrorId = useId();
 
   // Auto-approve ("autopilot") state — DB-backed, admin-togglable. null = not yet loaded.
   const [autoApprove, setAutoApprove] = useState(null);
@@ -179,41 +183,34 @@ const ReviewQueue = () => {
   };
 
   const reject = (row, getPayload) => {
-    let reason = '';
-    modal.confirm({
-      title: 'Reject this submission?',
-      content: (
-        <Input.TextArea
-          rows={3}
-          placeholder="Reason for rejection (required)"
-          onChange={(e) => { reason = e.target.value; }}
-          style={{ marginTop: 8 }}
-        />
-      ),
-      okText: 'Reject',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        if (!reason.trim()) {
-          message.error('A rejection reason is required');
-          return Promise.reject(new Error('reason required'));
-        }
-        setActing(true);
-        try {
-          // Persist any unsaved in-form edits first so the rejection record and the
-          // submitter's WhatsApp message reflect the reviewer's changes.
-          if (getPayload) await warehouseService.updateStaged(row.id, getPayload());
-          const rejected = await warehouseService.rejectStaged(row.id, reason.trim());
-          message.success('Submission rejected');
-          warnIfNotNotified(rejected?.notification);
-          setEditingRow(null);
-          load();
-        } catch (err) {
-          message.error(err.message || 'Failed to reject');
-        } finally {
-          setActing(false);
-        }
-      },
-    });
+    setRejection({ row, getPayload });
+    setRejectionReason('');
+    setRejectionError(null);
+  };
+
+  const submitRejection = async () => {
+    if (!rejection || acting) return;
+    if (!rejectionReason.trim()) {
+      setRejectionError('A rejection reason is required');
+      return;
+    }
+    setActing(true);
+    setRejectionError(null);
+    try {
+      const { row, getPayload } = rejection;
+      // Persist the reviewer's unsaved edits before recording the rejection.
+      if (getPayload) await warehouseService.updateStaged(row.id, getPayload());
+      const rejected = await warehouseService.rejectStaged(row.id, rejectionReason.trim());
+      message.success('Submission rejected');
+      warnIfNotNotified(rejected?.notification);
+      setRejection(null);
+      setEditingRow(null);
+      load();
+    } catch (err) {
+      setRejectionError(err.message || 'Failed to reject. Please try again.');
+    } finally {
+      setActing(false);
+    }
   };
 
   const reopen = (row) => {
@@ -379,8 +376,8 @@ const ReviewQueue = () => {
   ) : null;
 
   // Shared footer-button style so review actions match the modal's own Cancel/Update/Close
-  // buttons (same large size, same min width) and line up consistently across both modals.
-  const btnStyle = { minWidth: 120, minHeight: isMobile ? 44 : 'auto' };
+  // buttons, with flexible widths so every action fits on a phone.
+  const btnStyle = { minWidth: isMobile ? 0 : 120, minHeight: isMobile ? 44 : 'auto', height: 'auto', whiteSpace: 'normal', paddingInline: isMobile ? 8 : undefined };
 
   // Edit modal (PENDING): Accept (primary) + destructive Reject / Delete (outlined danger).
   const editFooterActions = editingRow ? ({ getPayload } = {}) => (
@@ -462,7 +459,7 @@ const ReviewQueue = () => {
             {isMobile ? '' : 'Filters'}
           </Button>
           <Tooltip title="Refresh">
-            <Button icon={<ReloadOutlined />} onClick={load} loading={loading} />
+            <Button aria-label="Refresh submissions" icon={<ReloadOutlined />} onClick={load} loading={loading} />
           </Tooltip>
 
           {/* Auto-approve ("autopilot") toggle — interactive for admins, read-only for reviewers.
@@ -494,7 +491,7 @@ const ReviewQueue = () => {
         </div>
 
         <AppliedWarehouseFilters filters={filters} resultCount={filters.filtered.length} loading={loading} />
-        {filtersVisible && <WarehouseFilterBar filters={filters} showDateFilter />}
+        {filtersVisible && <WarehouseFilterBar filters={filters} optionRows={rows} showDateFilter />}
 
         <div style={{ padding: isMobile ? '4px' : '16px' }}>
           <CardView
@@ -515,6 +512,35 @@ const ReviewQueue = () => {
         loading={acting}
         reviewActions={editFooterActions}
       />
+
+      <Modal
+        open={!!rejection}
+        title="Reject this submission?"
+        okText="Reject"
+        okButtonProps={{ danger: true }}
+        cancelButtonProps={{ disabled: acting }}
+        confirmLoading={acting}
+        closable={!acting}
+        maskClosable={!acting}
+        keyboard={!acting}
+        onCancel={() => { if (!acting) setRejection(null); }}
+        onOk={submitRejection}
+      >
+        <Input.TextArea
+          rows={3}
+          aria-label="Reason for rejection"
+          aria-required="true"
+          aria-invalid={!!rejectionError}
+          aria-describedby={rejectionError ? rejectionErrorId : undefined}
+          placeholder="Reason for rejection (required)"
+          value={rejectionReason}
+          disabled={acting}
+          onChange={event => { setRejectionReason(event.target.value); setRejectionError(null); }}
+          status={rejectionError ? 'error' : undefined}
+          style={{ marginTop: 8 }}
+        />
+        {rejectionError && <div id={rejectionErrorId} role="alert" style={{ marginTop: 8, color: 'var(--text-danger)' }}>{rejectionError}</div>}
+      </Modal>
 
       {/* APPROVED/REJECTED → read-only details modal; move-to-pending in footer */}
       <WarehouseDetailsModal

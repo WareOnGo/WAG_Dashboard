@@ -332,7 +332,7 @@ const WarehouseDetailsModal = ({
       gap: 12,
     }}>
       {footerActions && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginRight: m ? 0 : 'auto' }}>
+        <div style={{ display: m ? 'grid' : 'flex', gridAutoFlow: m ? 'column' : undefined, gridAutoColumns: m ? 'minmax(0, 1fr)' : undefined, flexWrap: 'wrap', gap: 12, marginRight: m ? 0 : 'auto' }}>
           {footerActions}
         </div>
       )}

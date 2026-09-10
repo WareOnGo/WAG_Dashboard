@@ -18,7 +18,6 @@ export { default as MobileNavigation } from './MobileNavigation';
 export { default as ResponsiveTable } from './ResponsiveTable';
 export { default as WarehouseCard } from './WarehouseCard';
 export { default as CardView } from './CardView';
-export { default as ViewSwitcher } from './ViewSwitcher';
 export { default as MobileFilterAccordion } from './MobileFilterAccordion';
 export { default as ResponsiveModal } from './ResponsiveModal';
 export { default as WarehouseDetailsModal } from './WarehouseDetailsModal';

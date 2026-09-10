@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouses } from '../../test/mockData';
 import Dashboard from '../Dashboard';
@@ -40,7 +40,7 @@ const deferred = () => {
 const open = (session = auth) => renderWithProviders(<Dashboard />, { auth: session });
 const loaded = () => screen.findByText('#1');
 const search = () => screen.getByPlaceholderText('Search warehouses...');
-const rowFor = id => screen.getByText(`#${id}`).closest('tr');
+const cardFor = id => screen.getByText(`#${id}`).closest('.simple-warehouse-card');
 const settleDebounce = () => act(() => new Promise(resolve => setTimeout(resolve, 350)));
 
 beforeEach(() => {
@@ -54,11 +54,17 @@ beforeEach(() => {
 });
 
 describe('Dashboard current list contract', () => {
-  it('loads the server page with image labels and uses the server total', async () => {
+  it.each([null, 'table', 'cards'])('loads cards and the server total with saved preference %s', async preference => {
+    if (preference) localStorage.setItem('warehouse-view-preference', preference);
+    else localStorage.removeItem('warehouse-view-preference');
     warehouseService.list.mockResolvedValue(page(mockWarehouses, 42));
     open();
     await loaded();
     expect(screen.getByText('2 of 42 results')).toBeInTheDocument();
+    expect(cardFor(1)).toBeInTheDocument();
+    expect(cardFor(2)).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Table|Cards|recommended/i })).not.toBeInTheDocument();
     expect(warehouseService.list).toHaveBeenCalledWith({ page: 1, limit: 20, includeImageLabels: 'true' });
     await settleDebounce();
     expect(warehouseService.list).toHaveBeenCalledTimes(1);
@@ -136,7 +142,7 @@ describe('Dashboard current list contract', () => {
     expect(screen.getByText('1 of 1 results')).toBeInTheDocument();
   });
 
-  it('keeps existing rows visible when a refresh fails', async () => {
+  it('keeps existing cards visible when a refresh fails', async () => {
     open();
     await loaded();
     warehouseService.list.mockRejectedValueOnce(new Error('Server unavailable'));
@@ -197,8 +203,7 @@ describe('Dashboard mutations', () => {
     open();
     await loaded();
     warehouseService.list.mockResolvedValue(page([mockWarehouses[1]]));
-    fireEvent.contextMenu(rowFor(1));
-    fireEvent.click(screen.getByText('Delete'));
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Delete/ }));
     expect(warehouseService.delete).not.toHaveBeenCalled();
     fireEvent.click(await screen.findByText('Yes, Delete'));
     await waitFor(() => expect(warehouseService.delete).toHaveBeenCalledWith(1));
@@ -214,8 +219,7 @@ describe('Dashboard mutation and session regressions', () => {
     await loaded();
     fireEvent.change(search(), { target: { value: 'Industrial' } });
     await waitFor(() => expect(warehouseService.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'Industrial' })));
-    fireEvent.contextMenu(rowFor(1));
-    fireEvent.click(screen.getByText('Edit'));
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Edit/ }));
     fireEvent.click(await screen.findByText('Submit warehouse'));
     warehouseService.list.mockResolvedValue(page([]));
     fireEvent.click(await screen.findByText('Yes, Update'));
@@ -244,8 +248,7 @@ describe('Dashboard mutation and session regressions', () => {
     warehouseService.delete.mockReturnValue(deletion.promise);
     open();
     await loaded();
-    fireEvent.contextMenu(rowFor(1));
-    fireEvent.click(screen.getByText('Delete'));
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Delete/ }));
     fireEvent.click(await screen.findByText('Yes, Delete'));
     warehouseService.list.mockImplementation(params => Promise.resolve(params.search ? page([mockWarehouses[1]]) : page()));
     fireEvent.change(search(), { target: { value: 'Storage' } });
@@ -257,13 +260,12 @@ describe('Dashboard mutation and session regressions', () => {
     expect(screen.queryByText('#1')).not.toBeInTheDocument();
   });
 
-  it('refreshes the server total and rows after deletion', async () => {
+  it('refreshes the server total and cards after deletion', async () => {
     warehouseService.delete.mockResolvedValue({ status: 204 });
     open();
     await loaded();
     warehouseService.list.mockResolvedValue(page([mockWarehouses[1]], 1));
-    fireEvent.contextMenu(rowFor(1));
-    fireEvent.click(screen.getByText('Delete'));
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Delete/ }));
     fireEvent.click(await screen.findByText('Yes, Delete'));
     expect(await screen.findByText('1 of 1 results')).toBeInTheDocument();
     expect(screen.queryByText('#1')).not.toBeInTheDocument();
@@ -279,8 +281,7 @@ describe('Dashboard mutation and session regressions', () => {
     fireEvent.click(screen.getByTitle('2'));
     await screen.findByText('#21');
     warehouseService.list.mockImplementation(({ page: requested }) => Promise.resolve(requested === 2 ? page([], 20) : page(mockWarehouses, 20)));
-    fireEvent.contextMenu(rowFor(21));
-    fireEvent.click(screen.getByText('Delete'));
+    fireEvent.click(within(cardFor(21)).getByRole('button', { name: /Delete/ }));
     fireEvent.click(await screen.findByText('Yes, Delete'));
     await loaded();
     expect(screen.getByText('2 of 20 results')).toBeInTheDocument();

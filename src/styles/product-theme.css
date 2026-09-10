@@ -75,7 +75,6 @@ html[data-ui="product"] .ant-select-focused .ant-select-selector {
   outline-offset: 2px !important;
 }
 html[data-ui="product"] :is(.ant-input-affix-wrapper, .ant-select-selector, .ant-input-number, .ant-picker) input:focus-visible { outline: none !important; }
-html[data-ui="product"] .view-switcher__button:focus-visible { outline-offset: -3px !important; }
 html[data-ui="product"] .ant-input-status-error,
 html[data-ui="product"] .ant-input-affix-wrapper-status-error { border-color: var(--text-danger) !important; }
 
@@ -84,8 +83,6 @@ html[data-ui="product"] .simple-warehouse-card:hover { border-color: var(--borde
 html[data-ui="product"] .simple-warehouse-card__status--visible { background: var(--accent-light); color: var(--accent-hover); border-color: #769d84; }
 html[data-ui="product"] .simple-warehouse-card__status--hidden { background: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-control); }
 html[data-ui="product"] .simple-warehouse-card__action-btn--danger { color: var(--text-danger); }
-html[data-ui="product"] .view-switcher__button--active { background: var(--accent-light) !important; color: var(--accent-hover) !important; }
-html[data-ui="product"] .view-switcher__description { color: var(--text-muted); }
 html[data-ui="product"] .nav-link-btn { color: var(--text-secondary) !important; }
 html[data-ui="product"] .nav-link-btn[aria-current="page"],
 html[data-ui="product"] .nav-link-btn[aria-expanded="true"] { background: var(--accent-light); color: var(--accent-hover) !important; }

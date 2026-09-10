@@ -5,7 +5,6 @@
 
 export { useErrorHandler } from './useErrorHandler.js';
 export { useViewport, BREAKPOINTS } from './useViewport.js';
-export { useViewPreference } from './useViewPreference.js';
 export { useTokenExpiryWatcher } from './useTokenExpiryWatcher.js';
 
 // Performance optimization hooks

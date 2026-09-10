@@ -1,56 +1,36 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import {
-  Table,
   Button,
   Typography,
   Card,
   Tooltip,
   App,
   Input,
-  Select,
-  Row,
-  Col,
-  Image,
-  Slider,
-  Tag,
-  Pagination,
   Result
 } from 'antd';
 
-const { Option } = Select;
-
 import {
   PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
   ExclamationCircleOutlined,
   SearchOutlined,
   FilterOutlined,
-  EyeOutlined,
-  CloseOutlined,
   EnvironmentOutlined,
   ReloadOutlined,
   WifiOutlined
 } from '@ant-design/icons';
 import { warehouseService } from '../services/warehouseService';
-import {
-  ContextMenu,
-  ResponsiveTable,
-  CardView,
-  ViewSwitcher,
-} from './index';
+import CardView from './CardView';
+import ListingPagination from './ListingPagination';
 
 // Lazy-loaded heavy components:
 //  - MapView pulls in mapbox-gl (~1MB), only needed when the map/split view is open.
 //  - WarehouseForm is ~1k lines, only needed when creating/editing a warehouse.
 const MapView = React.lazy(() => import('./MapView'));
 const WarehouseForm = React.lazy(() => import('./WarehouseForm'));
-import ResponsiveModal from './ResponsiveModal';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
 import WarehouseFilterBar, { AppliedWarehouseFilters } from './WarehouseFilterBar';
-import RedactedPhone from './RedactedPhone';
 import './ResponsiveModal.css';
-import { useViewport, useViewPreference } from '../hooks';
+import { useViewport } from '../hooks';
 import useWarehouseFilters from '../hooks/useWarehouseFilters';
 import { useAuth } from '../contexts';
 import {
@@ -58,12 +38,10 @@ import {
   withRetry,
   clearErrors
 } from '../utils/errorHandler';
-import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import { imageLabelService } from '../services/imageLabelService';
 import { EDIT_PREFILL_REASON } from '../utils/revealReason';
-import { formatHandover } from '../utils/handover';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 /**
  * Shallow value equality for the flat filter-param objects `useWarehouseFilters`
@@ -90,25 +68,14 @@ const Dashboard = () => {
   // Sessions predating the capabilities map are treated as allowed.
   const hasDashboardAccess = !(user?.capabilities && !user.capabilities.DASHBOARD);
 
-  // Responsive and view management
+  // Cards are the dashboard's listing view at every viewport width.
   const { isMobile } = useViewport();
-  const {
-    currentView,
-    changeView,
-    isTransitioning
-  } = useViewPreference();
-
-  // The table view is desktop-only — its horizontal-scroll layout is clunky on
-  // phones. On mobile we always render cards regardless of the stored preference
-  // (which may be 'table' from a desktop session), and hide the view switcher.
-  const effectiveView = isMobile ? 'cards' : currentView;
 
   // Filter and search state + logic (shared with the review queue)
   const filters = useWarehouseFilters(warehouses);
   const {
     queryParams,
     searchText, setSearchText,
-
   } = filters;
 
   // View details modal state
@@ -117,14 +84,6 @@ const Dashboard = () => {
 
   // Filter panel visibility
   const [filtersVisible, setFiltersVisible] = useState(false);
-
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState({
-    visible: false,
-    x: 0,
-    y: 0,
-    record: null
-  });
 
   // Pagination state (server-side). `total` is the filtered total from the API;
   // `warehouses` holds only the current page.
@@ -143,6 +102,7 @@ const Dashboard = () => {
 
   // Guards against out-of-order list responses (last request wins).
   const reqIdRef = useRef(0);
+  const resultsRef = useRef(null);
   const [refreshVersion, setRefreshVersion] = useState(0);
   // Mutations can finish after the user changes filters or pages. Refresh via
   // the effects so both list and map use the current query and access state.
@@ -228,14 +188,13 @@ const Dashboard = () => {
       setMapCoords([]);
       return;
     }
-    const mapVisible = splitViewEnabled && effectiveView === 'cards';
-    if (!mapVisible) return;
+    if (!splitViewEnabled) return;
     let active = true;
     warehouseService.getCoordinates(debouncedParams)
       .then((rows) => { if (active) setMapCoords(Array.isArray(rows) ? rows : []); })
       .catch(() => { if (active) setMapCoords([]); });
     return () => { active = false; };
-  }, [authLoading, isAuthenticated, hasDashboardAccess, debouncedParams, splitViewEnabled, effectiveView, refreshVersion]);
+  }, [authLoading, isAuthenticated, hasDashboardAccess, debouncedParams, splitViewEnabled, refreshVersion]);
 
   // MapView reads coordinates from top-level latitude/longitude; adapt the
   // lightweight { id, lat, lng } payload from the coordinates endpoint.
@@ -246,20 +205,22 @@ const Dashboard = () => {
     [mapCoords],
   );
 
-  // Shared pager for the card/grid views (the table has its own built-in pager).
+  // Shared pager for the cards, with or without the split map.
   // Server-driven: changing page/size triggers a refetch via the fetch effect.
-  const cardPager = total > pageSize ? (
+  // Keep desktop page-size controls available after choosing a size that fits
+  // all results, so the user can return to the default size.
+  const cardPager = total > pageSize || (!isMobile && pageSize !== 20 && total > 0) ? (
     <div style={{ display: 'flex', justifyContent: 'center', padding: isMobile ? '12px 0' : '16px 0' }}>
-      <Pagination
+      <ListingPagination
         current={currentPage}
         pageSize={pageSize}
         total={total}
-        showSizeChanger={!isMobile}
         pageSizeOptions={['10', '20', '50', '100']}
-        showTotal={(t, range) => `${range[0]}-${range[1]} of ${t}`}
+        disabled={loading}
         onChange={(page, size) => {
           setCurrentPage(page);
           if (size !== pageSize) setPageSize(size);
+          if (isMobile) resultsRef.current?.scrollIntoView({ block: 'start' });
         }}
       />
     </div>
@@ -421,7 +382,7 @@ const Dashboard = () => {
               // Autopilot promoted it straight to master, so there is a real warehouse to
               // name. Surface that ID, not the staging uuid, and pull the new row into the
               // list — the create path otherwise never refreshes it, which would leave a
-              // live warehouse missing from the table until a manual reload.
+              // live warehouse missing from the list until a manual reload.
               modal.success({
                 title: 'Warehouse created',
                 content: (
@@ -481,13 +442,6 @@ const Dashboard = () => {
     });
   };
 
-  // Helper function to show media file count
-  const renderPhotoCount = (record) => {
-    const media = getMediaFromWarehouse(record);
-    const count = (media.images?.length || 0) + (media.videos?.length || 0) + (media.docs?.length || 0);
-    return count === 0 ? '-' : `${count} file${count > 1 ? 's' : ''}`;
-  };
-
   // Handle view details
   const handleViewDetails = useCallback((warehouse) => {
     setSelectedWarehouse(warehouse);
@@ -528,336 +482,6 @@ const Dashboard = () => {
       // Error already handled by withRetry
     }
   }, [message, refreshWarehouses]);
-
-  // Right-click context menu
-  const handleRowContextMenu = (record, event) => {
-    event.preventDefault();
-    setContextMenu({
-      visible: true,
-      x: event.clientX,
-      y: event.clientY,
-      record: record
-    });
-  };
-
-  const closeContextMenu = () => {
-    setContextMenu({
-      visible: false,
-      x: 0,
-      y: 0,
-      record: null
-    });
-  };
-
-  // Table columns configuration
-  const columns = [
-    {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-      sorter: (a, b) => a.id - b.id,
-      render: (id) => <span>#{id}</span>,
-    },
-    {
-      title: 'Owner Type',
-      dataIndex: 'warehouseOwnerType',
-      key: 'warehouseOwnerType',
-      width: 120,
-      render: (text) => <span>{text || '-'}</span>,
-    },
-    {
-      title: 'Warehouse Type',
-      dataIndex: 'warehouseType',
-      key: 'warehouseType',
-      width: 140,
-      sorter: (a, b) => (a.warehouseType || '').localeCompare(b.warehouseType || ''),
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: 'Address',
-      dataIndex: 'address',
-      key: 'address',
-      width: 200,
-      ellipsis: { showTitle: false },
-      render: (address) => (
-        <Tooltip title={address}>
-          <span>{address}</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: 'City',
-      dataIndex: 'city',
-      key: 'city',
-      width: 120,
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: 'State',
-      dataIndex: 'state',
-      key: 'state',
-      width: 120,
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: 'Zone',
-      dataIndex: 'zone',
-      key: 'zone',
-      width: 100,
-      render: (zone) => <span>{zone}</span>,
-    },
-    {
-      // Server-derived from the coordinates (see warehouseService.applyMicroMarketTags),
-      // so it is read-only everywhere in the UI.
-      title: 'Micro Market',
-      dataIndex: 'micromarket',
-      key: 'micromarket',
-      width: 180,
-      ellipsis: { showTitle: false },
-      render: (tags) => {
-        const text = Array.isArray(tags) ? tags.filter(Boolean).join(', ') : (tags || '');
-        if (!text) return <span>-</span>;
-        return (
-          <Tooltip title={text}>
-            <span>{text}</span>
-          </Tooltip>
-        );
-      },
-    },
-    {
-      title: 'Contact Person',
-      dataIndex: 'contactPerson',
-      key: 'contactPerson',
-      width: 140,
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: 'Contact Number',
-      key: 'contactNumber',
-      width: 150,
-      render: (_, record) => <RedactedPhone warehouseId={record.id} />,
-    },
-    {
-      title: 'Offered Area',
-      dataIndex: 'totalSpaceSqft',
-      key: 'totalSpaceSqft',
-      width: 150,
-      sorter: (a, b) => {
-        const aSpace = Array.isArray(a.totalSpaceSqft) ? a.totalSpaceSqft.reduce((sum, val) => sum + val, 0) : (a.totalSpaceSqft || 0);
-        const bSpace = Array.isArray(b.totalSpaceSqft) ? b.totalSpaceSqft.reduce((sum, val) => sum + val, 0) : (b.totalSpaceSqft || 0);
-        return aSpace - bSpace;
-      },
-      render: (space) => {
-        if (!space) return '-';
-        if (Array.isArray(space)) {
-          return `[${space.join(', ')}]`;
-        }
-        return space.toString();
-      },
-    },
-    {
-      title: 'Offered Space',
-      dataIndex: 'offeredSpaceSqft',
-      key: 'offeredSpaceSqft',
-      width: 120,
-      render: (space) => {
-        if (!space) return '-';
-        // Handle both string format like "10000 sft" and number format
-        const numericValue = typeof space === 'string'
-          ? parseInt(space.replace(/[^\d]/g, ''))
-          : parseInt(space);
-        return numericValue ? `${numericValue.toLocaleString()} sq ft` : space;
-      },
-    },
-    {
-      title: 'Docks',
-      dataIndex: 'numberOfDocks',
-      key: 'numberOfDocks',
-      width: 80,
-      render: (docks) => <span>{docks || '-'}</span>,
-    },
-    {
-      title: 'Height',
-      dataIndex: 'clearHeightFt',
-      key: 'clearHeightFt',
-      width: 90,
-      render: (height) => height ? `${height} ft` : '-',
-    },
-    {
-      title: 'Rate/sq ft',
-      dataIndex: 'ratePerSqft',
-      key: 'ratePerSqft',
-      width: 100,
-      render: (rate) => {
-        if (!rate) return '-';
-        // Handle both string format like "Rs. 22/sft" and number format
-        const numericValue = typeof rate === 'string'
-          ? rate.replace(/[^\d.]/g, '')
-          : rate;
-        return numericValue ? `₹${numericValue}/sq ft` : rate;
-      },
-    },
-    {
-      title: 'Availability',
-      dataIndex: 'availability',
-      key: 'availability',
-      width: 110,
-      render: (availability) => <span>{availability || 'Unknown'}</span>,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 150,
-      render: (status) => <span>{status || '-'}</span>,
-    },
-    {
-      // One column for both representations — a row carries either a fixed date or a
-      // lead time, never both, so a second column would always be half empty.
-      title: 'Handover',
-      key: 'handover',
-      width: 130,
-      render: (_, record) => (
-        <span>{formatHandover(record, (d) => (d ? String(d).slice(0, 10) : null)) || '-'}</span>
-      ),
-    },
-    {
-      title: 'Lock-in Date',
-      dataIndex: 'lockInDate',
-      key: 'lockInDate',
-      width: 130,
-      render: (d) => <span>{d ? String(d).slice(0, 10) : '-'}</span>,
-    },
-    {
-      title: 'Broker',
-      dataIndex: 'isBroker',
-      key: 'isBroker',
-      width: 80,
-      render: (isBroker) => <span>{isBroker || 'No'}</span>,
-    },
-    {
-      title: 'Fire NOC',
-      key: 'fireNoc',
-      width: 90,
-      render: (_, record) => {
-        const fireNoc = record.WarehouseData?.fireNocAvailable || record.warehouseData?.fireNocAvailable;
-        return <span>{fireNoc ? 'Yes' : 'No'}</span>;
-      },
-    },
-    {
-      title: 'Land Type',
-      key: 'landType',
-      width: 130,
-      render: (_, record) => {
-        const landType = record.WarehouseData?.landType || record.warehouseData?.landType;
-        return <span>{landType || '-'}</span>;
-      },
-    },
-    {
-      title: 'Postal Code',
-      dataIndex: 'postalCode',
-      key: 'postalCode',
-      width: 100,
-      render: (text) => <span>{text || '-'}</span>,
-    },
-    {
-      title: 'Google Location',
-      dataIndex: 'googleLocation',
-      key: 'googleLocation',
-      width: 120,
-      render: (url) => url ? (
-        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)' }}>
-          View Map
-        </a>
-      ) : '-',
-    },
-    {
-      title: 'Other Specs',
-      dataIndex: 'otherSpecifications',
-      key: 'otherSpecifications',
-      width: 150,
-      ellipsis: { showTitle: false },
-      render: (text) => text ? (
-        <Tooltip title={text}>
-          <span>{text}</span>
-        </Tooltip>
-      ) : '-',
-    },
-    {
-      title: 'Fire Safety',
-      key: 'fireSafetyMeasures',
-      width: 120,
-      render: (_, record) => {
-        const fireSafety = record.WarehouseData?.fireSafetyMeasures || record.warehouseData?.fireSafetyMeasures;
-        return <span>{fireSafety || '-'}</span>;
-      },
-    },
-    {
-      title: 'Approach Road',
-      key: 'approachRoadWidth',
-      width: 120,
-      render: (_, record) => {
-        const roadWidth = record.WarehouseData?.approachRoadWidth || record.warehouseData?.approachRoadWidth;
-        return <span>{roadWidth ? `${roadWidth} ft` : '-'}</span>;
-      },
-    },
-    {
-      title: 'Power (KVA)',
-      key: 'powerKva',
-      width: 100,
-      render: (_, record) => {
-        const power = record.WarehouseData?.powerKva || record.warehouseData?.powerKva;
-        return <span>{power ? `${power} KVA` : '-'}</span>;
-      },
-    },
-    {
-      title: 'Pollution Zone',
-      key: 'pollutionZone',
-      width: 120,
-      render: (_, record) => {
-        const zone = record.WarehouseData?.pollutionZone || record.warehouseData?.pollutionZone;
-        return <span>{zone || '-'}</span>;
-      },
-    },
-    {
-      title: 'Vaastu',
-      key: 'vaastuCompliance',
-      width: 80,
-      render: (_, record) => {
-        const vaastu = record.WarehouseData?.vaastuCompliance || record.warehouseData?.vaastuCompliance;
-        return <span>{vaastu ? 'Yes' : 'No'}</span>;
-      },
-    },
-    {
-      title: 'Media',
-      key: 'media',
-      width: 80,
-      render: (_, record) => renderPhotoCount(record),
-    },
-    {
-      title: 'Visibility',
-      dataIndex: 'visibility',
-      key: 'visibility',
-      width: 90,
-      align: 'center',
-      render: (visible) => {
-        // Handle different data types for visibility
-        const isVisible = visible === true || visible === 'true' || visible === 1;
-
-        return (
-          <span>{isVisible ? 'Visible' : 'Hidden'}</span>
-        );
-      },
-    },
-    {
-      title: 'Uploaded By',
-      dataIndex: 'uploadedBy',
-      key: 'uploadedBy',
-      width: 120,
-      render: (text) => <span>{text}</span>,
-    },
-  ];
 
   // The warehouse routes are gated on the DASHBOARD capability server-side, so an
   // account that isn't on the employee roster would otherwise sign in successfully
@@ -903,7 +527,7 @@ const Dashboard = () => {
           }}>
             <Input
               aria-label="Search warehouses"
-                placeholder="Search warehouses..."
+              placeholder="Search warehouses..."
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -942,42 +566,29 @@ const Dashboard = () => {
             width: isMobile ? '100%' : 'auto',
             justifyContent: isMobile ? 'space-between' : 'flex-end'
           }}>
-            {/* Left control group: filter (mobile) + view switcher + map toggle */}
+            {/* Left control group: filter (mobile) + map toggle */}
             <div style={{ display: 'flex', gap: isMobile ? '8px' : '12px', alignItems: 'center' }}>
               {isMobile && (
                 <Button
                   icon={<FilterOutlined />}
                   aria-expanded={filtersVisible}
-                onClick={() => setFiltersVisible(!filtersVisible)}
+                  onClick={() => setFiltersVisible(!filtersVisible)}
                   type={filtersVisible ? 'primary' : 'default'}
                   size="small"
                   aria-label="Filters"
                 />
               )}
 
-              {/* View Switcher — desktop only; mobile is always cards */}
-              {!isMobile && (
-                <ViewSwitcher
-                  currentView={currentView}
-                  onViewChange={changeView}
-                  disabled={loading}
-                  showLabels
-                />
-              )}
-
-              {/* Split View Toggle - only show for cards view */}
-              {effectiveView === 'cards' && (
-                <Tooltip title={splitViewEnabled ? "Close map" : "Show map"}>
-                  <Button
-                    icon={<EnvironmentOutlined />}
-                    onClick={() => setSplitViewEnabled(!splitViewEnabled)}
-                    type={splitViewEnabled ? 'primary' : 'default'}
-                    size={isMobile ? 'small' : 'large'}
-                  >
-                    {isMobile ? '' : splitViewEnabled ? 'Hide Map' : 'Show Map'}
-                  </Button>
-                </Tooltip>
-              )}
+              <Tooltip title={splitViewEnabled ? "Close map" : "Show map"}>
+                <Button
+                  icon={<EnvironmentOutlined />}
+                  onClick={() => setSplitViewEnabled(!splitViewEnabled)}
+                  type={splitViewEnabled ? 'primary' : 'default'}
+                  size={isMobile ? 'small' : 'large'}
+                >
+                  {isMobile ? '' : splitViewEnabled ? 'Hide Map' : 'Show Map'}
+                </Button>
+              </Tooltip>
             </div>
 
             <Button
@@ -1027,11 +638,10 @@ const Dashboard = () => {
           border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: isMobile ? '0' : '8px',
           overflow: 'hidden',
-          transition: 'all 0.3s ease',
-          opacity: isTransitioning ? 0.7 : 1
+          transition: 'all 0.3s ease'
         }}>
           {/* Load failed with nothing to show (e.g. poor network): centered retry
-              in the space the cards/table normally occupy. Toolbar stays put. */}
+              in the space the cards normally occupy. Toolbar stays put. */}
           {error && warehouses.length === 0 && !loading ? (
             <Result
               icon={
@@ -1054,7 +664,7 @@ const Dashboard = () => {
               }
               style={{ padding: isMobile ? '48px 16px' : '64px 16px' }}
             />
-          ) : splitViewEnabled && effectiveView === 'cards' ? (
+          ) : splitViewEnabled ? (
             <div style={{
               display: 'flex',
               flexDirection: isMobile ? 'column' : 'row',
@@ -1063,7 +673,8 @@ const Dashboard = () => {
               height: isMobile ? 'auto' : 'calc(100vh - 300px)'
             }}>
               {/* Cards View */}
-              <div style={{
+              <div ref={resultsRef} style={{
+                scrollMarginTop: isMobile ? 80 : undefined,
                 flex: isMobile ? 'none' : 1,
                 // On mobile the listings sit BELOW the map (order 2) and flow in the
                 // normal page scroll (no inner scroll-box), so you scroll past the map
@@ -1112,54 +723,8 @@ const Dashboard = () => {
                 </Suspense>
               </div>
             </div>
-          ) : effectiveView === 'table' ? (
-            <ResponsiveTable
-              columns={columns}
-              dataSource={Array.isArray(warehouses) ? warehouses : []}
-              rowKey="id"
-              onRow={(record) => ({
-                onContextMenu: (event) => handleRowContextMenu(record, event),
-                style: { cursor: 'context-menu' }
-              })}
-              pagination={{
-                current: currentPage,
-                pageSize: pageSize,
-                total: total,
-                showSizeChanger: !isMobile,
-                showQuickJumper: !isMobile,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: (total, range) =>
-                  `${range[0]}-${range[1]} of ${total} warehouses`,
-                position: ['bottomCenter'],
-                onChange: (page, size) => {
-                  setCurrentPage(page);
-                  if (size !== pageSize) {
-                    setPageSize(size);
-                  }
-                },
-                onShowSizeChange: (current, size) => {
-                  setCurrentPage(1);
-                  setPageSize(size);
-                },
-                style: {
-                  padding: isMobile ? '12px 16px' : '16px 24px',
-                  background: 'var(--bg-header)',
-                  backdropFilter: 'blur(10px)',
-                  WebkitBackdropFilter: 'blur(10px)',
-                  borderTop: '1px solid var(--border-primary)',
-                  margin: 0
-                }
-              }}
-              scroll={{
-                x: isMobile ? 1200 : 2400,
-                y: isMobile ? 'calc(100vh - 300px)' : 'calc(100vh - 400px)',
-                scrollToFirstRowOnChange: true
-              }}
-              loading={loading}
-              className="dark-table"
-            />
           ) : (
-            <div className="dashboard-card-results" style={{ padding: isMobile ? '4px' : '16px' }}>
+            <div ref={resultsRef} className="dashboard-card-results" style={{ padding: isMobile ? '4px' : '16px', scrollMarginTop: isMobile ? 80 : undefined }}>
               <CardView
                 warehouses={warehouses}
                 loading={loading}
@@ -1194,18 +759,6 @@ const Dashboard = () => {
         onClose={() => setViewDetailsVisible(false)}
         warehouse={selectedWarehouse}
       />
-
-      {/* Context Menu */}
-      <ContextMenu
-        visible={contextMenu.visible}
-        x={contextMenu.x}
-        y={contextMenu.y}
-        onClose={closeContextMenu}
-        onViewDetails={() => handleViewDetails(contextMenu.record)}
-        onEdit={() => handleEdit(contextMenu.record)}
-        onDelete={() => handleDelete(contextMenu.record)}
-      />
-
     </div>
   );
 };

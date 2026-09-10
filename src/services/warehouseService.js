@@ -2,10 +2,14 @@ import axios from 'axios';
 import { apiClient } from './apiClient.js';
 
 export const warehouseService = {
+  /** Distinct location and type suggestions across all dashboard listings. */
+  getFilterOptions: async () => apiClient.get('/warehouses/filter-options'),
+
   /**
    * Get a page of warehouses with server-side filtering/sorting/pagination.
    * @param {Object} params - { page, limit, sortBy, sortOrder, search, city, state,
    *   zone, warehouseType, warehouseOwnerType, availability, isBroker, uploadedBy,
+   *   contactPerson, listing_type, status,
    *   landType, visibility, fireNoc, minArea, maxArea, minRate, maxRate }
    * @returns {Promise<{ data: Array, pagination: { page, limit, total, totalPages } }>}
    */

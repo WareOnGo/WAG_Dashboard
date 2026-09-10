@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Row, Col, Empty, Pagination } from 'antd';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Row, Col, Empty } from 'antd';
+import ListingPagination from './ListingPagination';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
 import './CardView.css';
@@ -105,6 +106,7 @@ const CardView = ({
 }) => {
   const { isMobile } = useViewport();
   const [currentPage, setCurrentPage] = useState(1);
+  const resultsRef = useRef(null);
   const [pageSize, setPageSize] = useState(isMobile ? 6 : 12);
 
   // Reset to first page whenever the dataset changes (filters/search applied upstream)
@@ -122,14 +124,10 @@ const CardView = ({
     return { xs: 24, sm: 12, md: 8, lg: 6 };
   }, [columnsPerRow]);
 
-  // Simple pagination handler - no complex logic
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
-  const handlePageSizeChange = (current, size) => {
-    setPageSize(size);
-    setCurrentPage(1);
+  const handlePageChange = (page, size) => {
+    setCurrentPage(size !== pageSize ? 1 : page);
+    if (size !== pageSize) setPageSize(size);
+    if (isMobile) resultsRef.current?.scrollIntoView({ block: 'start' });
   };
 
   // Calculate pagination. When `paginated` is false the caller already supplies a
@@ -172,7 +170,7 @@ const CardView = ({
   }
 
   return (
-    <div className={`card-view${columnsPerRow === 2 ? ' card-view--two-columns' : ''}`}>
+    <div ref={resultsRef} style={{ scrollMarginTop: isMobile ? 80 : undefined }} className={`card-view${columnsPerRow === 2 ? ' card-view--two-columns' : ''}`}>
       <Row gutter={[16, 16]}>
         {paginatedData.map((warehouse) => (
           <Col key={warehouse.id} {...colSpan}>
@@ -189,25 +187,19 @@ const CardView = ({
       </Row>
 
       {/* Internal pagination (client-side). Skipped when the caller paginates server-side. */}
-      {paginated && warehouses.length > pageSize && (
+      {paginated && (warehouses.length > pageSize || (!isMobile && pageSize !== 12)) && (
         <div style={{
           display: 'flex',
           justifyContent: 'center',
           marginTop: '24px',
-          padding: '16px'
+          padding: isMobile ? '0' : '16px'
         }}>
-          <Pagination
+          <ListingPagination
             current={currentPage}
             total={warehouses.length}
             pageSize={pageSize}
-            showSizeChanger={true}
-            showQuickJumper={false}
-            showTotal={(total, range) =>
-              `${range[0]}-${range[1]} of ${total} warehouses`
-            }
             pageSizeOptions={['6', '12', '24', '48']}
             onChange={handlePageChange}
-            onShowSizeChange={handlePageSizeChange}
           />
         </div>
       )}

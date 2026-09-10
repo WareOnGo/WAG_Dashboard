@@ -13,6 +13,9 @@ import { useMemo, useState } from 'react';
 export function useWarehouseFilters(items = []) {
   const [searchText, setSearchText] = useState('');
   const [selectedOwnerType, setSelectedOwnerType] = useState('');
+  const [selectedOwnerName, setSelectedOwnerName] = useState('');
+  const [selectedListingType, setSelectedListingType] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedState, setSelectedState] = useState('');
@@ -33,6 +36,9 @@ export function useWarehouseFilters(items = []) {
   const clearFilters = () => {
     setSearchText('');
     setSelectedOwnerType('');
+    setSelectedOwnerName('');
+    setSelectedListingType('');
+    setSelectedStatus('');
     setSelectedType('');
     setSelectedCity('');
     setSelectedState('');
@@ -81,6 +87,24 @@ export function useWarehouseFilters(items = []) {
       );
     }
 
+    if (selectedOwnerName) {
+      result = result.filter(warehouse =>
+        warehouse.contactPerson?.toLowerCase().includes(selectedOwnerName.toLowerCase())
+      );
+    }
+
+    if (selectedListingType) {
+      result = result.filter(warehouse =>
+        warehouse.listing_type?.toLowerCase().includes(selectedListingType.toLowerCase())
+      );
+    }
+
+    if (selectedStatus) {
+      result = result.filter(warehouse =>
+        warehouse.status?.toLowerCase().includes(selectedStatus.toLowerCase())
+      );
+    }
+
     if (selectedType) {
       result = result.filter(warehouse =>
         warehouse.warehouseType?.toLowerCase().includes(selectedType.toLowerCase())
@@ -119,11 +143,12 @@ export function useWarehouseFilters(items = []) {
 
     if (fireNocFilter) {
       result = result.filter(warehouse => {
-        const fireNoc = warehouse.WarehouseData?.fireNocAvailable || warehouse.warehouseData?.fireNocAvailable;
+        const fireNoc = warehouse.WarehouseData?.fireNocAvailable ?? warehouse.warehouseData?.fireNocAvailable ?? warehouse.fireNocAvailable;
+        const available = fireNoc === true || fireNoc === 'true' || fireNoc === 1;
         if (fireNocFilter === 'available') {
-          return fireNoc === true;
+          return available;
         } else if (fireNocFilter === 'not_available') {
-          return fireNoc === false || fireNoc === null || fireNoc === undefined;
+          return !available;
         }
         return true;
       });
@@ -131,7 +156,7 @@ export function useWarehouseFilters(items = []) {
 
     if (selectedLandType) {
       result = result.filter(warehouse =>
-        (warehouse.WarehouseData?.landType || warehouse.warehouseData?.landType || '')
+        (warehouse.WarehouseData?.landType ?? warehouse.warehouseData?.landType ?? warehouse.landType ?? '')
           .toLowerCase().includes(selectedLandType.toLowerCase())
       );
     }
@@ -168,7 +193,7 @@ export function useWarehouseFilters(items = []) {
 
     if (budgetRange[0] > 0 || budgetRange[1] < 1000) {
       result = result.filter(warehouse => {
-        const rate = parseFloat(warehouse.ratePerSqft?.replace(/[^\d.]/g, '') || 0);
+        const rate = parseFloat(String(warehouse.ratePerSqft ?? '').replace(/[^\d.]/g, '') || 0);
         return rate >= budgetRange[0] && rate <= budgetRange[1];
       });
     }
@@ -185,6 +210,9 @@ export function useWarehouseFilters(items = []) {
   }, [
     items, searchText, selectedOwnerType, selectedType, selectedCity, selectedState,
     selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType,
+    selectedOwnerName,
+    selectedListingType,
+    selectedStatus,
     selectedUploadedBy, selectedVisibility, areaRange, budgetRange,
     submittedDateRange, reviewedDateRange,
   ]);
@@ -198,6 +226,9 @@ export function useWarehouseFilters(items = []) {
     const p = {};
     if (searchText) p.search = searchText;
     if (selectedOwnerType) p.warehouseOwnerType = selectedOwnerType;
+    if (selectedOwnerName) p.contactPerson = selectedOwnerName;
+    if (selectedListingType) p.listing_type = selectedListingType;
+    if (selectedStatus) p.status = selectedStatus;
     if (selectedType) p.warehouseType = selectedType;
     if (selectedCity) p.city = selectedCity;
     if (selectedState) p.state = selectedState;
@@ -216,6 +247,9 @@ export function useWarehouseFilters(items = []) {
   }, [
     searchText, selectedOwnerType, selectedType, selectedCity, selectedState,
     selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType,
+    selectedOwnerName,
+    selectedListingType,
+    selectedStatus,
     selectedUploadedBy, selectedVisibility, areaRange, budgetRange,
   ]);
 
@@ -224,6 +258,9 @@ export function useWarehouseFilters(items = []) {
     queryParams,
     searchText, setSearchText,
     selectedOwnerType, setSelectedOwnerType,
+    selectedOwnerName, setSelectedOwnerName,
+    selectedListingType, setSelectedListingType,
+    selectedStatus, setSelectedStatus,
     selectedType, setSelectedType,
     selectedCity, setSelectedCity,
     selectedState, setSelectedState,

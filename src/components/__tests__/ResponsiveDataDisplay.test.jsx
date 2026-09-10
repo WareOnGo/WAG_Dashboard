@@ -5,7 +5,6 @@ import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouse } from '../../test/mockData';
 import CardView from '../CardView';
 import ResponsiveTable from '../ResponsiveTable';
-import ViewSwitcher from '../ViewSwitcher';
 import { useViewport } from '../../hooks/useViewport';
 
 vi.mock('../../hooks/useViewport', () => ({ useViewport: vi.fn() }));
@@ -45,18 +44,4 @@ describe('responsive data display behavior', () => {
     expect(onChange).toHaveBeenCalledWith(2, 1);
   });
 
-  it('persists an explicit view selection', async () => {
-    const onViewChange = vi.fn();
-    renderWithProviders(<ViewSwitcher currentView="table" onViewChange={onViewChange} />);
-    await userEvent.click(screen.getByRole('button', { name: /Cards/ }));
-    expect(onViewChange).toHaveBeenCalledWith('cards');
-    expect(localStorage.getItem('warehouse-view-preference')).toBe('cards');
-  });
-
-  it('does not change views when controls are disabled', async () => {
-    const onViewChange = vi.fn();
-    renderWithProviders(<ViewSwitcher currentView="table" onViewChange={onViewChange} disabled />);
-    await userEvent.click(screen.getByRole('button', { name: /Cards/ }));
-    expect(onViewChange).not.toHaveBeenCalled();
-  });
 });

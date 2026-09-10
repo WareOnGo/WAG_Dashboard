@@ -1,3 +1,4 @@
+import { WAREHOUSE_TYPES } from '../utils/warehouseOptions';
 import { useState, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement } from 'react';
 import { Button, Switch, Spin, Tooltip, message, DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
@@ -30,7 +31,7 @@ const BROKER_OPTIONS = ['Yes', 'No'];
 const STATUS_OPTIONS = ['Under construction', 'Build to suit', 'Ready to move'];
 const OWNER_TYPES = ['Individual', 'Company', '3PL'];
 const OWNER_WARMTH_OPTIONS = ['Green', 'Yellow', 'Red'];
-const WAREHOUSE_TYPES = ['PEB', 'RCC', 'Shed', 'BTS'];
+
 
 const INDIA_STATE_CITIES = {
   'Andhra Pradesh': ['Alluri Sitharama Raju', 'Anakapalli', 'Anantapur', 'Ananthapuramu', 'Annamayya', 'Bapatla', 'Bhimavaram', 'Chittoor', 'Dr. B. R. Ambedkar Konaseema', 'East Godavari', 'Eluru', 'Guntur', 'Hindupur', 'Kadapa', 'Kakinada', 'Krishna', 'Kurnool', 'Machilipatnam', 'Markapuram', 'Nandyal', 'Nellore', 'NTR', 'Ongole', 'Palnadu', 'Parvathipuram Manyam', 'Polavaram', 'Prakasam', 'Rajahmundry', 'Sri Potti Sriramulu Nellore', 'Sri Sathya Sai', 'Srikakulam', 'Tenali', 'Tirupati', 'Vijayawada', 'Visakhapatnam', 'Vizianagaram', 'West Godavari', 'YSR Kadapa'],
@@ -1524,7 +1525,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
           {/* ── Actions ─────────────────────────────────────────── */}
           <div
-            className={m ? 'warehouse-form-actions' : ''}
+            className={m ? `warehouse-form-actions${reviewActions ? ' warehouse-form-actions--review' : ''}` : ''}
             style={{
               marginTop: m ? 0 : 32,
               display: 'flex',
@@ -1539,7 +1540,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             }}
           >
             {reviewActions && (
-              <div style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto', order: m ? 3 : 0 }}>
+              <div className="warehouse-form-review-actions" style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto', order: m ? 3 : 0 }}>
                 {typeof reviewActions === 'function'
                   ? reviewActions({ getPayload: buildPayload })
                   : reviewActions}
