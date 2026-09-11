@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { App, Result } from 'antd'
 import { useAuth } from '../contexts'
 import { microMarketService } from '../services/microMarketService'
-import { warehouseService } from '../services/warehouseService'
+import { warehousesForCitySuggestion } from '../utils/microMarketWarehousePoints'
 import MicroMarketMap from './MicroMarketMap'
 import MicroMarketSidebar from './MicroMarketSidebar'
 import './MicroMarkets.css'
@@ -52,24 +52,28 @@ export default function MicroMarkets() {
 
   const [areas, setAreas] = useState([])          // [{ id, name, city, reviewerName, reviewerEmail }]
   const [initialFC, setInitialFC] = useState(null)
-  const [warehouses, setWarehouses] = useState([])
+  const [warehouseStatus, setWarehouseStatus] = useState({ loading: true, count: 0 })
+  const [pinRefreshKey, setPinRefreshKey] = useState(0)
   const [focusReq, setFocusReq] = useState(null)
   const [removeId, setRemoveId] = useState(null)
   const [selectedId, setSelectedId] = useState(null)
   const [showAreas, setShowAreas] = useState(true)
   const [showPins, setShowPins] = useState(true)
   const [loadingAreas, setLoadingAreas] = useState(true)
-  const [loadingWarehouses, setLoadingWarehouses] = useState(true)
 
   const areasRef = useRef(areas)
   areasRef.current = areas
   const geomTimers = useRef(new Map())
   const savedMetaRef = useRef(new Map())
+  const cityRequests = useRef(new Set())
+  const handleWarehouseStatus = useCallback(patch => setWarehouseStatus(status => ({ ...status, ...patch })), [])
 
   // Clear pending debounced geometry saves on unmount.
   useEffect(() => () => {
     geomTimers.current.forEach(t => clearTimeout(t))
     geomTimers.current.clear()
+    cityRequests.current.forEach(controller => controller.abort())
+    cityRequests.current.clear()
   }, [])
 
   useEffect(() => {
@@ -92,18 +96,20 @@ export default function MicroMarkets() {
       .finally(() => setLoadingAreas(false))
   }, [canAccess, message])
 
-  useEffect(() => {
-    if (!canAccess) return
-    warehouseService.getAll()
-      .then(rows => setWarehouses(Array.isArray(rows) ? rows : (rows?.data || [])))
-      .catch(e => message.error('Could not load warehouses: ' + (e.message || e)))
-      .finally(() => setLoadingWarehouses(false))
-  }, [canAccess, message])
-
   const handleCreate = async (feature) => {
+    const controller = new AbortController()
+    cityRequests.current.add(controller)
     try {
       // Auto-fill city from the warehouses that fall inside the drawn polygon.
-      const city = inferCity(feature.geometry, warehouses)
+      let city = ''
+      try {
+        const points = await warehousesForCitySuggestion(feature.geometry, { signal: controller.signal })
+        city = inferCity(feature.geometry, points)
+      } catch {
+        if (controller.signal.aborted) return
+        message.warning('City could not be suggested. You can enter it after saving the area.')
+      }
+      if (controller.signal.aborted) return
       const saved = await microMarketService.create({
         id: String(feature.id), name: '', city, geometry: feature.geometry,
       })
@@ -116,6 +122,7 @@ export default function MicroMarkets() {
       savedMetaRef.current.set(id, { name: '', city })
       setSelectedId(id)
     } catch (e) { message.error(e.message || 'Create failed') }
+    finally { cityRequests.current.delete(controller) }
   }
 
   // Debounced (600ms) per feature so a drag fires one save, not dozens.
@@ -185,8 +192,10 @@ export default function MicroMarkets() {
         areas={areas}
         selectedId={selectedId}
         loadingAreas={loadingAreas}
-        loadingWarehouses={loadingWarehouses}
-        warehouseCount={warehouses.length}
+        loadingWarehouses={warehouseStatus.loading}
+        warehouseCount={warehouseStatus.count}
+        warehouseStatus={warehouseStatus}
+        onRetryWarehouses={() => setPinRefreshKey(key => key + 1)}
         showAreas={showAreas}
         onToggleAreas={() => setShowAreas(v => !v)}
         showPins={showPins}
@@ -199,7 +208,8 @@ export default function MicroMarkets() {
       <div className="mm-map">
         <MicroMarketMap
           initialFC={initialFC}
-          warehouses={warehouses}
+          onWarehouseStatus={handleWarehouseStatus}
+          pinRefreshKey={pinRefreshKey}
           showAreas={showAreas}
           showPins={showPins}
           onCreate={handleCreate}

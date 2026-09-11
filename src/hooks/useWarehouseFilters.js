@@ -26,8 +26,9 @@ export function useWarehouseFilters(items = []) {
   const [selectedLandType, setSelectedLandType] = useState('');
   const [selectedUploadedBy, setSelectedUploadedBy] = useState('');
   const [selectedVisibility, setSelectedVisibility] = useState('');
-  const [areaRange, setAreaRange] = useState([0, 100000]);
-  const [budgetRange, setBudgetRange] = useState([0, 1000]);
+  // An unset maximum is genuinely open-ended, including in the review queue.
+  const [areaRange, setAreaRange] = useState([0, null]);
+  const [budgetRange, setBudgetRange] = useState([0, null]);
   // [from, to] as 'YYYY-MM-DD' strings (null when unset). Used by the review queue
   // to filter staged rows by submission date (submittedAt) / approval date (reviewedAt).
   const [submittedDateRange, setSubmittedDateRange] = useState([null, null]);
@@ -49,8 +50,8 @@ export function useWarehouseFilters(items = []) {
     setSelectedLandType('');
     setSelectedUploadedBy('');
     setSelectedVisibility('');
-    setAreaRange([0, 100000]);
-    setBudgetRange([0, 1000]);
+    setAreaRange([0, null]);
+    setBudgetRange([0, null]);
     setSubmittedDateRange([null, null]);
     setReviewedDateRange([null, null]);
   };
@@ -179,22 +180,22 @@ export function useWarehouseFilters(items = []) {
       });
     }
 
-    if (areaRange[0] > 0 || areaRange[1] < 100000) {
+    if (areaRange[0] > 0 || areaRange[1] !== null) {
       result = result.filter(warehouse => {
         const spaces = Array.isArray(warehouse.totalSpaceSqft)
           ? warehouse.totalSpaceSqft
           : [warehouse.totalSpaceSqft];
         return spaces.some(v => {
           const n = Number(v);
-          return Number.isFinite(n) && n >= areaRange[0] && n <= areaRange[1];
+          return Number.isFinite(n) && n >= areaRange[0] && (areaRange[1] === null || n <= areaRange[1]);
         });
       });
     }
 
-    if (budgetRange[0] > 0 || budgetRange[1] < 1000) {
+    if (budgetRange[0] > 0 || budgetRange[1] !== null) {
       result = result.filter(warehouse => {
         const rate = parseFloat(String(warehouse.ratePerSqft ?? '').replace(/[^\d.]/g, '') || 0);
-        return rate >= budgetRange[0] && rate <= budgetRange[1];
+        return rate >= budgetRange[0] && (budgetRange[1] === null || rate <= budgetRange[1]);
       });
     }
 
@@ -240,9 +241,9 @@ export function useWarehouseFilters(items = []) {
     if (selectedUploadedBy) p.uploadedBy = selectedUploadedBy;
     if (selectedVisibility) p.visibility = selectedVisibility;
     if (areaRange[0] > 0) p.minArea = areaRange[0];
-    if (areaRange[1] < 100000) p.maxArea = areaRange[1];
+    if (areaRange[1] !== null) p.maxArea = areaRange[1];
     if (budgetRange[0] > 0) p.minRate = budgetRange[0];
-    if (budgetRange[1] < 1000) p.maxRate = budgetRange[1];
+    if (budgetRange[1] !== null) p.maxRate = budgetRange[1];
     return p;
   }, [
     searchText, selectedOwnerType, selectedType, selectedCity, selectedState,

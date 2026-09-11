@@ -1,8 +1,18 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import mapboxgl from 'mapbox-gl'
 import MapboxDraw from '@mapbox/mapbox-gl-draw'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css'
+
+import { geoService, boundsToBbox } from '../services/geoService'
+import { warehouseService } from '../services/warehouseService'
+import { registerWarehouseIcons, warehouseIconId, availabilityExpression, AVAILABILITY_COLORS } from '../utils/geoIcons'
+import { availabilityBucket } from '../utils/geoPopups'
+import { createWarehouseViewportLoader, EMPTY_WAREHOUSE_POINTS } from '../utils/warehouseViewport'
+
+const PIN_SOURCE = 'mm-warehouse-points'
+const PIN_LAYER = 'mm-warehouse-pins'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -116,54 +126,57 @@ function bbox(geom) {
   return Number.isFinite(minX) ? [[minX, minY], [maxX, maxY]] : null
 }
 
-// Coordinates live on the nested WarehouseData relation in the dashboard's API.
-function coordsOf(w) {
-  const lat = parseFloat(w.latitude ?? w.WarehouseData?.latitude ?? w.warehouseData?.latitude)
-  const lng = parseFloat(w.longitude ?? w.WarehouseData?.longitude ?? w.warehouseData?.longitude)
-  return { lat, lng }
-}
-
-// Strong palette for the popup badge (white text needs the contrast).
-function warehouseColor(availability) {
-  const a = String(availability || '').toLowerCase()
-  if (a === 'yes' || a.includes('available')) return '#3d8b40'
-  if (a === 'no' || a.includes('occupied')) return '#c62828'
-  if (a.includes('partial')) return '#d68910'
-  return '#0d5a9e'
-}
-
 function formatSpace(space) {
   if (!space) return '-'
   if (Array.isArray(space)) return space.reduce((s, v) => s + (Number(v) || 0), 0).toLocaleString()
   return String(space).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
-function warehousePopupHTML(w) {
-  return `
-    <div style="font-family:Verdana,Geneva,sans-serif;padding:10px;min-width:200px;max-width:260px;background:rgba(26,26,26,0.98);color:rgba(255,255,255,0.95);border-radius:6px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.15);">
-        <span style="font-size:13px;font-weight:600;color:#fff;">#${w.id}</span>
-        <span style="font-size:10px;padding:3px 8px;background:${warehouseColor(w.availability)};border-radius:4px;color:#fff;font-weight:500;">${w.availability || 'Unknown'}</span>
+// DOM markers previously kept their clicks away from Draw. Preserve that
+// behavior for the WebGL pins while letting vertex/midpoint actions win.
+function warehouseAwareSelectMode(onPinTap) {
+  const base = MapboxDraw.modes.simple_select
+  const guard = (handler, inspect = false) => function (state, event) {
+    const meta = event.featureTarget?.properties?.meta
+    const handle = meta === 'vertex' || meta === 'midpoint'
+    const pins = !handle && this.map.getLayer(PIN_LAYER)
+      ? this.map.queryRenderedFeatures(event.point, { layers: [PIN_LAYER] }) : []
+    if (pins.length) {
+      base.stopExtendedInteractions?.call(this, state)
+      // Draw prevents synthetic mouse clicks after touchend, so inspect taps
+      // here using its existing tap detection rather than a second gesture path.
+      if (inspect) onPinTap({ ...event, features: pins })
+      return
+    }
+    return handler.call(this, state, event)
+  }
+  return { ...base, onClick: guard(base.onClick), onTap: guard(base.onTap, true) }
+}
+
+function WarehousePinCard({ id, warehouse, loading, error, onRetry }) {
+  return <div className="mm-pin-card">
+    <div className="mm-pin-card__header">
+      <strong>#{id}</strong>
+      {warehouse && <span className="mm-pin-card__availability" style={{ background: AVAILABILITY_COLORS[availabilityBucket(warehouse.availability)] }}>{warehouse.availability || 'Unknown'}</span>}
+    </div>
+    {loading && <div role="status">Loading warehouse…</div>}
+    {error && <div role="alert">Could not load this warehouse. <button onClick={onRetry}>Retry</button></div>}
+    {warehouse && <>
+      <strong className="mm-pin-card__type">{warehouse.warehouseType}</strong>
+      <div className="mm-pin-card__owner">{warehouse.warehouseOwnerType}</div>
+      <div>{[warehouse.city, warehouse.state].filter(Boolean).join(', ')}</div>
+      <div className="mm-pin-card__metrics">
+        <div><span>Space</span><strong>{formatSpace(warehouse.totalSpaceSqft)} sq ft</strong></div>
+        <div><span>Rate</span><strong>₹{warehouse.ratePerSqft || '—'}/sq ft</strong></div>
       </div>
-      <div style="font-size:14px;font-weight:600;margin-bottom:4px;color:#fff;line-height:1.3;">${w.warehouseType || ''}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.65);margin-bottom:8px;">${w.warehouseOwnerType || ''}</div>
-      <div style="font-size:12px;color:rgba(255,255,255,0.85);margin-bottom:8px;line-height:1.4;">📍 ${w.city || ''}, ${w.state || ''}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;background:rgba(0,0,0,0.3);border-radius:4px;">
-        <div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Space</div>
-          <div style="font-size:12px;font-weight:600;color:#fff;">${formatSpace(w.totalSpaceSqft)} sqft</div>
-        </div>
-        <div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Rate</div>
-          <div style="font-size:12px;font-weight:600;color:#fff;">₹${w.ratePerSqft || '—'}/sqft</div>
-        </div>
-      </div>
-    </div>`
+    </>}
+  </div>
 }
 
 export default function MicroMarketMap({
   initialFC,
-  warehouses = [],
+  onWarehouseStatus,
+  pinRefreshKey = 0,
   showAreas = true,
   showPins = true,
   onCreate,
@@ -178,32 +191,159 @@ export default function MicroMarketMap({
   const mapRef = useRef(null)
   const drawRef = useRef(null)
   const loadedRef = useRef(false)
-  const whMarkersRef = useRef([])
-  const showPinsRef = useRef(showPins) // so newly-created markers respect the toggle
+  const loaderRef = useRef(null)
+  const pinsReadyRef = useRef(false)
+  const refreshTimerRef = useRef(null)
+  const popupRef = useRef(null)
+  const detailCache = useRef(new Map())
+  const [popupContent, setPopupContent] = useState(null)
+  const showPinsRef = useRef(showPins)
+  showPinsRef.current = showPins
 
   const cb = useRef({})
-  cb.current = { onCreate, onUpdateGeometry, onUserDelete, onSelect, onRemoved }
+  cb.current = { onCreate, onUpdateGeometry, onUserDelete, onSelect, onRemoved, onWarehouseStatus }
+
+  const refreshPins = useCallback((force = false) => {
+    if (!mapRef.current || !pinsReadyRef.current || !showPinsRef.current) return
+    void loaderRef.current?.load(boundsToBbox(mapRef.current.getBounds()), {}, force)
+  }, [])
+
+  const loadPopup = useCallback(async entry => {
+    if (!entry || popupRef.current !== entry) return
+    setPopupContent({ ...entry, loading: true, error: false })
+    const cache = detailCache.current
+    if (!cache.has(entry.id)) {
+      if (cache.size >= 100) cache.delete(cache.keys().next().value)
+      const request = warehouseService.getById(entry.id).catch(error => {
+        if (cache.get(entry.id) === request) cache.delete(entry.id)
+        throw error
+      })
+      cache.set(entry.id, request)
+    }
+    try {
+      const warehouse = await cache.get(entry.id)
+      if (popupRef.current === entry) setPopupContent({ ...entry, warehouse, loading: false, error: false })
+    } catch {
+      if (popupRef.current === entry) setPopupContent({ ...entry, loading: false, error: true })
+    }
+  }, [])
 
   // Init map + draw control once.
   useEffect(() => {
-    if (!mapboxgl.accessToken) return
+    if (!mapboxgl.accessToken) {
+      cb.current.onWarehouseStatus?.({ loading: false, error: 'The map is not configured.' })
+      return
+    }
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2', // dashboard's custom dark style
       center: [78.9629, 22.5937],
       zoom: 4,
+      renderWorldCopies: false,
     })
     mapRef.current = map
+    const detailRequests = detailCache.current
     map.addControl(new mapboxgl.NavigationControl(), 'top-right')
-    map.once('load', () => map.resize())
+    map.getCanvas().setAttribute('aria-label', 'Micro-market map. Use arrow keys to pan and plus or minus to zoom.')
+    const loader = createWarehouseViewportLoader({
+      fetchPoints: geoService.warehouses,
+      onData: fc => map.getSource(PIN_SOURCE)?.setData(fc),
+      onStatus: patch => cb.current.onWarehouseStatus?.(patch),
+    })
+    loaderRef.current = loader
+    const scheduleRefresh = () => {
+      clearTimeout(refreshTimerRef.current)
+      if (showPinsRef.current) refreshTimerRef.current = setTimeout(() => refreshPins(), 180)
+    }
+    const resize = () => { map.resize(); scheduleRefresh() }
+    const observer = new ResizeObserver(resize)
+    observer.observe(containerRef.current)
+    window.addEventListener('resize', resize)
+    window.addEventListener('orientationchange', resize)
+    map.on('moveend', scheduleRefresh)
+    map.once('load', () => {
+      map.resize()
+      map.addSource(PIN_SOURCE, { type: 'geojson', data: EMPTY_WAREHOUSE_POINTS })
+      registerWarehouseIcons(map)
+      const vertexLayer = map.getStyle()?.layers.find(layer => layer.id.startsWith('gl-draw') && layer.type === 'circle')?.id
+      map.addLayer({
+        id: PIN_LAYER, type: 'symbol', source: PIN_SOURCE,
+        layout: {
+          visibility: showPinsRef.current ? 'visible' : 'none',
+          'icon-allow-overlap': true, 'icon-ignore-placement': true,
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.85, 12, 1.1, 16, 1.3],
+          'icon-image': ['match', availabilityExpression,
+            'available', warehouseIconId('available'),
+            'unavailable', warehouseIconId('unavailable'), warehouseIconId('unknown')],
+        },
+        paint: { 'icon-emissive-strength': 1 },
+      }, vertexLayer)
+      pinsReadyRef.current = true
+      cb.current.onWarehouseStatus?.({ ready: true, loading: false, error: null })
+      refreshPins()
+    })
+    map.on('error', () => {
+      if (!pinsReadyRef.current) cb.current.onWarehouseStatus?.({ loading: false, error: 'The map could not load. Please reload the page.' })
+    })
 
     const draw = new MapboxDraw({
       displayControlsDefault: false,
       controls: { polygon: true, trash: true },
       styles: DRAW_STYLES,
+      modes: { ...MapboxDraw.modes, simple_select: warehouseAwareSelectMode(event => openPin(event)) },
     })
     drawRef.current = draw
     map.addControl(draw, 'top-left')
+
+    // Pin inspection is read-only and never intercepts drawing or vertex editing.
+    map.on('mouseenter', PIN_LAYER, () => {
+      if (draw.getMode() === 'simple_select') map.getCanvas().style.cursor = 'pointer'
+    })
+    map.on('mouseleave', PIN_LAYER, () => { map.getCanvas().style.cursor = '' })
+    const openPin = event => {
+      if (!showPinsRef.current || draw.getMode() !== 'simple_select') return
+      const feature = event.features?.[0]
+      const id = Number(feature?.properties?.id)
+      if (!Number.isSafeInteger(id) || id <= 0) return
+      popupRef.current?.popup.remove()
+      const element = document.createElement('div')
+      element.className = 'mm-pin-popup__scroll'
+      const popup = new mapboxgl.Popup({
+        anchor: 'bottom', offset: [0, -15], maxWidth: '260px', className: 'mm-pin-popup',
+        closeButton: true, closeOnClick: true, closeOnMove: false, focusAfterOpen: false,
+      }).setLngLat(feature.geometry.coordinates).setDOMContent(element).addTo(map)
+      const entry = { id, element, popup }
+      popupRef.current = entry
+      const positionPopup = () => {
+        const { clientWidth: width, clientHeight: height } = containerRef.current
+        if (!width || !height) return
+        element.style.maxHeight = `${Math.max(80, height - 40)}px`
+        const node = popup.getElement()
+        const { x, y } = map.project(feature.geometry.coordinates)
+        const left = x - node.offsetWidth / 2, top = y - node.offsetHeight - 15
+        const dx = Math.max(8, Math.min(left, width - node.offsetWidth - 8)) - left
+        const dy = Math.max(8, Math.min(top, height - node.offsetHeight - 8)) - top
+        popup.setOffset([dx, dy - 15])
+        node.classList.toggle('mm-pin-popup--shifted', Math.abs(dx) > 1 || Math.abs(dy) > 1)
+      }
+      const popupObserver = new ResizeObserver(positionPopup)
+      popupObserver.observe(element)
+      map.on('move', positionPopup)
+      popup.on('close', () => {
+        popupObserver.disconnect()
+        map.off('move', positionPopup)
+        if (popupRef.current !== entry) return
+        popupRef.current = null
+        setPopupContent(null)
+      })
+      void loadPopup(entry)
+    }
+    map.on('click', PIN_LAYER, openPin)
+    const onModeChange = () => {
+      if (draw.getMode() !== 'simple_select') popupRef.current?.popup.remove()
+    }
+    map.on('draw.modechange', onModeChange)
+
 
     // Our own outline layer + keep it in sync with Draw's features on every render.
     const ensureAndSync = () => { ensureOutlineLayer(map); syncOutline(map, draw) }
@@ -228,14 +368,25 @@ export default function MicroMarketMap({
       map.off('draw.update', onUpdateEv)
       map.off('draw.delete', onDeleteEv)
       map.off('draw.selectionchange', onSelEv)
-      whMarkersRef.current.forEach(m => m.remove())
-      whMarkersRef.current = []
+      clearTimeout(refreshTimerRef.current)
+      observer.disconnect()
+      window.removeEventListener('resize', resize)
+      window.removeEventListener('orientationchange', resize)
+      map.off('moveend', scheduleRefresh)
+      map.off('draw.modechange', onModeChange)
+      loader.dispose()
+      const popup = popupRef.current
+      popupRef.current = null
+      popup?.popup.remove()
+      detailRequests.clear()
+      pinsReadyRef.current = false
+      loaderRef.current = null
       map.remove()
       mapRef.current = null
       drawRef.current = null
       loadedRef.current = false
     }
-  }, [])
+  }, [refreshPins, loadPopup])
 
   // Load saved areas into the draw layer once map + data are ready.
   useEffect(() => {
@@ -247,43 +398,28 @@ export default function MicroMarketMap({
       draw.set(initialFC)
       loadedRef.current = true
     }
-    if (map.loaded()) apply()
+    if (pinsReadyRef.current) apply()
     else map.once('load', apply)
+    return () => map.off('load', apply)
   }, [initialFC])
 
-  // Render warehouses as read-only pins.
+  // Hiding pins also suspends viewport reads. Re-enable against the current
+  // camera; reuse complete cached bounds when they still cover it.
   useEffect(() => {
     const map = mapRef.current
-    if (!map) return
-    const render = () => {
-      whMarkersRef.current.forEach(m => m.remove())
-      whMarkersRef.current = []
-      for (const w of warehouses) {
-        const { lat, lng } = coordsOf(w)
-        if (Number.isNaN(lng) || Number.isNaN(lat)) continue
-        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue
-        const popup = new mapboxgl.Popup({ offset: 15, closeButton: false, closeOnClick: true, anchor: 'left' })
-          .setHTML(warehousePopupHTML(w))
-        const marker = new mapboxgl.Marker({ color: warehouseColor(w.availability) })
-          .setLngLat([lng, lat])
-          .setPopup(popup)
-          .addTo(map)
-        marker.getElement().style.display = showPinsRef.current ? '' : 'none'
-        whMarkersRef.current.push(marker)
-      }
+    if (map?.getLayer(PIN_LAYER)) map.setLayoutProperty(PIN_LAYER, 'visibility', showPins ? 'visible' : 'none')
+    if (showPins) refreshPins()
+    else {
+      clearTimeout(refreshTimerRef.current)
+      loaderRef.current?.dispose()
+      popupRef.current?.popup.remove()
+      cb.current.onWarehouseStatus?.({ loading: false })
     }
-    if (map.loaded()) render()
-    else map.once('load', render)
-    return () => { map.off('load', render) }
-  }, [warehouses])
+  }, [showPins, refreshPins])
 
-  // Toggle warehouse pin visibility without recreating the markers.
   useEffect(() => {
-    showPinsRef.current = showPins
-    for (const m of whMarkersRef.current) {
-      m.getElement().style.display = showPins ? '' : 'none'
-    }
-  }, [showPins])
+    if (pinRefreshKey) refreshPins(true)
+  }, [pinRefreshKey, refreshPins])
 
   // Show/hide drawn area overlays (review toggle) without deleting any data.
   useEffect(() => {
@@ -298,8 +434,9 @@ export default function MicroMarketMap({
         }
       }
     }
-    if (map.loaded()) apply()
+    if (pinsReadyRef.current) apply()
     else map.once('load', apply)
+    return () => map.off('load', apply)
   }, [showAreas])
 
   // Fly to + select an area when requested from the sidebar.
@@ -307,12 +444,17 @@ export default function MicroMarketMap({
     const map = mapRef.current
     const draw = drawRef.current
     if (!map || !draw || !focusReq?.id) return
-    const f = draw.get(String(focusReq.id))
-    if (!f) return
-    const b = bbox(f.geometry)
-    if (b) map.fitBounds(b, { padding: 80, maxZoom: 14, duration: 600 })
-    try { draw.changeMode('simple_select', { featureIds: [String(focusReq.id)] }) } catch { /* ignore */ }
-  }, [focusReq])
+    const apply = () => {
+      const f = draw.get(String(focusReq.id))
+      if (!f) return
+      const b = bbox(f.geometry)
+      if (b) map.fitBounds(b, { padding: 80, maxZoom: 14, duration: 600 })
+      try { draw.changeMode('simple_select', { featureIds: [String(focusReq.id)] }) } catch { /* ignore */ }
+    }
+    if (loadedRef.current) apply()
+    else map.once('load', apply)
+    return () => map.off('load', apply)
+  }, [focusReq, initialFC])
 
   // Remove an area's geometry when deletion is initiated from the sidebar.
   useEffect(() => {
@@ -322,5 +464,8 @@ export default function MicroMarketMap({
     cb.current.onRemoved?.(String(removeId))
   }, [removeId])
 
-  return <div ref={containerRef} className="mm-map-canvas" />
+  return <>
+    <div ref={containerRef} className="mm-map-canvas" />
+    {popupContent && createPortal(<WarehousePinCard {...popupContent} onRetry={() => loadPopup(popupRef.current)} />, popupContent.element)}
+  </>
 }

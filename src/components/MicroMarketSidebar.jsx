@@ -23,12 +23,12 @@ function EyeOffIcon() {
   )
 }
 
-function StatRow({ label, loading, count, show, onToggle }) {
+function StatRow({ label, loading, count, show, onToggle, suffix = '' }) {
   return (
     <div className="mm-stat-row">
       <span className="mm-stat-label">{label}</span>
       <span className="mm-stat-count">
-        {loading ? <span className="mm-spinner" /> : (count ?? 0).toLocaleString()}
+        {loading ? <span className="mm-spinner" /> : `${(count ?? 0).toLocaleString()}${suffix}`}
       </span>
       <button
         type="button"
@@ -54,6 +54,8 @@ export default function MicroMarketSidebar({
   loadingAreas,
   loadingWarehouses,
   warehouseCount,
+  warehouseStatus = {},
+  onRetryWarehouses,
   showAreas,
   onToggleAreas,
   showPins,
@@ -178,9 +180,16 @@ export default function MicroMarketSidebar({
           label="Warehouse pins"
           loading={loadingWarehouses}
           count={warehouseCount}
+          suffix=" loaded"
           show={showPins}
           onToggle={onTogglePins}
         />
+        <div className="mm-pin-status" role="status" aria-live="polite">
+          {!showPins ? 'Warehouse pins hidden.' : warehouseStatus.loading ? 'Loading warehouse pins…' : warehouseStatus.zoomRequired ? 'Zoom in to load warehouse pins.' : warehouseStatus.truncated ? 'Zoom in to see all warehouses.' : null}
+          {showPins && warehouseStatus.error && <div className="mm-pin-status__error">{warehouseStatus.error}
+            {warehouseStatus.ready && <button type="button" onClick={onRetryWarehouses}>Retry warehouse pins</button>}
+          </div>}
+        </div>
       </div>
 
       {!loadingAreas && areas.length > 0 && (

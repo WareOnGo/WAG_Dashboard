@@ -161,13 +161,12 @@
   font-size: 13px;
 }
 
-.simple-warehouse-card__location > span:not(.anticon):not(.simple-warehouse-card__zone-tag),
+.simple-warehouse-card__location > span:not(.anticon),
 .simple-warehouse-card__contact > span:not(.anticon) {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-.simple-warehouse-card__zone-tag,
 .simple-warehouse-card__contact > button,
 .simple-warehouse-card__contact > a {
   flex-shrink: 0;
@@ -183,17 +182,29 @@
   margin-left: 12px;
 }
 
-.simple-warehouse-card__zone-tag {
-  background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  /* Removed blue, using neutral */
-  color: rgba(255, 255, 255, 0.75);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
+/* Keep assigned micro-markets with the location, above contact and metrics. */
+.simple-warehouse-card__micro-markets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.simple-warehouse-card__micro-market-chip {
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid rgba(var(--accent-primary-rgb, 187, 154, 247), 0.24);
+  border-radius: 6px;
+  background: var(--accent-light, #322b4a);
+  color: var(--accent-primary, #bb9af7);
+  font-size: 12px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  cursor: default;
 }
 
 .simple-warehouse-card__space-breakdown {
@@ -487,8 +498,14 @@
 }
 
 .swc-skeleton__line--location {
-  height: 22px;
+  height: 21px;
   margin-bottom: 8px;
+}
+
+.swc-skeleton__line--micro-market {
+  max-width: 100%;
+  height: 24px;
+  border-radius: 6px;
 }
 
 .swc-skeleton__line--contact {
@@ -590,16 +607,12 @@
   }
 }
 
-/* A narrow card: the real location and contact rows wrap, and the reveal button
+/* A narrow card: the contact row wraps, and the reveal button
    joins the contact row instead of sitting below it. Card-relative rather than
    viewport-relative, because the narrowest cards in this grid appear at a
    ~1024px viewport (four across), not on a phone. The threshold is a content-box
    width — that is what an inline-size container query measures. */
 @container (max-width: 200px) {
-  .swc-skeleton__line--location {
-    height: 41px;
-  }
-
   .swc-skeleton__line--contact {
     height: 61px;
     margin-bottom: 8px;
@@ -610,11 +623,6 @@
   }
 
   @media (max-width: 768px) {
-    .swc-skeleton__line--location {
-      height: 38px;
-      margin-bottom: 6px;
-    }
-
     .swc-skeleton__line--contact {
       height: 57px;
       margin-bottom: 6px;

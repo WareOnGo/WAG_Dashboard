@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import {
   Button,
   Typography,
@@ -96,10 +96,6 @@ const Dashboard = () => {
   // params so the first debounce settle has nothing to commit.
   const [debouncedParams, setDebouncedParams] = useState(queryParams);
 
-  // Map markers for split view: all warehouses matching the current filters
-  // (fetched separately from the paged list so the map stays complete).
-  const [mapCoords, setMapCoords] = useState([]);
-
   // Guards against out-of-order list responses (last request wins).
   const reqIdRef = useRef(0);
   const resultsRef = useRef(null);
@@ -180,30 +176,6 @@ const Dashboard = () => {
     }, 300);
     return () => clearTimeout(t);
   }, [queryParams, debouncedParams]);
-
-  // Keep the split-view map complete: fetch coordinates for ALL filtered rows
-  // (not just the current page) when filters change or a mutation completes.
-  useEffect(() => {
-    if (authLoading || !isAuthenticated || !hasDashboardAccess) {
-      setMapCoords([]);
-      return;
-    }
-    if (!splitViewEnabled) return;
-    let active = true;
-    warehouseService.getCoordinates(debouncedParams)
-      .then((rows) => { if (active) setMapCoords(Array.isArray(rows) ? rows : []); })
-      .catch(() => { if (active) setMapCoords([]); });
-    return () => { active = false; };
-  }, [authLoading, isAuthenticated, hasDashboardAccess, debouncedParams, splitViewEnabled, refreshVersion]);
-
-  // MapView reads coordinates from top-level latitude/longitude; adapt the
-  // lightweight { id, lat, lng } payload from the coordinates endpoint.
-  const mapMarkers = useMemo(
-    () => mapCoords.map((c) => ({
-      id: c.id, latitude: c.lat, longitude: c.lng, availability: c.availability,
-    })),
-    [mapCoords],
-  );
 
   // Shared pager for the cards, with or without the split map.
   // Server-driven: changing page/size triggers a refetch via the fetch effect.
@@ -582,6 +554,8 @@ const Dashboard = () => {
               <Tooltip title={splitViewEnabled ? "Close map" : "Show map"}>
                 <Button
                   icon={<EnvironmentOutlined />}
+                  aria-label={splitViewEnabled ? 'Hide map' : 'Show map'}
+                  aria-pressed={splitViewEnabled}
                   onClick={() => setSplitViewEnabled(!splitViewEnabled)}
                   type={splitViewEnabled ? 'primary' : 'default'}
                   size={isMobile ? 'small' : 'large'}
@@ -715,9 +689,10 @@ const Dashboard = () => {
                   </div>
                 }>
                   <MapView
-                    warehouses={mapMarkers}
+                    filters={debouncedParams}
+                    refreshKey={refreshVersion}
+                    active={!authLoading && isAuthenticated && hasDashboardAccess}
                     onEdit={handleEdit}
-                    onDelete={handleDelete}
                     onViewDetails={handleViewDetails}
                   />
                 </Suspense>

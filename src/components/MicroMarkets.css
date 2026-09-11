@@ -344,21 +344,34 @@
 .mm-map { flex: 1; position: relative; background: rgba(0, 0, 0, 0.3); }
 .mm-map-canvas { position: absolute; inset: 0; }
 
-/* Warehouse popup — kill Mapbox's default white container so only our dark card
-   shows. Scoped to this page so it can't affect other maps. */
-.mm-page .mapboxgl-popup-content {
-  background: rgba(26, 26, 26, 0.98) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+/* Only the read-only warehouse card; polygon controls retain their styles. */
+.mm-page .mm-pin-popup { z-index: 2; }
+.mm-page .mm-pin-popup .mapboxgl-popup-content {
+  background: var(--bg-card, #1f2335);
+  color: var(--text-primary, #c0caf5);
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  padding: 0 !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  padding: 0;
+  box-shadow: none;
   max-width: 260px;
 }
-.mm-page .mapboxgl-popup-close-button { display: none !important; }
-.mm-page .mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: rgba(26, 26, 26, 0.98) !important; }
-.mm-page .mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: rgba(26, 26, 26, 0.98) !important; }
-.mm-page .mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: rgba(26, 26, 26, 0.98) !important; }
-.mm-page .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: rgba(26, 26, 26, 0.98) !important; }
+.mm-page .mm-pin-popup .mapboxgl-popup-close-button { display: block; width: 32px; height: 32px; color: var(--text-primary); }
+.mm-page .mm-pin-popup .mapboxgl-popup-tip { border-top-color: var(--bg-card, #1f2335); }
+.mm-page .mm-pin-popup--shifted .mapboxgl-popup-tip { visibility: hidden; }
+.mm-pin-popup__scroll { overflow-y: auto; overscroll-behavior: contain; border-radius: 6px; }
+.mm-pin-card { min-width: 220px; max-width: 260px; padding: 12px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.mm-pin-card__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 24px; margin-bottom: 8px; }
+.mm-pin-card__availability { padding: 2px 6px; border-radius: 4px; color: #16161e; font-size: 10px; }
+.mm-pin-card__type { display: block; font-size: 14px; }
+.mm-pin-card__owner { color: var(--text-secondary); margin-bottom: 8px; }
+.mm-pin-card__metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; margin-top: 8px; border-radius: 4px; background: var(--bg-surface); }
+.mm-pin-card__metrics span { display: block; font-size: 10px; color: var(--text-secondary); }
+.mm-pin-card__metrics strong { display: block; }
+.mm-pin-status { font-size: 12px; color: var(--text-secondary); }
+.mm-pin-status:empty { display: none; }
+.mm-pin-status__error { color: var(--text-danger); }
+.mm-pin-status button, .mm-pin-card button { background: var(--bg-surface); border: 1px solid var(--border-control); border-radius: 4px; color: var(--text-primary); cursor: pointer; padding: 6px 8px; min-height: 32px; }
+.mm-pin-status button { display: block; margin-top: 6px; }
 
 .mm-banner {
   position: absolute;
@@ -379,4 +392,7 @@
 @media (max-width: 768px) {
   .mm-page { flex-direction: column; height: calc(100vh - 120px); }
   .mm-sidebar { width: 100%; max-height: 45%; border-right: none; border-bottom: 1px solid var(--border-primary); }
+  .mm-page .mm-pin-popup .mapboxgl-popup-close-button { width: 44px; height: 44px; }
+  .mm-pin-card__header { padding-right: 36px; }
+  .mm-pin-status button, .mm-pin-card button { min-height: 44px; }
 }

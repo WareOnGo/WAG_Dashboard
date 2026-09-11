@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import RedactedPhone from './RedactedPhone';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { getMicroMarketDisplayNames } from '../utils/microMarketNames';
 import { useAuth } from '../contexts/AuthContext';
 import './SimpleWarehouseCard.css';
 
@@ -100,6 +101,7 @@ const SimpleWarehouseCard = ({
   };
 
   const firstImage = getFirstImage();
+  const microMarkets = getMicroMarketDisplayNames(warehouse.micromarket);
 
   const handleToggleVisibility = (e) => {
     e.stopPropagation();
@@ -159,8 +161,15 @@ const SimpleWarehouseCard = ({
           <div className="simple-warehouse-card__location">
             <EnvironmentOutlined className="simple-warehouse-card__icon" />
             <span>{warehouse.city}, {warehouse.state}</span>
-            <span className="simple-warehouse-card__zone-tag">{warehouse.zone}</span>
           </div>
+
+          {microMarkets.length > 0 && (
+            <ul className="simple-warehouse-card__micro-markets" aria-label="Micro-markets">
+              {microMarkets.map(name => (
+                <li key={name} className="simple-warehouse-card__micro-market-chip">{name}</li>
+              ))}
+            </ul>
+          )}
 
           <div className="simple-warehouse-card__contact">
             <UserOutlined className="simple-warehouse-card__icon" />

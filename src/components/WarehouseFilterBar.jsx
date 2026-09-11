@@ -6,6 +6,9 @@ import { useViewport } from '../hooks/useViewport';
 import { useWarehouseFilterOptions } from '../hooks/useWarehouseFilterOptions';
 import './WarehouseFilterBar.css';
 
+const AREA_INPUT_MAX = 10_000_000;
+const RATE_INPUT_MAX = 10_000;
+
 const fields = [
   ['selectedState', 'setSelectedState', 'State', 'Search states', 'common'],
   ['selectedCity', 'setSelectedCity', 'City', 'Search cities', 'common'],
@@ -29,8 +32,12 @@ function appliedFilters(filters) {
     clear: () => filters[setter](''),
   }));
   if (filters.searchText) active.unshift({ key: 'search', label: `Search: ${filters.searchText}`, clear: () => filters.setSearchText('') });
-  [['areaRange', 'setAreaRange', 'Area', 100000, 'sq ft'], ['budgetRange', 'setBudgetRange', 'Budget', 1000, '₹/sq ft']].forEach(([key, setter, label, max, unit]) => {
-    if (filters[key][0] !== 0 || filters[key][1] !== max) active.push({ key, label: `${label}: ${filters[key][0].toLocaleString()}–${filters[key][1].toLocaleString()} ${unit}`, clear: () => filters[setter]([0, max]) });
+  [['areaRange', 'setAreaRange', 'Area', 'sq ft'], ['budgetRange', 'setBudgetRange', 'Budget', '₹/sq ft']].forEach(([key, setter, label, unit]) => {
+    const [min, max] = filters[key];
+    if (min !== 0 || max !== null) active.push({
+      key, label: `${label}: ${min.toLocaleString('en-IN')}${max === null ? '+' : `–${max.toLocaleString('en-IN')}`} ${unit}`,
+      clear: () => filters[setter]([0, null]),
+    });
   });
   [['submittedDateRange', 'setSubmittedDateRange', 'Submitted'], ['reviewedDateRange', 'setReviewedDateRange', 'Approved']].forEach(([key, setter, label]) => {
     if (filters[key]?.some(Boolean)) active.push({ key, label: `${label}: ${filters[key][0] || 'Any'} → ${filters[key][1] || 'Any'}`, clear: () => filters[setter]([null, null]) });
@@ -50,16 +57,19 @@ export function AppliedWarehouseFilters({ filters, resultCount, loading = false 
 
 function RangeField({ label, unit, value, onChange, max }) {
   const update = (index, next) => {
-    if (next === null) return;
+    if (next === null) {
+      onChange(index === 0 ? [0, value[1]] : [value[0], null]);
+      return;
+    }
     const bounded = Math.max(0, Math.min(max, next));
-    onChange(index === 0 ? [Math.min(bounded, value[1]), value[1]] : [value[0], Math.max(bounded, value[0])]);
+    onChange(index === 0 ? [Math.min(bounded, value[1] ?? max), value[1]] : [value[0], Math.max(bounded, value[0])]);
   };
   return <div className="warehouse-filters__range">
     <span className="warehouse-filters__label">{label} <span className="warehouse-filters__unit">{unit}</span></span>
     <div className="warehouse-filters__numbers">
-      <label><span>Min</span><InputNumber aria-label={`Minimum ${label.toLowerCase()} (${unit})`} min={0} max={value[1]} value={value[0]} onChange={v => update(0, v)} controls={false} /></label>
+      <label><span>Min</span><InputNumber aria-label={`Minimum ${label.toLowerCase()} (${unit})`} min={0} max={value[1] ?? max} value={value[0]} onChange={v => update(0, v)} controls={false} /></label>
       <span aria-hidden="true">–</span>
-      <label><span>Max</span><InputNumber aria-label={`Maximum ${label.toLowerCase()} (${unit})`} min={value[0]} max={max} value={value[1]} onChange={v => update(1, v)} controls={false} /></label>
+      <label><span>Max</span><InputNumber aria-label={`Maximum ${label.toLowerCase()} (${unit})`} placeholder="Any" min={value[0]} max={max} value={value[1]} onChange={v => update(1, v)} controls={false} /></label>
     </div>
   </div>;
 }
@@ -84,7 +94,7 @@ export default function WarehouseFilterBar({ filters, showDateFilter = false, op
   </div>;
   };
   const activeCount = appliedFilters(filters).length;
-  const rangeCount = Number(filters.areaRange[0] !== 0 || filters.areaRange[1] !== 100000) + Number(filters.budgetRange[0] !== 0 || filters.budgetRange[1] !== 1000);
+  const rangeCount = Number(filters.areaRange[0] !== 0 || filters.areaRange[1] !== null) + Number(filters.budgetRange[0] !== 0 || filters.budgetRange[1] !== null);
   const advancedCount = fields.filter(([key, , , , group]) => group === 'advanced' && filters[key]).length;
   const dateFields = [['submittedDateRange', 'setSubmittedDateRange', 'Submission Date'], ['reviewedDateRange', 'setReviewedDateRange', 'Approval Date']];
   return <section className="warehouse-filters" aria-label="Warehouse filters">
@@ -99,8 +109,8 @@ export default function WarehouseFilterBar({ filters, showDateFilter = false, op
     <Collapse ghost items={[{
       key: 'ranges', label: `Area & budget${rangeCount ? ` (${rangeCount} active)` : ''}`,
       children: <div className="warehouse-filters__ranges">
-        <RangeField label="Area" unit="sq ft" value={filters.areaRange} onChange={filters.setAreaRange} max={100000} />
-        <RangeField label="Budget" unit="₹/sq ft" value={filters.budgetRange} onChange={filters.setBudgetRange} max={1000} />
+        <RangeField label="Area" unit="sq ft" value={filters.areaRange} onChange={filters.setAreaRange} max={AREA_INPUT_MAX} />
+        <RangeField label="Budget" unit="₹/sq ft" value={filters.budgetRange} onChange={filters.setBudgetRange} max={RATE_INPUT_MAX} />
       </div>,
     }, {
       key: 'advanced', label: `More filters${advancedCount ? ` (${advancedCount} active)` : ''}`,

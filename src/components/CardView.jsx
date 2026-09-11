@@ -48,8 +48,12 @@ const SkeletonCard = () => (
         <Block width="55%" line="title" />
         <Block width="30%" line="owner" />
 
-        {/* City, state and the zone tag */}
+        {/* City and state, followed by micro-market chips */}
         <Block width="85%" line="location" />
+
+        <div className="simple-warehouse-card__micro-markets">
+          <Block width={140} line="micro-market" />
+        </div>
 
         {/* The contact name, then the phone-reveal control below it */}
         <Block width="70%" line="contact" />

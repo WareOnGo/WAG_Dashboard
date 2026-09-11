@@ -48,7 +48,9 @@ export const geoService = {
   }),
 
   /** Warehouses in a viewport, as a FeatureCollection. */
-  warehouses: ({ bbox, limit }) => apiClient.get('/geo/warehouses', { params: { bbox, limit } }),
+  warehouses: ({ bbox, limit, afterId, filters = {}, signal }) => apiClient.get('/geo/warehouses', {
+    params: { ...filters, bbox, limit, afterId }, signal,
+  }),
 
   createPoint: (body) => apiClient.post('/geo/points', body).then((r) => r?.data ?? r),
   updatePoint: (id, body) => apiClient.put(`/geo/points/${id}`, body).then((r) => r?.data ?? r),

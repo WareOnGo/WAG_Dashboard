@@ -29,8 +29,8 @@ export const warehouseService = {
 
   /**
    * Get ALL warehouses as a flat array (full objects, no pagination).
-   * For full-data consumers (itinerary/PPT builder, micro-market mapping). The
-   * Dashboard list uses `list()` instead. Unwraps the paginated envelope.
+   * For full-data consumers. Dashboard listings use `list()` and maps use the
+   * bounded geo service instead. Unwraps the paginated envelope.
    * @returns {Promise<Array>} Array of warehouse objects with nested WarehouseData
    */
   getAll: async () => {

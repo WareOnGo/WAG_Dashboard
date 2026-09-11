@@ -1,311 +1,246 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import { warehouseService } from '../services/warehouseService';
+import { geoService, boundsToBbox } from '../services/geoService';
+import { registerWarehouseIcons, warehouseIconId, availabilityExpression, AVAILABILITY_COLORS } from '../utils/geoIcons';
+import { availabilityBucket } from '../utils/geoPopups';
+import { createWarehouseViewportLoader, EMPTY_WAREHOUSE_POINTS } from '../utils/warehouseViewport';
 import { useViewport } from '../hooks/useViewport';
 import './MapView.css';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
+const SOURCE = 'dashboard-warehouses';
+const LAYER = 'dashboard-warehouse-pins';
+const NO_FILTERS = {};
+const INITIAL_STATUS = { loading: true, ready: false, count: 0, error: null, truncated: false, zoomRequired: false };
 
-// Marker color by availability (kept working from the lightweight coords payload).
-const markerColor = (availability) => {
-    const a = availability?.toLowerCase();
-    if (a === 'yes') return '#3d8b40';
-    if (a === 'no') return '#c62828';
-    if (a?.includes('available')) return '#3d8b40';
-    if (a?.includes('occupied')) return '#c62828';
-    if (a?.includes('partial')) return '#d68910';
-    return '#0d5a9e';
-};
-
-const formatSpace = (space) => {
-    if (!space) return '-';
-    if (Array.isArray(space)) return space.reduce((sum, val) => sum + val, 0).toLocaleString();
-    return space.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-};
-
-const popupSizing = (isMobile) => (isMobile
-    ? { pad: 8, minW: 150, maxW: 190, imgH: 64, id: 12, badge: 9, title: 12, sub: 10, loc: 11, label: 8, val: 11, btn: 10, btnPad: 5, gap: 5, mb: 6 }
-    : { pad: 10, minW: 220, maxW: 260, imgH: 80, id: 13, badge: 10, title: 14, sub: 11, loc: 12, label: 9, val: 12, btn: 11, btnPad: 6, gap: 8, mb: 8 });
-
-// Placeholder shown instantly while the full warehouse detail is fetched on open.
-const statusPopupHTML = (id, isMobile, message, color = 'rgba(255,255,255,0.65)') => {
-    const s = popupSizing(isMobile);
-    return `<div style="font-family:Verdana,Geneva,sans-serif;padding:${s.pad}px;min-width:${s.minW}px;max-width:${s.maxW}px;background:rgba(26,26,26,0.98);color:rgba(255,255,255,0.95);border-radius:6px;">
-      <div style="font-size:${s.id}px;font-weight:600;color:#fff;margin-bottom:6px;">#${id}</div>
-      <div style="font-size:${s.sub}px;color:${color};">${message}</div>
-    </div>`;
-};
-
-// The full detail card, rendered once the warehouse is fetched.
-const buildPopupHTML = (warehouse, isMobile) => {
-    const s = popupSizing(isMobile);
-    const firstImage = getMediaFromWarehouse(warehouse).images?.[0] || null;
-    const imageHtml = firstImage
-        ? `<img src="${firstImage}" style="width:100%;height:${s.imgH}px;object-fit:cover;border-radius:6px;margin-bottom:${s.mb}px;" onerror="this.style.display='none'" loading="lazy" crossorigin="anonymous" />`
-        : '';
-    return `
-        <div style="font-family:Verdana,Geneva,sans-serif;padding:${s.pad}px;min-width:${s.minW}px;max-width:${s.maxW}px;background:rgba(26,26,26,0.98);color:rgba(255,255,255,0.95);border-radius:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${s.mb}px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.15);">
-            <span style="font-size:${s.id}px;font-weight:600;color:#fff;">#${warehouse.id}</span>
-            <span style="font-size:${s.badge}px;padding:3px 8px;background:${markerColor(warehouse.availability)};border-radius:4px;color:#fff;font-weight:500;">${warehouse.availability || 'Unknown'}</span>
-          </div>
-          ${imageHtml ? `<div style="margin-bottom:${s.mb}px;">${imageHtml}</div>` : ''}
-          <div style="font-size:${s.title}px;font-weight:600;margin-bottom:4px;color:#fff;line-height:1.3;">${warehouse.warehouseType || ''}</div>
-          <div style="font-size:${s.sub}px;color:rgba(255,255,255,0.65);margin-bottom:${s.mb}px;">${warehouse.warehouseOwnerType || ''}</div>
-          <div style="font-size:${s.loc}px;color:rgba(255,255,255,0.85);margin-bottom:${s.mb}px;line-height:1.4;">
-            📍 ${warehouse.city || ''}, ${warehouse.state || ''}
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:${s.gap}px;padding:${s.pad}px;background:rgba(0,0,0,0.3);border-radius:4px;margin-bottom:${s.mb}px;">
-            <div>
-              <div style="font-size:${s.label}px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Space</div>
-              <div style="font-size:${s.val}px;font-weight:600;color:#fff;">${formatSpace(warehouse.totalSpaceSqft)} sqft</div>
+function WarehousePopup({ id, warehouse, loading, error, onRetry, onView, onEdit }) {
+    const image = warehouse && getMediaFromWarehouse(warehouse).images?.[0];
+    const space = Array.isArray(warehouse?.totalSpaceSqft)
+        ? warehouse.totalSpaceSqft.reduce((sum, value) => sum + (Number(value) || 0), 0)
+        : warehouse?.totalSpaceSqft;
+    return (
+        <div className="warehouse-map-card">
+            <div className="warehouse-map-card__header">
+                <strong>#{id}</strong>
+                {warehouse && <span className="warehouse-map-card__availability" style={{ background: AVAILABILITY_COLORS[availabilityBucket(warehouse.availability)] }}>
+                    {warehouse.availability || 'Unknown'}
+                </span>}
             </div>
-            <div>
-              <div style="font-size:${s.label}px;color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:2px;letter-spacing:0.5px;">Rate</div>
-              <div style="font-size:${s.val}px;font-weight:600;color:#fff;">₹${warehouse.ratePerSqft || '—'}/sqft</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.15);">
-            <button onclick="window.warehouseMapActions.view(${warehouse.id})" style="flex:1;padding:${s.btnPad}px;font-size:${s.btn}px;font-weight:500;background:#1890ff;color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#40a9ff'" onmouseout="this.style.background='#1890ff'">View</button>
-            <button onclick="window.warehouseMapActions.edit(${warehouse.id})" style="flex:1;padding:${s.btnPad}px;font-size:${s.btn}px;font-weight:500;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:4px;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Edit</button>
-          </div>
+            {loading && <div role="status">Loading warehouse…</div>}
+            {error && <div role="alert">Could not load this warehouse. <button onClick={onRetry}>Retry</button></div>}
+            {warehouse && <>
+                {image && <img className="warehouse-map-card__image" src={image} alt="" loading="lazy" crossOrigin="anonymous" onError={event => { event.currentTarget.style.display = 'none'; }} />}
+                <strong className="warehouse-map-card__type">{warehouse.warehouseType}</strong>
+                <div className="warehouse-map-card__owner">{warehouse.warehouseOwnerType}</div>
+                <div>{[warehouse.city, warehouse.state].filter(Boolean).join(', ')}</div>
+                <div className="warehouse-map-card__metrics">
+                    <div><span>Space</span><strong>{space ? Number(space).toLocaleString() : '—'} sq ft</strong></div>
+                    <div><span>Rate</span><strong>₹{warehouse.ratePerSqft || '—'}/sq ft</strong></div>
+                </div>
+                <div className="warehouse-map-card__actions">
+                    <button className="warehouse-map-card__view" onClick={() => onView?.(warehouse)}>View</button>
+                    <button onClick={() => onEdit?.(warehouse)}>Edit</button>
+                </div>
+            </>}
         </div>
-      `;
-};
+    );
+}
 
-/**
- * MapView Component
- * Renders warehouses on a Mapbox map with dark theme
- */
-const MapView = ({ warehouses = [], onEdit, onDelete, onViewDetails }) => {
+/** Warehouse-only viewport map. List pagination never controls its pin source. */
+const MapView = ({ filters = NO_FILTERS, refreshKey = 0, active = true, onEdit, onViewDetails }) => {
     const { isMobile } = useViewport();
-    const mapContainer = useRef(null);
-    const map = useRef(null);
-    const markers = useRef(new Map()); // Use Map for O(1) lookup by warehouse ID
-    const markersPool = useRef([]); // Pool of unused markers for reuse
-    const detailCache = useRef(new Map()); // id -> full warehouse, lazy-loaded on popup open
+    const containerRef = useRef(null);
+    const mapRef = useRef(null);
+    const readyRef = useRef(false);
+    const loaderRef = useRef(null);
+    const popupRef = useRef(null);
+    const detailCache = useRef(new Map());
+    const propsRef = useRef(null);
+    propsRef.current = { filters, active, isMobile, onEdit, onViewDetails };
+    const [status, setStatus] = useState(INITIAL_STATUS);
+    const [popupContent, setPopupContent] = useState(null);
 
-    // Initialize map
-    useEffect(() => {
-        if (map.current) return;
-
-        if (!mapboxgl.accessToken) {
-            console.warn('[MapView] VITE_MAPBOX_TOKEN is not set — the map will not render.');
-            return;
-        }
-
-        // Copy refs to local variables for cleanup
-        const markersRef = markers.current;
-        const poolRef = markersPool.current;
-
-        map.current = new mapboxgl.Map({
-            container: mapContainer.current,
-            style: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2', // Custom dark streets style
-            center: [77.5946, 12.9716], // India center
-            zoom: 5,
-        });
-
-        map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-        // Correct any initial 0-size canvas once the map has loaded. On mobile the
-        // container can mount before its height resolves, leaving a blank canvas.
-        map.current.once('load', () => map.current?.resize());
-
-        const observer = new ResizeObserver(() => map.current?.resize());
-        observer.observe(mapContainer.current);
-
-        // ResizeObserver is unreliable on iOS Safari for orientation flips, so listen
-        // explicitly for window resize / orientation change too.
-        const handleResize = () => map.current?.resize();
-        window.addEventListener('resize', handleResize);
-        window.addEventListener('orientationchange', handleResize);
-
-        return () => {
-            // Clean up markers when map is destroyed
-            markersRef.forEach(marker => marker.remove());
-            markersRef.clear();
-            poolRef.length = 0;
-
-            observer.disconnect();
-            window.removeEventListener('resize', handleResize);
-            window.removeEventListener('orientationchange', handleResize);
-            if (map.current) {
-                map.current.remove();
-                map.current = null;
-            }
-        };
+    const refreshData = useCallback((force = false) => {
+        if (!mapRef.current || !readyRef.current || !propsRef.current.active) return;
+        void loaderRef.current?.load(boundsToBbox(mapRef.current.getBounds()), propsRef.current.filters, force);
     }, []);
 
-    // Update markers when warehouses change
+    const loadPopup = useCallback(async (entry) => {
+        if (!entry || popupRef.current !== entry) return;
+        setPopupContent({ ...entry, loading: true, error: false });
+        const cache = detailCache.current;
+        if (!cache.has(entry.id)) {
+            // Cache in-flight requests too: repeated clicks on the same pin need
+            // only one detail request. Bound the cache during long map sessions.
+            if (cache.size >= 100) cache.delete(cache.keys().next().value);
+            const request = warehouseService.getById(entry.id).catch(error => {
+                if (cache.get(entry.id) === request) cache.delete(entry.id);
+                throw error;
+            });
+            cache.set(entry.id, request);
+        }
+        try {
+            const warehouse = await cache.get(entry.id);
+            if (popupRef.current === entry) setPopupContent({ ...entry, warehouse, loading: false, error: false });
+        } catch {
+            if (popupRef.current === entry) setPopupContent({ ...entry, loading: false, error: true });
+        }
+    }, []);
+
     useEffect(() => {
-        if (!map.current) return;
-
-        // Function to update markers
-        const updateMarkers = () => {
-            // Filter warehouses with valid coordinates
-            const validWarehouses = warehouses.filter(
-                (w) => {
-                    const lat = parseFloat(w.latitude || w.WarehouseData?.latitude || w.warehouseData?.latitude);
-                    const lng = parseFloat(w.longitude || w.WarehouseData?.longitude || w.warehouseData?.longitude);
-                    return !isNaN(lat) &&
-                        !isNaN(lng) &&
-                        lat >= -90 && lat <= 90 &&
-                        lng >= -180 && lng <= 180;
-                }
-            );
-
-            // Create a set of current warehouse IDs for quick lookup
-            const currentIds = new Set(validWarehouses.map(w => w.id));
-
-            // Remove markers that are no longer in the filtered list (reuse them)
-            markers.current.forEach((marker, id) => {
-                if (!currentIds.has(id)) {
-                    marker.remove();
-                    markersPool.current.push(marker);
-                    markers.current.delete(id);
-                }
+        if (!mapboxgl.accessToken) {
+            setStatus({ ...INITIAL_STATUS, loading: false, error: 'The map is not configured.' });
+            return;
+        }
+        let map;
+        try {
+            map = new mapboxgl.Map({
+                container: containerRef.current,
+                style: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2',
+                center: [77.5946, 12.9716],
+                zoom: 5,
+                renderWorldCopies: false,
             });
+        } catch {
+            setStatus({ ...INITIAL_STATUS, loading: false, error: 'The map could not start. Please reload the page.' });
+            return;
+        }
+        mapRef.current = map;
+        const loader = createWarehouseViewportLoader({
+            fetchPoints: geoService.warehouses,
+            onData: fc => map.getSource(SOURCE)?.setData(fc),
+            onStatus: patch => setStatus(current => ({ ...current, ...patch })),
+        });
+        loaderRef.current = loader;
+        map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+        map.getCanvas().setAttribute('aria-label', 'Warehouse map. Use arrow keys to pan and plus or minus to zoom.');
 
-            // Add or update markers
-            validWarehouses.forEach((warehouse) => {
-                // Get coordinates from either direct fields or nested WarehouseData
-                const latitude = warehouse.latitude || warehouse.WarehouseData?.latitude || warehouse.warehouseData?.latitude;
-                const longitude = warehouse.longitude || warehouse.WarehouseData?.longitude || warehouse.warehouseData?.longitude;
-
-                // Check if marker already exists
-                const existingMarker = markers.current.get(warehouse.id);
-                if (existingMarker) {
-                    // Update existing marker position if needed
-                    const currentLngLat = existingMarker.getLngLat();
-                    const newLng = parseFloat(longitude);
-                    const newLat = parseFloat(latitude);
-
-                    if (currentLngLat.lng !== newLng || currentLngLat.lat !== newLat) {
-                        existingMarker.setLngLat([newLng, newLat]);
-                    }
-                    // Skip creating new marker - just return from this iteration
-                } else {
-                    // Create new marker only if it doesn't exist.
-                    const color = markerColor(warehouse.availability);
-
-                    // Lazy popup: show a placeholder instantly, then fetch the full
-                    // warehouse (cached) the first time it's opened and render the card.
-                    // This keeps the map payload tiny — detail loads only for pins you click.
-                    const popup = new mapboxgl.Popup({
-                        offset: 15,
-                        maxWidth: `${popupSizing(isMobile).maxW}px`,
-                        closeButton: false,
-                        closeOnClick: true,
-                        closeOnMove: false,
-                        anchor: 'left', // Always render to the right side of the marker
-                    }).setHTML(statusPopupHTML(warehouse.id, isMobile, 'Loading…'));
-
-                    popup.on('open', async () => {
-                        let full = detailCache.current.get(warehouse.id);
-                        if (!full) {
-                            try {
-                                full = await warehouseService.getById(warehouse.id);
-                                detailCache.current.set(warehouse.id, full);
-                            } catch {
-                                popup.setHTML(statusPopupHTML(warehouse.id, isMobile, "Couldn't load details.", '#ff7875'));
-                                return;
-                            }
-                        }
-                        popup.setHTML(buildPopupHTML(full, isMobile));
-                    });
-
-                    // Reuse marker from pool or create new one
-                    let marker;
-                    if (markersPool.current.length > 0) {
-                        marker = markersPool.current.pop();
-                        marker.setLngLat([parseFloat(longitude), parseFloat(latitude)]);
-                        marker.setPopup(popup);
-                        // Update color by getting the marker element
-                        const markerElement = marker.getElement();
-                        const svg = markerElement.querySelector('svg');
-                        if (svg) {
-                            svg.setAttribute('fill', color);
-                        }
-                    } else {
-                        marker = new mapboxgl.Marker({ color })
-                            .setLngLat([parseFloat(longitude), parseFloat(latitude)])
-                            .setPopup(popup);
-                    }
-
-                    marker.addTo(map.current);
-                    markers.current.set(warehouse.id, marker);
-                }
-            });
-
-            // Popup button actions. The full warehouse was cached when the popup opened;
-            // fall back to a fetch (then the lightweight marker) if it somehow isn't.
-            const openFull = async (id, handler) => {
-                if (!handler) return;
-                let full = detailCache.current.get(id);
-                if (!full) {
-                    try {
-                        full = await warehouseService.getById(id);
-                        detailCache.current.set(id, full);
-                    } catch {
-                        full = warehouses.find((w) => w.id === id);
-                    }
-                }
-                if (full) handler(full);
-            };
-            window.warehouseMapActions = {
-                view: (id) => openFull(id, onViewDetails),
-                edit: (id) => openFull(id, onEdit),
-                delete: (id) => openFull(id, onDelete),
-            };
+        let moveTimer;
+        const scheduleRefresh = () => {
+            clearTimeout(moveTimer);
+            moveTimer = setTimeout(() => refreshData(), 180);
         };
+        const resize = () => { map.resize(); scheduleRefresh(); };
+        const observer = new ResizeObserver(resize);
+        observer.observe(containerRef.current);
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', resize);
 
-        // Wait for map to be fully loaded
-        if (!map.current.loaded()) {
-            map.current.once('load', updateMarkers);
-        } else {
-            updateMarkers();
-        }
-    }, [warehouses, onEdit, onDelete, onViewDetails, isMobile]);
+        map.on('load', () => {
+            map.resize();
+            map.addSource(SOURCE, { type: 'geojson', data: EMPTY_WAREHOUSE_POINTS });
+            registerWarehouseIcons(map);
+            map.addLayer({
+                id: LAYER,
+                type: 'symbol',
+                source: SOURCE,
+                layout: {
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
+                    'icon-size': ['interpolate', ['linear'], ['zoom'], 5, 0.85, 12, 1.1, 16, 1.3],
+                    'icon-image': ['match', availabilityExpression,
+                        'available', warehouseIconId('available'),
+                        'unavailable', warehouseIconId('unavailable'),
+                        warehouseIconId('unknown')],
+                },
+                paint: { 'icon-emissive-strength': 1 },
+            });
+            readyRef.current = true;
+            setStatus(current => ({ ...current, ready: true, error: null }));
+            refreshData();
+        });
+        map.on('moveend', scheduleRefresh);
+        map.on('error', () => {
+            if (!readyRef.current) setStatus(current => ({ ...current, loading: false, error: 'The map could not load. Please reload the page.' }));
+        });
+        map.on('mouseenter', LAYER, () => { map.getCanvas().style.cursor = 'pointer'; });
+        map.on('mouseleave', LAYER, () => { map.getCanvas().style.cursor = ''; });
+        map.on('click', LAYER, event => {
+            if (!propsRef.current.active) return;
+            const feature = event.features?.[0];
+            const id = Number(feature?.properties?.id);
+            if (!Number.isInteger(id) || id <= 0) return;
+            popupRef.current?.popup.remove();
+            const element = document.createElement('div');
+            element.className = 'warehouse-map-popup__scroll';
+            const popup = new mapboxgl.Popup({
+                anchor: 'bottom', offset: [0, -15], maxWidth: propsRef.current.isMobile ? '240px' : '260px',
+                className: 'warehouse-map-popup', closeButton: true,
+                closeOnClick: true, closeOnMove: false, focusAfterOpen: false,
+            }).setLngLat(feature.geometry.coordinates).setDOMContent(element).addTo(map);
+            const entry = { id, element, popup };
+            popupRef.current = entry;
+            // Details and images arrive after the native popup is created. Keep
+            // its entire card inside the map as content or camera size changes.
+            const positionPopup = () => {
+                const { clientWidth: width, clientHeight: height } = containerRef.current;
+                if (!width || !height) return;
+                element.style.maxHeight = `${Math.max(80, height - 40)}px`;
+                const node = popup.getElement();
+                const { x, y } = map.project(feature.geometry.coordinates);
+                const left = x - node.offsetWidth / 2;
+                const top = y - node.offsetHeight - 15;
+                const dx = Math.max(8, Math.min(left, width - node.offsetWidth - 8)) - left;
+                const dy = Math.max(8, Math.min(top, height - node.offsetHeight - 8)) - top;
+                popup.setOffset([dx, dy - 15]);
+                node.classList.toggle('warehouse-map-popup--shifted', Math.abs(dx) > 1 || Math.abs(dy) > 1);
+            };
+            const popupObserver = new ResizeObserver(positionPopup);
+            popupObserver.observe(element);
+            map.on('move', positionPopup);
+            popup.on('close', () => {
+                popupObserver.disconnect();
+                map.off('move', positionPopup);
+                if (popupRef.current !== entry) return;
+                popupRef.current = null;
+                setPopupContent(null);
+            });
+            void loadPopup(entry);
+        });
 
-    // Count valid warehouses
-    const validCount = warehouses.filter(
-        (w) => {
-            const lat = parseFloat(w.latitude || w.WarehouseData?.latitude || w.warehouseData?.latitude);
-            const lng = parseFloat(w.longitude || w.WarehouseData?.longitude || w.warehouseData?.longitude);
-            return !isNaN(lat) &&
-                !isNaN(lng) &&
-                lat >= -90 && lat <= 90 &&
-                lng >= -180 && lng <= 180;
-        }
-    ).length;
+        return () => {
+            clearTimeout(moveTimer);
+            observer.disconnect();
+            window.removeEventListener('resize', resize);
+            window.removeEventListener('orientationchange', resize);
+            loader.dispose();
+            const entry = popupRef.current;
+            popupRef.current = null;
+            entry?.popup.remove();
+            detailCache.current.clear();
+            readyRef.current = false;
+            loaderRef.current = null;
+            mapRef.current = null;
+            map.remove();
+        };
+    }, [refreshData, loadPopup]);
+
+    // New filters and mutations invalidate cached pins and popup details, while
+    // retaining the map instance and the user's camera position.
+    useEffect(() => {
+        loaderRef.current?.reset();
+        detailCache.current = new Map();
+        popupRef.current?.popup.remove();
+        if (active) refreshData(true);
+    }, [filters, refreshKey, active, refreshData]);
 
     return (
-        <div className="map-view">
-            <div
-                ref={mapContainer}
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                }}
-            />
-
-            {/* Map info overlay — hidden on mobile to keep the small map clean */}
-            {!isMobile && (
-                <div className="map-info">
-                    <div className="map-info__count">
-                        {validCount} warehouse{validCount !== 1 ? 's' : ''} on map
-                    </div>
-                    {warehouses.length > validCount && (
-                        <div className="map-info__warning">
-                            {warehouses.length - validCount} warehouse{warehouses.length - validCount !== 1 ? 's' : ''} without coordinates
-                        </div>
-                    )}
-                </div>
+        <div className="map-view" role="region" aria-label="Warehouse map">
+            <div ref={containerRef} className="map-view__canvas" />
+            <div className="map-info" role="status" aria-live="polite">
+                {status.loading ? 'Loading warehouse pins…' : status.zoomRequired ? 'Zoom in to load warehouse pins' : `${status.count} warehouse pins loaded`}
+                {status.truncated && <div className="map-info__warning">Zoom in to see all warehouses.</div>}
+                {status.error && <div className="map-info__error">{status.error}
+                    {status.ready && <button onClick={() => refreshData(true)}>Retry</button>}
+                </div>}
+            </div>
+            {popupContent && createPortal(
+                <WarehousePopup {...popupContent} onRetry={() => loadPopup(popupRef.current)} onView={onViewDetails} onEdit={onEdit} />,
+                popupContent.element,
             )}
         </div>
     );

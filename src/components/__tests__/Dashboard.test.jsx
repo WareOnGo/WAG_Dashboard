@@ -27,7 +27,7 @@ vi.mock('../WarehouseForm', () => ({ default: ({ visible, initialData, onSubmit,
     <button onClick={onCancel}>Cancel editor</button>
   </div>
 ) }));
-vi.mock('../MapView', () => ({ default: ({ warehouses }) => <div data-testid="map">{warehouses.map(w => w.id).join(',')}</div> }));
+vi.mock('../MapView', () => ({ default: ({ filters, refreshKey, active }) => <div data-testid="map" data-refresh={refreshKey} data-active={String(active)}>{JSON.stringify(filters)}</div> }));
 vi.mock('../VisitNotes', () => ({ default: () => null }));
 
 const auth = { isAuthenticated: true, isLoading: false, user: { name: 'Tester', isAdmin: true, capabilities: { DASHBOARD: true } } };
@@ -228,19 +228,18 @@ describe('Dashboard mutation and session regressions', () => {
     expect(warehouseService.update).toHaveBeenCalledWith(1, expect.objectContaining({ warehouseType: 'PEB' }));
   });
 
-  it('refreshes open map markers after deletion', async () => {
+  it('invalidates the open viewport after deletion without fetching all coordinates', async () => {
     localStorage.setItem('warehouse-view-preference', 'cards');
-    warehouseService.getCoordinates.mockResolvedValue([{ id: 1, lat: 12, lng: 77 }, { id: 2, lat: 13, lng: 78 }]);
     warehouseService.delete.mockResolvedValue({ status: 204 });
     open();
     await loaded();
     fireEvent.click(screen.getByText('Show Map').closest('button'));
-    expect(await screen.findByTestId('map')).toHaveTextContent('1,2');
+    expect(await screen.findByTestId('map')).toHaveAttribute('data-refresh', '0');
     warehouseService.list.mockResolvedValue(page([mockWarehouses[1]]));
-    warehouseService.getCoordinates.mockResolvedValue([{ id: 2, lat: 13, lng: 78 }]);
     fireEvent.click(screen.getAllByText('Delete')[0]);
     fireEvent.click(await screen.findByText('Yes, Delete'));
-    await waitFor(() => expect(screen.getByTestId('map')).toHaveTextContent(/^2$/));
+    await waitFor(() => expect(screen.getByTestId('map')).toHaveAttribute('data-refresh', '1'));
+    expect(warehouseService.getCoordinates).not.toHaveBeenCalled();
   });
 
   it('refreshes the current search when deletion finishes after the search changes', async () => {
@@ -316,17 +315,17 @@ describe('Dashboard mutation and session regressions', () => {
     expect(screen.queryByText('2 of 2 results')).not.toBeInTheDocument();
   });
 
-  it('clears map markers when dashboard access is revoked', async () => {
+  it('unmounts the viewport when dashboard access is revoked', async () => {
     localStorage.setItem('warehouse-view-preference', 'cards');
-    warehouseService.getCoordinates.mockResolvedValue([{ id: 1, lat: 12, lng: 77 }]);
     const view = renderWithProviders(<AuthContext.Provider value={auth}><Dashboard /></AuthContext.Provider>);
     await loaded();
     fireEvent.click(screen.getByText('Show Map').closest('button'));
-    expect(await screen.findByTestId('map')).toHaveTextContent('1');
+    expect(await screen.findByTestId('map')).toHaveAttribute('data-active', 'true');
     const denied = { ...auth, user: { capabilities: { DASHBOARD: false } } };
     view.rerender(<AuthContext.Provider value={denied}><Dashboard /></AuthContext.Provider>);
-    warehouseService.getCoordinates.mockReturnValue(new Promise(() => {}));
+    expect(screen.queryByTestId('map')).not.toBeInTheDocument();
     await act(async () => { view.rerender(<AuthContext.Provider value={auth}><Dashboard /></AuthContext.Provider>); });
-    expect(screen.getByTestId('map')).toBeEmptyDOMElement();
+    expect(screen.getByTestId('map')).toHaveAttribute('data-active', 'true');
+    expect(warehouseService.getCoordinates).not.toHaveBeenCalled();
   });
 });

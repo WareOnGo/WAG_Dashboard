@@ -200,13 +200,15 @@ export function ensureCategoryIcon(map, cat) {
   return id;
 }
 
-/**
- * Register the fixed icons (warehouses, our own points) plus a badge for every
- * category in the built-in palette. Safe to call repeatedly — existing images
- * are skipped so a style reload does not throw.
- *
- * @param {import('mapbox-gl').Map} map
- */
+/** Register only the three warehouse badges; safe to call repeatedly. */
+export function registerWarehouseIcons(map) {
+  for (const [state, color] of Object.entries(AVAILABILITY_COLORS)) {
+    const id = warehouseIconId(state);
+    if (!map.hasImage(id)) map.addImage(id, drawIcon(color, 'warehouse'), { pixelRatio: PIXEL_RATIO });
+  }
+}
+
+/** Register the full GIS palette, including warehouse and POI badges. */
 export function registerMapIcons(map) {
   const add = (id, imageData) => {
     if (map.hasImage(id)) return;
@@ -218,9 +220,7 @@ export function registerMapIcons(map) {
   // Three pre-rendered warehouse badges rather than a data-driven colour: an
   // icon image cannot be tinted per feature, so availability is selected with a
   // `match` on icon-image instead.
-  for (const [state, color] of Object.entries(AVAILABILITY_COLORS)) {
-    add(warehouseIconId(state), drawIcon(color, 'warehouse'));
-  }
+  registerWarehouseIcons(map);
 
   // One badge per own-point category, all in the same purple, plus a starred
   // default for rows whose category predates the fixed list.

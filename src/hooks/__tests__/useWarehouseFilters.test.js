@@ -35,4 +35,31 @@ describe('shared warehouse filters', () => {
     act(() => result.current.setFireNocFilter('not_available'));
     expect(result.current.filtered.map(row => row.id)).toEqual([3, 4, 5, 6]);
   });
+
+  it('accepts large areas and sale rates with inclusive explicit maximums', () => {
+    const largeRows = [
+      { id: 1, totalSpaceSqft: [500000], ratePerSqft: '₹2,700' },
+      { id: 2, totalSpaceSqft: [10000000], ratePerSqft: '10000' },
+      { id: 3, totalSpaceSqft: [11000000], ratePerSqft: '12000' },
+    ];
+    const { result } = renderHook(() => useWarehouseFilters(largeRows));
+    expect(result.current.queryParams).toEqual({});
+    expect(result.current.filtered).toEqual(largeRows);
+    act(() => {
+      result.current.setAreaRange([200000, 10000000]);
+      result.current.setBudgetRange([1000, 10000]);
+    });
+    expect(result.current.filtered.map(row => row.id)).toEqual([1, 2]);
+    expect(result.current.queryParams).toEqual({ minArea: 200000, maxArea: 10000000, minRate: 1000, maxRate: 10000 });
+    act(() => {
+      result.current.setAreaRange([200000, null]);
+      result.current.setBudgetRange([1000, null]);
+    });
+    expect(result.current.filtered).toEqual(largeRows);
+    expect(result.current.queryParams).toEqual({ minArea: 200000, minRate: 1000 });
+    act(() => result.current.clearFilters());
+    expect(result.current.areaRange).toEqual([0, null]);
+    expect(result.current.budgetRange).toEqual([0, null]);
+    expect(result.current.queryParams).toEqual({});
+  });
 });

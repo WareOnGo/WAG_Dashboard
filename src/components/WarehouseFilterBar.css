@@ -44,6 +44,9 @@
   .warehouse-filters__heading .ant-btn { min-height: 44px; }
   .warehouse-filters__grid { gap: 14px 12px; }
   .warehouse-filters__ranges { grid-template-columns: 1fr; gap: 16px; }
+  .warehouse-filters__numbers { align-items: flex-end; }
+  .warehouse-filters__numbers label { flex-direction: column; align-items: stretch; gap: 4px; }
+  .warehouse-filters__numbers > span { padding-bottom: 12px; }
   .warehouse-filters :is(.ant-input-affix-wrapper, .ant-select-single, .ant-picker, .ant-input-number, .ant-input-number-input, .ant-select-selector) { height: 44px; min-height: 44px; }
   .warehouse-filters .ant-input-affix-wrapper > input.ant-input { min-height: 42px; padding: 0; }
   .warehouse-filters .ant-select-selector { padding: 0 11px !important; }
