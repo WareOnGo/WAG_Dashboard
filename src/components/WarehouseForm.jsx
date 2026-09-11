@@ -449,7 +449,7 @@ const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...
           background: 'var(--bg-secondary, #1f1f1f)',
           border: '1px solid var(--border-primary, #303030)',
           borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+          boxShadow: 'var(--surface-shadow, 0 4px 16px rgba(0,0,0,0.35))',
           scrollbarWidth: 'thin',
         }}>
           {hasCustomValue && !query && (
@@ -1050,7 +1050,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                     href={coordMapsLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: '#4ea1f5', textDecoration: 'none', whiteSpace: 'nowrap', fontSize: m ? 16 : 14 }}
+                    style={{ color: 'var(--link-color, #4ea1f5)', textDecoration: 'none', whiteSpace: 'nowrap', fontSize: m ? 16 : 14 }}
                   >
                     Open ↗
                   </a>

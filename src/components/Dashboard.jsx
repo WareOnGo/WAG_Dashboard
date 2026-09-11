@@ -503,8 +503,8 @@ const Dashboard = () => {
         className="dashboard-panel"
         style={{
           background: 'var(--bg-secondary)',
-          backdropFilter: isMobile ? 'none' : 'blur(20px)',
-          WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
+          backdropFilter: isMobile ? 'none' : 'var(--surface-backdrop, blur(20px))',
+          WebkitBackdropFilter: isMobile ? 'none' : 'var(--surface-backdrop, blur(20px))',
           border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
         }}
         bodyStyle={isMobile ? { padding: '12px' } : undefined}
@@ -633,8 +633,8 @@ const Dashboard = () => {
 
         <div style={{
           background: 'var(--bg-secondary)',
-          backdropFilter: isMobile ? 'none' : 'blur(15px)',
-          WebkitBackdropFilter: isMobile ? 'none' : 'blur(15px)',
+          backdropFilter: isMobile ? 'none' : 'var(--surface-backdrop, blur(15px))',
+          WebkitBackdropFilter: isMobile ? 'none' : 'var(--surface-backdrop, blur(15px))',
           border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: isMobile ? '0' : '8px',
           overflow: 'hidden',

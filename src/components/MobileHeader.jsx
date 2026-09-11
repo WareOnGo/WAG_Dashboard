@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import React, { useState } from 'react';
 import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, Checkbox, message } from 'antd';
 import {
@@ -400,8 +400,8 @@ const MobileHeader = ({ onMenuToggle }) => {
           padding: `0 ${isMobile ? '16px' : '32px'}`,
           height: isMobile ? '64px' : '60px',
           background: 'rgba(18, 18, 18, 0.8)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          backdropFilter: 'var(--surface-backdrop, blur(20px) saturate(180%))',
+          WebkitBackdropFilter: 'var(--surface-backdrop, blur(20px) saturate(180%))',
           borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
           paddingTop: isMobile ? 'env(safe-area-inset-top, 0)' : '0',
         }}
@@ -429,8 +429,8 @@ const MobileHeader = ({ onMenuToggle }) => {
             />
           )}
 
-          <a
-            href="/dashboard"
+          <Link
+            to="/dashboard"
             style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}
             className="brand-link"
           >
@@ -446,7 +446,7 @@ const MobileHeader = ({ onMenuToggle }) => {
             >
               WareOnGo
             </Text>
-          </a>
+          </Link>
 
           {/* Desktop nav links */}
           {!isMobile && (
@@ -483,7 +483,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                     alignItems: 'center',
                     gap: '8px',
                     marginLeft: '10px',
-                    animation: 'itinerary-expand 0.2s ease-out',
+                    animation: 'header-tool-reveal 0.12s ease-out both',
                   }}>
                     <Input
                       value={pptWarehouseIds}
@@ -516,8 +516,9 @@ const MobileHeader = ({ onMenuToggle }) => {
 
               {linkItems.map((item) => (
                 <Tooltip key={item.key} title={item.tooltip} placement="bottom">
-                  <a
-                    href={item.href}
+                  <Link
+                    to={item.href}
+                    reloadDocument={item.external}
                     aria-current={!item.external && (pathname === item.href || (pathname === "/" && item.href === "/dashboard")) ? "page" : undefined}
                     {...(item.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                     className="nav-link-btn"
@@ -536,7 +537,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   >
                     <span style={{ fontSize: '13px', display: 'flex' }}>{item.icon}</span>
                     {item.label}
-                  </a>
+                  </Link>
                 </Tooltip>
               ))}
               <div className="header-tool" style={{ display: 'flex', alignItems: 'center' }}>
@@ -544,6 +545,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   <a
                     href="#"
                     className="nav-link-btn"
+                    aria-expanded={itineraryExpanded}
                     onClick={(e) => { e.preventDefault(); handleItineraryToggle(); }}
                     style={{
                       display: 'flex',
@@ -569,7 +571,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                     alignItems: 'center',
                     gap: '8px',
                     marginLeft: '10px',
-                    animation: 'itinerary-expand 0.2s ease-out',
+                    animation: 'header-tool-reveal 0.12s ease-out both',
                   }}>
                     <Input
                       value={warehouseIds}
@@ -681,7 +683,7 @@ const MobileHeader = ({ onMenuToggle }) => {
           padding: '8px 16px',
           background: 'rgba(18, 18, 18, 0.95)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-          animation: 'itinerary-expand 0.2s ease-out',
+          animation: 'header-tool-reveal 0.12s ease-out both',
         }}>
           <Input
             value={pptWarehouseIds}
@@ -727,7 +729,7 @@ const MobileHeader = ({ onMenuToggle }) => {
           padding: '8px 16px',
           background: 'rgba(18, 18, 18, 0.95)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-          animation: 'itinerary-expand 0.2s ease-out',
+          animation: 'header-tool-reveal 0.12s ease-out both',
         }}>
           <Input
             value={warehouseIds}

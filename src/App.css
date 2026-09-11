@@ -814,18 +814,10 @@ body .ant-picker input:focus {
   background: rgba(255, 255, 255, 0.06) !important;
 }
 
-/* Itinerary inline expand animation */
-@keyframes itinerary-expand {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-    max-width: 0;
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-    max-width: 400px;
-  }
+/* Reserve the final tool width immediately so header controls never wrap mid-reveal. */
+@keyframes header-tool-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Style the itinerary input placeholder */

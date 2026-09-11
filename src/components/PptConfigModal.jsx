@@ -382,7 +382,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     const active = isCad
       ? (selectedCad[warehouse.id] || []).includes(url)
       : (selectedImages[warehouse.id] || []).includes(url);
-    const accent = isCad ? '#fa8c16' : 'var(--accent-primary, #1890ff)';
+    const accent = isCad ? 'var(--text-warning, #fa8c16)' : 'var(--accent-primary, #1890ff)';
 
     return (
       <button
@@ -524,8 +524,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
               </div>
               {mode === 'cad' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                  <FileTextOutlined style={{ color: '#fa8c16', fontSize: '11px' }} />
-                  <Text style={{ fontSize: '11px', color: '#fa8c16' }}>
+                  <FileTextOutlined style={{ color: 'var(--text-warning, #fa8c16)', fontSize: '11px' }} />
+                  <Text style={{ fontSize: '11px', color: 'var(--text-warning, #fa8c16)' }}>
                     Pick the CAD / layout drawings — each gets a full slide of its own.
                     Leave paperwork unselected.
                   </Text>
@@ -631,7 +631,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
                 fontSize: '12px',
                 display: 'block',
                 marginTop: '6px',
-                color: site.status === 'error' ? '#ff7875' : 'rgba(255,255,255,0.45)',
+                color: site.status === 'error' ? 'var(--text-danger, #ff7875)' : 'rgba(255,255,255,0.45)',
               }}>
                 {site.message
                   || 'Adds a slide ranking every property by road distance from this point. Leave blank to omit it.'}

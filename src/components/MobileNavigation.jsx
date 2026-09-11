@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import React, { useEffect, useState } from 'react';
 import { Drawer, Menu, Button, Space, Typography, Avatar, message } from 'antd';
 import {
@@ -26,6 +26,7 @@ const { Text } = Typography;
  */
 const MobileNavigation = ({ visible, onClose }) => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
   const { setPptOpen, setItineraryOpen } = useMobileTools();
@@ -131,7 +132,7 @@ const MobileNavigation = ({ visible, onClose }) => {
       if (item.external) {
         window.open(item.href, '_blank', 'noopener,noreferrer');
       } else {
-        window.location.href = item.href;
+        navigate(item.href);
       }
     }
     onClose();
@@ -155,7 +156,7 @@ const MobileNavigation = ({ visible, onClose }) => {
         },
         mask: {
           backgroundColor: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(4px)',
+          backdropFilter: 'var(--surface-backdrop, blur(4px))',
         }
       }}
       style={{

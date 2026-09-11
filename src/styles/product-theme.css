@@ -1,37 +1,45 @@
-/* Product-only color layer. No listing geometry, document structure or GIS rules. */
+/* Tokyo Night for WareOnGo UI, including mapping panels; native Mapbox UI stays isolated. */
 html[data-ui="product"] {
   color-scheme: dark;
-  --primary-color: #a8d5ba;
-  --primary-color-hover: #c3e6cf;
+  background: var(--bg-primary);
+  --primary-color: #bb9af7;
+  --primary-color-hover: #cdb4ff;
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --bg-primary: #171b19;
-  --bg-secondary: #202622;
-  --bg-card: #202622;
-  --bg-header: #202622;
-  --bg-surface: #29312c;
-  --border-primary: #3a463e;
-  --border-secondary: #3a463e;
-  --border-control: #75877b;
-  --text-primary: #eff4f0;
-  --text-secondary: #bbc7be;
-  --text-muted: #9eaea3;
-  --accent-primary: #a8d5ba;
-  --accent-primary-rgb: 168, 213, 186;
-  --accent-primary-hover: #c3e6cf;
-  --accent-hover: #c3e6cf;
-  --accent-light: #304638;
-  --on-accent: #17231b;
-  --text-danger: #ffaaa4;
-  --text-warning: #ebc281;
-  --glass-primary: rgba(168, 213, 186, .05);
-  --glass-secondary: rgba(168, 213, 186, .025);
-  --glass-border: #3a463e;
-  --glass-hover: rgba(168, 213, 186, .08);
-  --glass-active: #304638;
+  --bg-primary: #16161e;
+  --bg-secondary: #1a1b26;
+  --bg-card: #1f2335;
+  --bg-header: #16161e;
+  --bg-surface: #24283b;
+  --bg-hover: #292e42;
+  --border-primary: #343b58;
+  --border-secondary: #343b58;
+  --border-control: #68729a;
+  --text-primary: #c0caf5;
+  --text-secondary: #a9b1d6;
+  --text-muted: #929bb9;
+  --accent-primary: #bb9af7;
+  --accent-primary-rgb: 187, 154, 247;
+  --accent-primary-hover: #cdb4ff;
+  --accent-hover: #cdb4ff;
+  --accent-light: #322b4a;
+  --on-accent: #16161e;
+  --link-color: #bb9af7;
+  --accent-success: #9ece6a;
+  --text-danger: #f7768e;
+  --text-warning: #e0af68;
+  --glass-primary: #24283b;
+  --glass-secondary: #1f2335;
+  --glass-border: #343b58;
+  --glass-hover: #292e42;
+  --glass-active: #322b4a;
+  --surface-backdrop: none;
+  --surface-shadow: none;
+  --skeleton-base: #3b405b;
+  --skeleton-highlight: #4a506c;
 }
 
 html[data-ui="product"] body,
-html[data-ui="product"] :is(button, input, select, textarea, .ant-typography, .responsive-modal) {
+html[data-ui="product"] :is(button, input, select, textarea, .ant-typography, .responsive-modal):not(:where(.mapboxgl-map *)) {
   font-family: var(--font-family);
 }
 html[data-ui="product"] body,
@@ -56,7 +64,7 @@ html[data-ui="product"] :is(.ant-input, .ant-input-affix-wrapper, .ant-select-se
   border-color: var(--border-control) !important;
   color: var(--text-primary);
 }
-html[data-ui="product"] :is(input, textarea)::placeholder,
+html[data-ui="product"] :is(input, textarea):not(:where(.mapboxgl-map *))::placeholder,
 html[data-ui="product"] .ant-select-selection-placeholder { color: var(--text-muted) !important; opacity: 1; }
 html[data-ui="product"] .ant-input-affix-wrapper > input.ant-input { background: transparent; }
 html[data-ui="product"] .ant-switch-checked:not(.ant-switch-disabled),
@@ -68,7 +76,7 @@ html[data-ui="product"] .ant-pagination .ant-pagination-item-active { background
 html[data-ui="product"] .ant-pagination .ant-pagination-item-active a { color: var(--accent-hover) !important; }
 
 /* A visible keyboard ring survives the old global outline reset. */
-html[data-ui="product"] :is(button, a, input, select, textarea, [tabindex]):focus-visible,
+html[data-ui="product"] :is(button, a, input, select, textarea, [tabindex]):not(:where(.mapboxgl-map, .mapboxgl-map *)):focus-visible,
 html[data-ui="product"] :is(.ant-input-affix-wrapper-focused, .ant-input-number-focused, .ant-picker-focused),
 html[data-ui="product"] .ant-select-focused .ant-select-selector {
   outline: 2px solid var(--accent-primary) !important;
@@ -80,7 +88,8 @@ html[data-ui="product"] .ant-input-affix-wrapper-status-error { border-color: va
 
 html[data-ui="product"] .simple-warehouse-card { background: var(--bg-card); border-color: var(--border-primary); }
 html[data-ui="product"] .simple-warehouse-card:hover { border-color: var(--border-control); }
-html[data-ui="product"] .simple-warehouse-card__status--visible { background: var(--accent-light); color: var(--accent-hover); border-color: #769d84; }
+html[data-ui="product"] .simple-warehouse-card--skeleton:hover { border-color: var(--border-primary); }
+html[data-ui="product"] .simple-warehouse-card__status--visible { background: var(--accent-light); color: var(--accent-hover); border-color: #8064ad; }
 html[data-ui="product"] .simple-warehouse-card__status--hidden { background: var(--bg-surface); color: var(--text-secondary); border-color: var(--border-control); }
 html[data-ui="product"] .simple-warehouse-card__action-btn--danger { color: var(--text-danger); }
 html[data-ui="product"] .nav-link-btn { color: var(--text-secondary) !important; }
@@ -95,13 +104,118 @@ html[data-ui="product"] .warehouse-form-modal [aria-invalid="true"] { border-col
 html[data-ui="product"] .warehouse-form-modal :is(input, select, textarea):focus { box-shadow: none; }
 
 /* Named Ant tags are semantic information, not a second action palette. */
-html[data-ui="product"] :is(.ant-tag-blue, .ant-tag-cyan, .ant-tag-purple, .ant-tag-geekblue, .ant-tag-green, .ant-tag-success) {
-  background: #304638; border-color: #769d84; color: #c3e6cf;
+html[data-ui="product"] :is(.ant-tag-blue, .ant-tag-cyan, .ant-tag-purple, .ant-tag-geekblue) {
+  background: #322b4a; border-color: #8064ad; color: #cdb4ff;
+}
+html[data-ui="product"] :is(.ant-tag-green, .ant-tag-success) {
+  background: #27332d; border-color: #6b8e50; color: #9ece6a;
 }
 html[data-ui="product"] :is(.ant-tag-gold, .ant-tag-orange, .ant-tag-warning) {
-  background: #473b29; border-color: #a08a64; color: #ebc281;
+  background: #352e28; border-color: #a17e4b; color: #e0af68;
 }
 html[data-ui="product"] :is(.ant-tag-red, .ant-tag-error) {
-  background: #4b302e; border-color: #bd8783; color: #ffaaa4;
+  background: #3d2838; border-color: #b55e78; color: #f7768e;
 }
 html[data-ui="product"] .simple-warehouse-card__image-placeholder { color: var(--text-muted); }
+
+/* Pale filled selections need dark foregrounds, including portaled calendars. */
+html[data-ui="product"] .ant-picker-cell-in-view:is(.ant-picker-cell-selected, .ant-picker-cell-range-start, .ant-picker-cell-range-end) .ant-picker-cell-inner {
+  color: var(--on-accent);
+  background: var(--accent-primary);
+}
+html[data-ui="product"] .ant-switch-checked .ant-switch-handle::before { background: var(--on-accent); }
+
+html[data-ui="product"] .session-expired-container { background: var(--bg-primary); }
+html[data-ui="product"] .session-expired-card { background: var(--bg-card); border-color: var(--border-primary); }
+html[data-ui="product"] .session-expired-icon { color: var(--text-warning); }
+html[data-ui="product"] .session-expired-title { color: var(--text-primary) !important; }
+html[data-ui="product"] .session-expired-description { color: var(--text-secondary); }
+
+html[data-ui="product"] .ant-switch-checked .ant-switch-inner-checked { color: var(--on-accent); }
+html[data-ui="product"] .ant-empty-description { color: var(--text-secondary); }
+/* Inactive records remain subdued without dimming their text below readable contrast. */
+html[data-ui="product"] .admin-users__row--inactive td,
+html[data-ui="product"] .admin-users__card--inactive .admin-users__card-head,
+html[data-ui="product"] .admin-users__card--inactive .admin-users__card-caps { opacity: 0.85; }
+
+/* Keep native map controls' inherited colours and browser appearance unchanged.
+   No Mapbox control, popup, marker or drawing-layer rules are overridden. */
+html[data-ui="product"] .geo-map-surface { color: rgba(255, 255, 255, .85); color-scheme: normal; }
+html[data-ui="product"] .mm-map-canvas { color: rgba(255, 255, 255, .9); color-scheme: normal; }
+
+/* WareOnGo mapping panels and forms. Legend glyphs retain their map-layer colours. */
+html[data-ui="product"] .geo-sidebar { background: var(--bg-secondary); color: var(--text-primary); }
+html[data-ui="product"] .geo-layer-list .ant-checkbox-wrapper-checked { background: var(--accent-light); }
+html[data-ui="product"] .geo-layer-list .ant-checkbox-wrapper:hover { background: var(--bg-hover); }
+html[data-ui="product"] :is(.geo-map-heading, .geo-position-hint, .geo-position-bar, .geo-status-chip) {
+  background: var(--bg-card); color: var(--text-primary); border-color: var(--border-primary); box-shadow: none;
+}
+html[data-ui="product"] :is(.geo-map-heading span, .geo-position-hint span, .geo-position-coords, .geo-point-form label span) { color: var(--text-secondary); }
+html[data-ui="product"] .geo-position-error { color: var(--text-danger); }
+html[data-ui="product"] .geo-position-bar .geo-use-center { color: var(--accent-primary); }
+html[data-ui="product"] .geo-mobile-actions .ant-btn-default { background: var(--bg-secondary); }
+html[data-ui="product"] :is(.geo-count, .geo-location-summary) { background: var(--bg-surface); color: var(--text-secondary); }
+html[data-ui="product"] .geo-location-summary strong { color: var(--text-primary); }
+html[data-ui="product"] .geo-point-form :is(input, select, textarea) {
+  background: var(--bg-secondary); color: var(--text-primary); border-color: var(--border-control);
+}
+
+html[data-ui="product"] .mm-page { background: var(--bg-secondary); }
+html[data-ui="product"] :is(.mm-search-input, .mm-field) {
+  background: var(--bg-secondary); border-color: var(--border-control);
+}
+html[data-ui="product"] :is(.mm-search-input, .mm-field):focus { border-color: var(--accent-primary); box-shadow: none; }
+html[data-ui="product"] .mm-eye-toggle { border-color: var(--border-control); }
+html[data-ui="product"] .mm-eye-toggle:hover { background: var(--bg-hover); border-color: var(--accent-primary); }
+html[data-ui="product"] .mm-eye-toggle.off { background: var(--bg-secondary); }
+html[data-ui="product"] .mm-spinner { border-color: var(--border-control); border-top-color: var(--accent-primary); }
+html[data-ui="product"] .mm-group-head:hover { background: var(--bg-hover); }
+html[data-ui="product"] :is(.mm-group-count, .mm-empty) { background: var(--bg-surface); }
+html[data-ui="product"] .mm-area:hover { border-color: var(--border-control); }
+html[data-ui="product"] .mm-area.selected { border-color: var(--accent-primary); background: var(--accent-light); box-shadow: none; }
+html[data-ui="product"] .mm-area.selected .mm-dot { box-shadow: none; }
+html[data-ui="product"] .mm-area-head:hover strong { color: var(--accent-hover); }
+html[data-ui="product"] .mm-del { color: var(--text-danger); }
+html[data-ui="product"] .mm-banner.warn { background: #352e28; color: var(--text-warning); box-shadow: none; }
+
+/* Flat surfaces: separation comes from solid fills and borders, without glass or lift. */
+html[data-ui="product"] :is(.simple-warehouse-card, .warehouse-card, .card-view--empty, .ant-table-thead > tr > th) {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-ui="product"] :is(.warehouse-card, .card-view--empty) { background: var(--bg-card); border-color: var(--border-primary); }
+html[data-ui="product"] :is(
+  .modern-header, .simple-warehouse-card, .simple-warehouse-card__status, .warehouse-card,
+  .ant-btn, .touch-button, .ant-modal-content, .ant-dropdown-menu, .ant-select-dropdown,
+  .ant-drawer-content-wrapper, .signin-container, .loading-content, .user-profile-btn .ant-avatar,
+  .ant-input, .ant-input-affix-wrapper, .ant-select-selector, .ant-input-number, .ant-picker
+) { box-shadow: none !important; }
+html[data-ui="product"] :is(
+  .simple-warehouse-card:hover, .simple-warehouse-card__status:hover, .warehouse-card:hover,
+  .warehouse-card:active, .ant-btn:active, .touch-button, .google-signin-btn,
+  .mobile-nav-menu .ant-menu-item, .warehouse-details-modal .ant-image, .ant-image:hover .ant-image-img
+) { transform: none !important; }
+html[data-ui="product"] :is(.ant-picker-panel-container, .ant-popover-inner, .ant-tooltip-inner, .ant-message-notice-content, .ant-notification-notice) {
+  outline: 1px solid var(--border-primary);
+}
+html[data-ui="product"] .signin-screen::before { background: none; }
+html[data-ui="product"] .scroll-shadow { background: none; width: 1px; }
+html[data-ui="product"] .scroll-shadow--left { border-left: 1px solid var(--border-primary); }
+html[data-ui="product"] .scroll-shadow--right { border-right: 1px solid var(--border-primary); }
+
+/* Keep blocks distinct from both the card and its metric panel; soften only the sweep. */
+html[data-ui="product"] .swc-skeleton__block,
+html[data-ui="product"] .warehouse-card__image::before {
+  background-image: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-highlight) 37%, var(--skeleton-base) 63%);
+  animation-duration: 2.4s;
+}
+html[data-ui="product"] .ant-skeleton.ant-skeleton-active :is(.ant-skeleton-title, .ant-skeleton-paragraph > li, .ant-skeleton-avatar, .ant-skeleton-button, .ant-skeleton-input, .ant-skeleton-image) {
+  animation-duration: 2.4s;
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-ui="product"] .swc-skeleton__block,
+  html[data-ui="product"] .warehouse-card__image::before,
+  html[data-ui="product"] .ant-skeleton.ant-skeleton-active :is(.ant-skeleton-title, .ant-skeleton-paragraph > li, .ant-skeleton-avatar, .ant-skeleton-button, .ant-skeleton-input, .ant-skeleton-image) {
+    animation: none;
+  }
+}

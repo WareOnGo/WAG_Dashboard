@@ -38,7 +38,7 @@ const ContextMenu = ({ visible, x, y, onClose, onViewDetails, onEdit, onDelete }
     background: 'var(--bg-surface)',
     border: '1px solid var(--border-primary)',
     borderRadius: '6px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+    boxShadow: 'var(--surface-shadow, 0 4px 12px rgba(0, 0, 0, 0.4))',
     minWidth: '140px',
     padding: '4px 0',
   };

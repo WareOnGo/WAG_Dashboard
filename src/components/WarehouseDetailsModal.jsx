@@ -34,7 +34,6 @@ const labelStyle = (mobile) => ({
   fontSize: mobile ? 13 : 14,
   fontWeight: 500,
   color: 'var(--text-muted, #8c8c8c)',
-  opacity: 0.75,
   textTransform: mobile ? 'uppercase' : 'none',
   letterSpacing: mobile ? 0.5 : 0,
 });
@@ -440,7 +439,7 @@ const WarehouseDetailsModal = ({
                 href={warehouse.googleLocation}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ ...valueBase(m), color: '#4ea1f5', textDecoration: 'none', cursor: 'pointer' }}
+                style={{ ...valueBase(m), color: 'var(--link-color, #4ea1f5)', textDecoration: 'none', cursor: 'pointer' }}
               >
                 {warehouse.googleLocation} ↗
               </a>
@@ -456,7 +455,7 @@ const WarehouseDetailsModal = ({
                 href={coordMapsLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ ...valueBase(m), color: '#4ea1f5', textDecoration: 'none', cursor: 'pointer' }}
+                style={{ ...valueBase(m), color: 'var(--link-color, #4ea1f5)', textDecoration: 'none', cursor: 'pointer' }}
               >
                 {coordMapsLink} ↗
               </a>

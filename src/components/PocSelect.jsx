@@ -137,7 +137,7 @@ const PocSelect = ({ id, pocs = [], loading = false, value, onChange, detailed =
             border: '1px solid #303030',
             borderRadius: '6px',
             background: 'var(--bg-secondary, #1f1f1f)',
-            boxShadow: '0 6px 16px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--surface-shadow, 0 6px 16px rgba(0,0,0,0.4))',
             overflow: 'hidden',
           }}
         >

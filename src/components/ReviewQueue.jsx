@@ -422,8 +422,8 @@ const ReviewQueue = () => {
       <Card
         style={{
           background: 'var(--bg-secondary)',
-          backdropFilter: isMobile ? 'none' : 'blur(20px)',
-          WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
+          backdropFilter: isMobile ? 'none' : 'var(--surface-backdrop, blur(20px))',
+          WebkitBackdropFilter: isMobile ? 'none' : 'var(--surface-backdrop, blur(20px))',
           border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
         }}
         bodyStyle={isMobile ? { padding: '12px' } : undefined}

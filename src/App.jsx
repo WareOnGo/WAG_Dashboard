@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigationType } from 'react-router-dom'
 import { Layout, App as AntApp, Spin } from 'antd'
 // Import shell components directly (not via the ./components barrel) so the initial
 // bundle isn't forced to pull the whole barrel graph.
@@ -16,7 +16,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { MobileToolsProvider } from './contexts/MobileToolsContext'
 import { useViewport } from './hooks'
 import { useTokenExpiryWatcher } from './hooks/useTokenExpiryWatcher'
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useLayoutEffect, lazy, Suspense } from 'react'
 import performanceService from './services/performanceService'
 import ProductTheme from './ProductTheme'
 import './App.css'
@@ -35,9 +35,14 @@ const AdminUsers = lazy(() => import('./components/AdminUsers'))
 const GeoExplorer = lazy(() => import('./components/GeoExplorer'))
 
 const RouteFallback = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+  <div role="status" aria-label="Loading page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', background: 'var(--bg-primary, #16161e)' }}>
     <Spin size="large" />
   </div>
+)
+
+// Keep navigation visible while only the requested page's code is loading.
+const PageContent = ({ children }) => (
+  <Suspense fallback={<RouteFallback />}>{children}</Suspense>
 )
 
 /**
@@ -45,10 +50,17 @@ const RouteFallback = () => (
  * Handles authenticated app routing and layout
  */
 function AppContent() {
+  const { pathname } = useLocation();
+  const navigationType = useNavigationType();
   const { isMobile } = useViewport();
   const { isAuthenticated, isLoading, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [appReady, setAppReady] = useState(false);
+
+  // New page links start at the top; back/forward retain browser scroll restoration.
+  useLayoutEffect(() => {
+    if (navigationType !== 'POP') window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname, navigationType]);
 
   // Proactively watch for token expiry and redirect when session ends
   useTokenExpiryWatcher({ isAuthenticated, logout });
@@ -97,8 +109,8 @@ function AppContent() {
         justifyContent: 'center',
         alignItems: 'center',
         height: '100vh',
-        backgroundColor: '#141414',
-        color: 'white'
+        backgroundColor: 'var(--bg-primary, #16161e)',
+        color: 'var(--text-primary, #c0caf5)'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '24px', marginBottom: '16px' }}>🏢</div>
@@ -112,7 +124,6 @@ function AppContent() {
   return (
     <MobileToolsProvider>
 
-      <Suspense fallback={<RouteFallback />}>
       <Routes>
         {/* OAuth callback route - accessible without authentication */}
         <Route path="/auth/callback" element={<AuthCallback />} />
@@ -142,7 +153,7 @@ function AppContent() {
                 padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
               }}>
                 <ProtectedRoute>
-                  <Dashboard />
+                  <PageContent><Dashboard /></PageContent>
                 </ProtectedRoute>
               </Content>
             </Layout>
@@ -166,7 +177,7 @@ function AppContent() {
               padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
             }}>
               <ProtectedRoute>
-                <Dashboard />
+                <PageContent><Dashboard /></PageContent>
               </ProtectedRoute>
             </Content>
           </Layout>
@@ -189,7 +200,7 @@ function AppContent() {
               padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
             }}>
               <ProtectedRoute>
-                <ReviewQueue />
+                <PageContent><ReviewQueue /></PageContent>
               </ProtectedRoute>
             </Content>
           </Layout>
@@ -212,7 +223,7 @@ function AppContent() {
               padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
             }}>
               <ProtectedRoute>
-                <AdminUsers />
+                <PageContent><AdminUsers /></PageContent>
               </ProtectedRoute>
             </Content>
           </Layout>
@@ -235,7 +246,7 @@ function AppContent() {
               padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
             }}>
               <ProtectedRoute>
-                <MicroMarkets />
+                <PageContent><MicroMarkets /></PageContent>
               </ProtectedRoute>
             </Content>
           </Layout>
@@ -265,13 +276,12 @@ function AppContent() {
               position: 'relative'
             }}>
               <ProtectedRoute>
-                <GeoExplorer />
+                <PageContent><GeoExplorer /></PageContent>
               </ProtectedRoute>
             </Content>
           </Layout>
         } />
       </Routes>
-      </Suspense>
 
     </MobileToolsProvider>
   );
