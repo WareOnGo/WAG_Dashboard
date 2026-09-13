@@ -1,9 +1,11 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import mapboxgl from 'mapbox-gl'
 import { Button } from 'antd'
+import { AimOutlined, LoadingOutlined } from '@ant-design/icons'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { geoService, boundsToBbox, bboxContains, padBbox } from '../services/geoService'
 import { EMPTY_FC } from '../utils/geoLayers'
+import { prefersPreciseLocation, requestCurrentLocation } from '../utils/currentLocation'
 import {
   warehousePopupHTML, osmPopupHTML, ownPopupHTML,
 } from '../utils/geoPopups'
@@ -21,6 +23,10 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 const OSM_SRC = 'osm-poi-src'
 const OWN_SRC = 'own-poi-src'
 const WH_SRC = 'warehouse-src'
+const BASEMAPS = {
+  map: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2',
+  satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+}
 
 const osmLayerId = (cat) => `osm-poi-${cat}`
 
@@ -55,12 +61,24 @@ const GeoExplorerMap = ({
   onErrorChange,
   onReadyChange,
   onBusyChange,
+  onNoticeChange,
   overlayOpen = false,
   refreshKey = 0,
 }) => {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const loadedRef = useRef(false)
+  const [mapReady, setMapReady] = useState(false)
+  const [basemap, setBasemap] = useState('map')
+  const [styleLoading, setStyleLoading] = useState(false)
+  const styleRequestRef = useRef(null)
+  const sourceDataRef = useRef({ osm: EMPTY_FC, own: EMPTY_FC, wh: EMPTY_FC })
+  const forceRefreshRef = useRef(false)
+  const [locating, setLocating] = useState(false)
+  const locationRequestRef = useRef(0)
+  const pendingLocationRef = useRef(null)
+  const locationEstimateRef = useRef(null)
+  const userLocationMarkerRef = useRef(null)
   const lastBboxRef = useRef({ osm: null, own: null, wh: null })
   const symbolOptsRef = useRef(null)
   const popupRef = useRef(null)
@@ -81,11 +99,124 @@ const GeoExplorerMap = ({
   // must read the latest callbacks rather than the ones captured at bind time.
   const handlersRef = useRef({})
   handlersRef.current = {
-    onEditPoint, onUpdatePoint, onDeletePoint, onOpenWarehouse, onPlacingChange, onFetchWarehouse, onBusyChange, onReadyChange, onErrorChange,
+    onEditPoint, onUpdatePoint, onDeletePoint, onOpenWarehouse, onPlacingChange, onFetchWarehouse, onBusyChange, onReadyChange, onErrorChange, onNoticeChange,
   }
   // Read inside map event handlers, which close over their first render.
   const stateRef = useRef({ enabledOsmCategories, showWarehouses, showOwnPoints, placingPoint, canEdit: canEditPoint })
   stateRef.current = { enabledOsmCategories, showWarehouses, showOwnPoints, placingPoint, canEdit: canEditPoint }
+
+  const cancelLocating = useCallback(() => {
+    locationRequestRef.current += 1
+    if (pendingLocationRef.current || locationEstimateRef.current) {
+      pendingLocationRef.current?.cancel?.()
+      pendingLocationRef.current = null
+      locationEstimateRef.current = null
+      handlersRef.current.onNoticeChange?.(null)
+    }
+    setLocating(false)
+  }, [])
+
+  const locate = (precise = prefersPreciseLocation()) => {
+    if (locating) { cancelLocating(); return }
+    const notice = (message, type = 'warning', actions, compactMessage) => handlersRef.current.onNoticeChange?.({ message, type, actions, compactMessage })
+    if (!window.isSecureContext) { notice('Location needs a secure connection. Open this page using HTTPS.'); return }
+    if (!navigator.geolocation) { notice('Location is unavailable in this browser. You can still position the pin on the map.'); return }
+    const map = mapRef.current
+    if (!map || !loadedRef.current || savingMove) return
+    const request = ++locationRequestRef.current
+    locationEstimateRef.current = null
+    const pin = positionMarkerRef.current
+    const isCurrent = () => request === locationRequestRef.current && mapRef.current === map && pin === positionMarkerRef.current
+    setLocating(true)
+    notice(precise ? 'Trying a more precise location… This can take up to 12 seconds.' : 'Finding your location… Allow location access if prompted.', 'info')
+    const pending = { cancel: null }
+    pendingLocationRef.current = pending
+    const fail = (error) => {
+      if (!isCurrent()) return
+      pendingLocationRef.current = null
+      setLocating(false)
+      notice(error.code === 1
+        ? 'Location permission is off. Allow location in your browser’s site settings, then try again.'
+        : error.code === 3
+          ? 'Your browser did not return a location. Check location access, or position the pin manually.'
+          : 'Your browser’s location service is unavailable. Check system location settings and your connection.', 'warning',
+      error.code !== 1 && !precise ? [{ label: 'Try precise location', onClick: () => locate(true) }] : undefined)
+    }
+    pending.cancel = requestCurrentLocation({
+      precise,
+      onSuccess: ({ coords }) => {
+        // A cancelled request or a manually repositioned pin must not jump later.
+        if (!isCurrent()) return
+        pendingLocationRef.current = null
+        setLocating(false)
+        const at = { lat: coords.latitude, lng: coords.longitude }
+        const accuracy = Math.max(1, Math.round(coords.accuracy))
+        const distance = accuracy >= 1000 ? `${(accuracy / 1000).toFixed(1)} km` : `${accuracy} m`
+        const applyEstimate = () => {
+          if (!isCurrent()) return
+          locationEstimateRef.current = null
+          userLocationMarkerRef.current?.remove()
+          const dot = document.createElement('div')
+          dot.className = 'geo-user-location'
+          dot.setAttribute('role', 'img')
+          dot.setAttribute('aria-label', `Estimated location, reported accuracy ${distance}`)
+          userLocationMarkerRef.current = new mapboxgl.Marker({ element: dot }).setLngLat(at).addTo(map)
+          if (pin) {
+            pin.setLngLat(at)
+            setCenter(at)
+          }
+          // Finish at street level and preserve an already closer view. easeTo
+          // pans directly without flyTo's intermediate zoom-out over distance.
+          map.easeTo({ center: [at.lng, at.lat], zoom: Math.max(map.getZoom(), 16), duration: 800 })
+          notice(`Location estimate (±${distance}).${pin ? ' Check the pin before confirming.' : ''}`, accuracy > 100 ? 'warning' : 'info', undefined,
+            `Estimate ±${distance}.${pin ? ' Check pin.' : ''}`)
+        }
+        // Network/ISP estimates can point to another city. Do not silently move
+        // the camera or a draft when the provider reports over 1 km uncertainty.
+        if (accuracy > 1000) {
+          locationEstimateRef.current = { request }
+          notice(`Only a broad estimate is available (±${distance}). It may point to another city.`, 'warning', [
+            { label: pin ? 'Use estimate' : 'Show area', onClick: applyEstimate },
+            ...(!precise ? [{ label: 'Try precise', onClick: () => locate(true) }] : []),
+          ], `Broad estimate ±${distance}.\nMay be another city.`)
+        } else applyEstimate()
+      },
+      onError: fail,
+    })
+  }
+
+  const switchBasemap = (next) => {
+    const map = mapRef.current
+    if (!map || !loadedRef.current || next === basemap || locating || savingMove) return
+    loadedRef.current = false
+    setMapReady(false)
+    setStyleLoading(true)
+    setBasemap(next)
+    requestVersionRef.current += 1
+    handlersRef.current.onReadyChange?.(false)
+    const request = { previous: basemap, recovering: false, timer: null }
+    styleRequestRef.current = request
+    const recover = () => {
+      if (styleRequestRef.current !== request) return
+      clearTimeout(request.timer)
+      if (request.recovering) {
+        styleRequestRef.current = null
+        setStyleLoading(false)
+        handlersRef.current.onErrorChange?.('The map could not load. Check your connection and reload the page.')
+        return
+      }
+      request.recovering = true
+      setBasemap(request.previous)
+      handlersRef.current.onNoticeChange?.({ type: 'warning', message: `${next === 'satellite' ? 'Satellite' : 'Map'} view could not load. Returning to the previous view. You can try again.` })
+      request.timer = setTimeout(recover, 15000)
+      try { map.setStyle(BASEMAPS[request.previous], { diff: false }) } catch { recover() }
+    }
+    request.recover = recover
+    request.timer = setTimeout(recover, 15000)
+    // A full style load gives one reliable rehydration event, including when
+    // retrying a failed switch back to the same style URL.
+    try { map.setStyle(BASEMAPS[next], { diff: false }) } catch { recover() }
+  }
 
   /**
    * Resolve the canvas cursor from all of its inputs at once.
@@ -135,13 +266,16 @@ const GeoExplorerMap = ({
       filter: ['==', ['get', 'category'], cat],
       layout: { ...layout, 'icon-image': ensureCategoryIcon(map, cat), visibility: 'none' },
       paint,
-    })
+    }, map.getLayer('warehouse-dots') ? 'warehouse-dots' : undefined)
   }, [])
 
   /** Fetch whichever layers are visible and whose cached bbox no longer covers the view. */
   const refreshData = useCallback(async (force = false) => {
     const map = mapRef.current
-    if (!map || !loadedRef.current) return
+    if (!map || !loadedRef.current) {
+      if (force) forceRefreshRef.current = true
+      return
+    }
     const { enabledOsmCategories: cats, showWarehouses: wh, showOwnPoints: own } = stateRef.current
 
     const visible = boundsToBbox(map.getBounds())
@@ -153,6 +287,7 @@ const GeoExplorerMap = ({
       jobs.push(request.then(fc => {
         // A slow response must never overwrite a newer viewport or selection.
         if (version !== requestVersionRef.current || mapRef.current !== map) return
+        sourceDataRef.current[key] = fc
         map.getSource(source)?.setData(fc)
         lastBboxRef.current[key] = bbox
         truncatedRef.current[key] = !!fc.truncated
@@ -162,6 +297,7 @@ const GeoExplorerMap = ({
     if (cats.length && (force || categoryKey !== osmCategoriesRef.current || !bboxContains(lastBboxRef.current.osm, visible))) {
       fetchLayer('osm', OSM_SRC, geoService.osmPois({ bbox, categories: cats }))
     } else if (!cats.length) {
+      sourceDataRef.current.osm = EMPTY_FC
       map.getSource(OSM_SRC)?.setData(EMPTY_FC)
       lastBboxRef.current.osm = null
       osmCategoriesRef.current = ''
@@ -197,7 +333,7 @@ const GeoExplorerMap = ({
     let map
     try { map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/rs-wareongo/cmmtpb32t002801r05lyzbea2',
+      style: BASEMAPS.map,
       center: [77.60, 12.95],
       zoom: 10,
     }) } catch {
@@ -211,7 +347,9 @@ const GeoExplorerMap = ({
     resizeObserver.observe(containerRef.current)
     map.getCanvas().setAttribute('aria-label', 'Map. Use arrow keys to pan and plus or minus to zoom.')
 
-    map.on('load', () => {
+    // setStyle discards sources, images and layers. Rebuild them from cached
+    // data on every style load, while binding interaction handlers only once.
+    map.on('style.load', () => {
       // The base style ships its own POI labels from a different dataset; leaving
       // them on shows two contradictory sets of petrol stations.
       for (const id of ['poi-label', 'poi-scalerank1', 'poi-scalerank2']) {
@@ -220,9 +358,9 @@ const GeoExplorerMap = ({
         }
       }
 
-      map.addSource(OSM_SRC, { type: 'geojson', data: EMPTY_FC })
-      map.addSource(OWN_SRC, { type: 'geojson', data: EMPTY_FC })
-      map.addSource(WH_SRC, { type: 'geojson', data: EMPTY_FC })
+      map.addSource(OSM_SRC, { type: 'geojson', data: sourceDataRef.current.osm })
+      map.addSource(OWN_SRC, { type: 'geojson', data: sourceDataRef.current.own })
+      map.addSource(WH_SRC, { type: 'geojson', data: sourceDataRef.current.wh })
 
       // Draw and register the badge images before any layer references them.
       registerMapIcons(map)
@@ -281,6 +419,25 @@ const GeoExplorerMap = ({
         paint: symbolPaint,
       })
 
+      for (const cat of stateRef.current.enabledOsmCategories) {
+        ensureCategoryLayer(cat)
+        map.setLayoutProperty(osmLayerId(cat), 'visibility', 'visible')
+      }
+      map.setLayoutProperty('warehouse-dots', 'visibility', stateRef.current.showWarehouses ? 'visible' : 'none')
+      map.setLayoutProperty('own-poi-dots', 'visibility', stateRef.current.showOwnPoints ? 'visible' : 'none')
+      if (movingRef.current) map.setFilter('own-poi-dots', ['!=', ['get', 'id'], movingRef.current.id])
+      clearTimeout(styleRequestRef.current?.timer)
+      styleRequestRef.current = null
+      loadedRef.current = true
+      setMapReady(true)
+      setStyleLoading(false)
+      handlersRef.current.onReadyChange?.(true)
+      const force = forceRefreshRef.current
+      forceRefreshRef.current = false
+      refreshData(force)
+    })
+
+    map.on('load', () => {
       // Computed per click rather than captured once: category layers are added
       // lazily, so a list built here would miss every layer created later.
       const clickableLayers = () => map.getStyle().layers
@@ -323,10 +480,12 @@ const GeoExplorerMap = ({
 
       map.on('click', (e) => {
         if (stateRef.current.placingPoint || movingRef.current) {
+          cancelLocating()
           positionMarkerRef.current?.setLngLat(e.lngLat)
           setCenter({ lat: e.lngLat.lat, lng: e.lngLat.lng })
           return
         }
+        if (!loadedRef.current) return
         // Expand touch hit testing, then choose the nearest rendered feature.
         const radius = e.originalEvent?.pointerType === 'touch' || e.originalEvent?.type?.startsWith('touch') ? 22 : 10
         const hits = map.queryRenderedFeatures([[e.point.x - radius, e.point.y - radius], [e.point.x + radius, e.point.y + radius]], { layers: clickableLayers() })
@@ -431,26 +590,18 @@ const GeoExplorerMap = ({
 
       // One delegated handler instead of per-layer listeners, for the same reason.
       map.on('mousemove', (e) => {
+        if (!loadedRef.current) return
         const over = map.queryRenderedFeatures(e.point, { layers: clickableLayers() }).length > 0
         if (over !== cursorRef.current.hovering) {
           cursorRef.current.hovering = over
           applyCursor()
         }
       })
-
-      loadedRef.current = true
-      for (const cat of stateRef.current.enabledOsmCategories) {
-        ensureCategoryLayer(cat)
-        map.setLayoutProperty(osmLayerId(cat), 'visibility', 'visible')
-      }
-      map.setLayoutProperty('warehouse-dots', 'visibility', stateRef.current.showWarehouses ? 'visible' : 'none')
-      map.setLayoutProperty('own-poi-dots', 'visibility', stateRef.current.showOwnPoints ? 'visible' : 'none')
-      handlersRef.current.onReadyChange?.(true)
-      refreshData(true)
     })
 
     // Expression/style failures arrive here rather than as exceptions.
     map.on('error', (e) => {
+      if (styleRequestRef.current) { styleRequestRef.current.recover(); return }
       console.error('[GeoExplorerMap]', e?.error?.message || e)
       if (!loadedRef.current) handlersRef.current.onErrorChange?.('The map could not load. Check your connection and reload the page.')
     })
@@ -461,6 +612,12 @@ const GeoExplorerMap = ({
     })
 
     return () => {
+      locationRequestRef.current += 1
+      pendingLocationRef.current?.cancel?.()
+      pendingLocationRef.current = null
+      userLocationMarkerRef.current?.remove()
+      clearTimeout(styleRequestRef.current?.timer)
+      styleRequestRef.current = null
       popupRef.current?.remove()
       resizeObserver.disconnect()
       handlersRef.current.onReadyChange?.(false)
@@ -510,8 +667,8 @@ const GeoExplorerMap = ({
     if (placingPoint || overlayOpen) popupRef.current?.remove()
   }, [placingPoint, overlayOpen, applyCursor])
 
-  // Placing a pin never changes the camera. Map taps and marker drags only
-  // update coordinates, preserving the user's spatial context.
+  // Map taps and marker drags only update coordinates. The explicit current-
+  // location action is the placement control that also moves the camera.
   useEffect(() => {
     const map = mapRef.current
     if (!map || (!placingPoint && !moving)) return
@@ -521,20 +678,22 @@ const GeoExplorerMap = ({
     positionMarkerRef.current = marker
     marker.getElement().classList.add('geo-position-marker')
     marker.getElement().setAttribute('aria-label', 'Selected pin location. Drag to reposition, or tap the map.')
-    const update = () => { const point = marker.getLngLat(); setCenter({ lat: point.lat, lng: point.lng }) }
+    const update = () => { cancelLocating(); const point = marker.getLngLat(); setCenter({ lat: point.lat, lng: point.lng }) }
     update()
     marker.on('drag', update)
-    return () => { marker.remove(); positionMarkerRef.current = null }
-  }, [placingPoint, moving, placementLocation])
+    return () => { cancelLocating(); marker.remove(); positionMarkerRef.current = null }
+  }, [placingPoint, moving, placementLocation, cancelLocating])
 
   const cancelPosition = useCallback(() => {
     if (savingMove) return
+    cancelLocating()
+    handlersRef.current.onNoticeChange?.(null)
     setMoving(null)
     setMoveError('')
     onPlacingChange?.(false)
     onBusyChange?.(false)
     if (mapRef.current?.getLayer('own-poi-dots')) mapRef.current.setFilter('own-poi-dots', null)
-  }, [savingMove, onPlacingChange, onBusyChange])
+  }, [savingMove, onPlacingChange, onBusyChange, cancelLocating])
 
   useEffect(() => {
     const onKey = event => {
@@ -549,7 +708,9 @@ const GeoExplorerMap = ({
 
   const confirmPosition = async () => {
     const at = positionMarkerRef.current?.getLngLat()
-    if (!at) return
+    if (!at || locating || savingMove) return
+    cancelLocating()
+    handlersRef.current.onNoticeChange?.(null)
     if (!moving) {
       onPlacingChange?.(false)
       onEditPoint?.({ lat: at.lat, lng: at.lng })
@@ -560,7 +721,7 @@ const GeoExplorerMap = ({
       await onUpdatePoint?.(moving.id, { lat: at.lat, lng: at.lng })
       setMoving(null)
       onBusyChange?.(false)
-      mapRef.current?.setFilter('own-poi-dots', null)
+      if (mapRef.current?.getLayer('own-poi-dots')) mapRef.current.setFilter('own-poi-dots', null)
     } catch (err) { setMoveError(err?.message || 'Could not move the point. Try again.') }
     finally { setSavingMove(false) }
   }
@@ -578,17 +739,30 @@ const GeoExplorerMap = ({
   // what leaves a strip of background under the canvas.
   return <>
     <div ref={containerRef} className="geo-map-surface" style={{ position: 'absolute', inset: 0 }} />
+    <div className="geo-map-tools" role="group" aria-label="Map controls">
+      <div className="geo-basemap-switch" role="group" aria-label="Map view">
+        {['map', 'satellite'].map(view => <button key={view} type="button"
+          aria-pressed={basemap === view} disabled={!mapReady || styleLoading || savingMove || locating}
+          onClick={() => switchBasemap(view)}>
+          {styleLoading && basemap === view && <LoadingOutlined aria-hidden="true" />}
+          {view === 'map' ? 'Map' : 'Satellite'}
+        </button>)}
+      </div>
+      <button type="button" className="geo-locate-button" onClick={() => locate()}
+        disabled={!mapReady || styleLoading || savingMove}
+        aria-label={locating ? 'Cancel finding location' : 'Use current location'}
+        title={locating ? 'Finding your location… Click to cancel' : (placingPoint || moving) ? 'Place pin at your current location' : 'Go to your current location'}>
+        {locating ? <LoadingOutlined aria-hidden="true" /> : <AimOutlined aria-hidden="true" />}
+        <span className="geo-locate-label">{locating ? 'Locating…' : 'My location'}</span>
+      </button>
+      <span className="geo-sr-only" role="status">{locating ? 'Finding your location. Allow location access if prompted.' : styleLoading ? 'Loading map view…' : ''}</span>
+    </div>
     {(placingPoint || moving) && <>
-      <div className="geo-position-hint" role="status"><strong>{moving ? `Move ${moving.name}` : 'Step 1 of 2 · Position your pin'}</strong><span>Tap the map or drag the pin. Pan and zoom to explore.</span></div>
+      <div className="geo-position-hint" role="status"><strong>{moving ? `Move ${moving.name}` : 'Step 1 of 2 · Position your pin'}</strong><span>Tap the map, drag the pin, or use current location.</span></div>
       <div className="geo-position-bar">
         <span className="geo-position-coords">{center.lat.toFixed(5)}, {center.lng.toFixed(5)}</span>
         {moveError && <span role="alert" className="geo-position-error">{moveError}</span>}
-        <Button type="text" className="geo-use-center" disabled={savingMove} onClick={() => {
-          const at = mapRef.current.getCenter()
-          positionMarkerRef.current.setLngLat(at)
-          setCenter({ lat: at.lat, lng: at.lng })
-        }}>Place at map center</Button>
-        <div><Button disabled={savingMove} onClick={cancelPosition}>Cancel</Button><Button type="primary" loading={savingMove} onClick={confirmPosition}>{moving ? 'Save location' : 'Use this location'}</Button></div>
+        <div><Button disabled={savingMove} onClick={cancelPosition}>Cancel</Button><Button type="primary" loading={savingMove} disabled={locating} onClick={confirmPosition}>{moving ? 'Save location' : 'Use this location'}</Button></div>
       </div>
     </>}
   </>

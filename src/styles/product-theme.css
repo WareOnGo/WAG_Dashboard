@@ -152,7 +152,6 @@ html[data-ui="product"] :is(.geo-map-heading, .geo-position-hint, .geo-position-
 }
 html[data-ui="product"] :is(.geo-map-heading span, .geo-position-hint span, .geo-position-coords, .geo-point-form label span) { color: var(--text-secondary); }
 html[data-ui="product"] .geo-position-error { color: var(--text-danger); }
-html[data-ui="product"] .geo-position-bar .geo-use-center { color: var(--accent-primary); }
 html[data-ui="product"] .geo-mobile-actions .ant-btn-default { background: var(--bg-secondary); }
 html[data-ui="product"] :is(.geo-count, .geo-location-summary) { background: var(--bg-surface); color: var(--text-secondary); }
 html[data-ui="product"] .geo-location-summary strong { color: var(--text-primary); }

@@ -59,6 +59,7 @@ const GeoExplorer = () => {
   const [editor, setEditor] = useState(null)
   const [mapBusy, setMapBusy] = useState(false)
   const [mapError, setMapError] = useState(null)
+  const [mapNotice, setMapNotice] = useState(null)
   const [mapReady, setMapReady] = useState(false)
   const [placing, setPlacing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -216,7 +217,7 @@ const GeoExplorer = () => {
         <Button type="primary" icon={<PlusOutlined aria-hidden="true" />} block disabled={!mapReady || placing || mapBusy || !!editor} onClick={startPlacing}>Add a point</Button>
         <p className="geo-panel-help">Position a pin, then add a name and type.</p>
       </aside>}
-      <div className="geo-map-pane">
+      <div className={`geo-map-pane${mapNotice || mapError ? ' geo-map-has-notice' : ''}`}>
         <GeoExplorerMap
           enabledOsmCategories={enabledOsm} showWarehouses={showWarehouses} showOwnPoints={showOwnPoints}
           placingPoint={placing} placementLocation={placementLocation} canEditPoint={canEditPoint}
@@ -224,14 +225,21 @@ const GeoExplorer = () => {
           onOpenWarehouse={openWarehouse} onFetchWarehouse={fetchWarehouse}
           onPlacingChange={setPlacing} onLoadingChange={setLoading} onTruncated={setTruncated}
           onErrorChange={setMapError} onReadyChange={setMapReady} onBusyChange={setMapBusy}
+          onNoticeChange={setMapNotice}
           overlayOpen={layersOpen || !!editor} refreshKey={refreshKey}
         />
-        {!placing && !mapBusy && <div className="geo-map-heading">
+        {!isMobile && !placing && !mapBusy && <div className="geo-map-heading">
           <strong>Map explorer</strong><span>{activeCount ? `${activeCount} layers on · Tap a pin for details` : 'All layers hidden · Open Layers to show places'}</span>
         </div>}
         <div className="geo-map-status" aria-live="polite">
           {(loading || detailLoading) && <div className="geo-status-chip"><Spin size="small" />{detailLoading ? 'Opening warehouse…' : 'Loading places…'}</div>}
           {mapError && <Alert type="warning" showIcon message={mapError} action={<Button onClick={() => mapReady ? setRefreshKey(k => k + 1) : window.location.reload()}>Retry</Button>} />}
+          {mapNotice && <Alert className={isMobile ? 'geo-map-notice-compact' : undefined} type={mapNotice.type} showIcon={!isMobile} message={<>
+            <span className="geo-notice-message">{isMobile ? mapNotice.compactMessage || mapNotice.message : mapNotice.message}</span>
+            {mapNotice.actions?.length > 0 && <div className="geo-notice-actions">
+              {mapNotice.actions.map(action => <Button key={action.label} onClick={action.onClick}>{action.label}</Button>)}
+            </div>}
+          </>} closable onClose={() => setMapNotice(null)} />}
           {truncated && <div className="geo-status-chip">Some places are hidden. Zoom in to see more.</div>}
         </div>
         {isMobile && !placing && !mapBusy && !editor && <div className="geo-mobile-actions">
