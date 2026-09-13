@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigationType } from 'react-router-dom'
 import { Layout, App as AntApp, Spin } from 'antd'
+import { HomeOutlined } from '@ant-design/icons'
 // Import shell components directly (not via the ./components barrel) so the initial
 // bundle isn't forced to pull the whole barrel graph.
 import ErrorBoundary from './components/ErrorBoundary'
@@ -113,7 +114,7 @@ function AppContent() {
         color: 'var(--text-primary, #c0caf5)'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '16px' }}>🏢</div>
+          <div style={{ fontSize: '24px', marginBottom: '16px' }}><HomeOutlined aria-hidden="true" /></div>
           <div>{isLoading ? 'Checking authentication...' : 'Loading Warehouse Portal...'}</div>
         </div>
       </div>

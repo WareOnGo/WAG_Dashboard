@@ -10,6 +10,7 @@ import {
   PlayCircleOutlined,
   FileTextOutlined,
   LinkOutlined,
+  ExportOutlined,
 } from '@ant-design/icons';
 import ResponsiveModal from './ResponsiveModal';
 import RedactedPhone from './RedactedPhone';
@@ -441,7 +442,7 @@ const WarehouseDetailsModal = ({
                 rel="noopener noreferrer"
                 style={{ ...valueBase(m), color: 'var(--link-color, #4ea1f5)', textDecoration: 'none', cursor: 'pointer' }}
               >
-                {warehouse.googleLocation} ↗
+                {warehouse.googleLocation} <ExportOutlined aria-hidden="true" style={{ marginLeft: 4, flexShrink: 0 }} />
               </a>
             ) : (
               <TextValue mobile={m} value={warehouse.googleLocation} />
@@ -457,7 +458,7 @@ const WarehouseDetailsModal = ({
                 rel="noopener noreferrer"
                 style={{ ...valueBase(m), color: 'var(--link-color, #4ea1f5)', textDecoration: 'none', cursor: 'pointer' }}
               >
-                {coordMapsLink} ↗
+                {coordMapsLink} <ExportOutlined aria-hidden="true" style={{ marginLeft: 4, flexShrink: 0 }} />
               </a>
             ) : (
               <TextValue mobile={m} value={null} />

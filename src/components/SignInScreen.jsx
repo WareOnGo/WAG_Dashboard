@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Typography, Alert, Spin, notification } from 'antd';
-import { GoogleOutlined, LoadingOutlined, ReloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { GoogleOutlined, HomeOutlined, LoadingOutlined, ReloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { authConfig, validateAuthConfig } from '../config/auth.js';
 import { useViewport } from '../hooks';
 import AuthErrorBoundary from './AuthErrorBoundary.jsx';
@@ -248,7 +248,7 @@ const SignInScreen = () => {
           {/* Header Section */}
           <div className="signin-header">
             <div className="signin-logo">
-              <span className="logo-icon">🏢</span>
+              <span className="logo-icon"><HomeOutlined aria-hidden="true" /></span>
             </div>
             <Title 
               level={isMobile ? 3 : 2} 

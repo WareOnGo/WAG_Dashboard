@@ -1,5 +1,6 @@
 import React from 'react';
 import { Spin } from 'antd';
+import { CameraOutlined } from '@ant-design/icons';
 import { useLazyImage } from '../hooks/useLazyLoading';
 import { useViewport } from '../hooks/useViewport';
 
@@ -138,7 +139,7 @@ const LazyImage = ({
           fontSize: isMobile ? '12px' : '14px'
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '16px', marginBottom: '4px' }}>📷</div>
+            <div style={{ fontSize: '16px', marginBottom: '4px' }}><CameraOutlined aria-hidden="true" /></div>
             <div>Failed to load</div>
           </div>
         </div>

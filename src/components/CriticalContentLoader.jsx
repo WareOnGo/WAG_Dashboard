@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Spin } from 'antd';
+import { BarChartOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import { useViewport } from '../hooks/useViewport';
 import performanceService from '../services/performanceService';
 
@@ -159,6 +160,8 @@ const PerformanceIndicator = () => {
       {/* Toggle button */}
       <button
         onClick={() => setVisible(!visible)}
+        aria-label="Toggle performance metrics"
+        aria-expanded={visible}
         style={{
           position: 'fixed',
           bottom: '20px',
@@ -174,7 +177,7 @@ const PerformanceIndicator = () => {
           cursor: 'pointer'
         }}
       >
-        📊
+        <BarChartOutlined aria-hidden="true" />
       </button>
 
       {/* Metrics panel */}
@@ -194,7 +197,10 @@ const PerformanceIndicator = () => {
           }}
         >
           <div><strong>Performance Metrics</strong></div>
-          <div>Status: {isGood ? '✅ Good' : '⚠️ Needs Improvement'}</div>
+          <div>
+            Status: {isGood ? <CheckCircleOutlined aria-hidden="true" /> : <WarningOutlined aria-hidden="true" />}{' '}
+            {isGood ? 'Good' : 'Needs Improvement'}
+          </div>
           {loadTime && <div>Load Time: {Math.round(loadTime)}ms</div>}
           {metrics.firstContentfulPaint && (
             <div>FCP: {Math.round(metrics.firstContentfulPaint)}ms</div>

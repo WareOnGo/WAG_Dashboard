@@ -2,7 +2,7 @@ import { WAREHOUSE_TYPES } from '../utils/warehouseOptions';
 import { useState, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement } from 'react';
 import { Button, Switch, Spin, Tooltip, message, DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
-import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
 import VisitNotes from './VisitNotes';
@@ -1052,7 +1052,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                     rel="noopener noreferrer"
                     style={{ color: 'var(--link-color, #4ea1f5)', textDecoration: 'none', whiteSpace: 'nowrap', fontSize: m ? 16 : 14 }}
                   >
-                    Open ↗
+                    Open <ExportOutlined aria-hidden="true" />
                   </a>
                 )}
               </div>

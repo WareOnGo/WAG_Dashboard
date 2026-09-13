@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Spin } from 'antd';
+import { WarningOutlined } from '@ant-design/icons';
 
 /**
  * OAuth Callback Handler Component
@@ -73,7 +74,7 @@ function AuthCallback() {
     }}>
       {error ? (
         <>
-          <div style={{ fontSize: '48px', marginBottom: '24px' }}>⚠️</div>
+          <div style={{ fontSize: '48px', marginBottom: '24px', color: 'var(--warning-color, #faad14)' }}><WarningOutlined aria-hidden="true" /></div>
           <div style={{ fontSize: '18px', marginBottom: '16px', color: '#ff4d4f' }}>
             {error}
           </div>

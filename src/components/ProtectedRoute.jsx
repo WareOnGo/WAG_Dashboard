@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Spin, Alert } from 'antd';
-import { LoadingOutlined } from '@ant-design/icons';
+import { HomeOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useViewport } from '../hooks';
 import './ProtectedRoute.css';
@@ -49,7 +49,7 @@ const ProtectedRoute = ({ children }) => {
         <div className="loading-container">
           <div className="loading-content">
             <div className="loading-logo">
-              <span className="logo-icon">🏢</span>
+              <span className="logo-icon"><HomeOutlined aria-hidden="true" /></span>
             </div>
             <Spin 
               indicator={<LoadingOutlined style={{ fontSize: isMobile ? 20 : 24 }} spin />}

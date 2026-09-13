@@ -31,6 +31,13 @@
             font-size: 64px;
             margin-bottom: 24px;
         }
+
+        .icon svg,
+        .browser-icon svg {
+            width: 1em;
+            height: 1em;
+            vertical-align: middle;
+        }
         
         h1 {
             font-size: 28px;
@@ -118,7 +125,13 @@
 </head>
 <body>
     <div class="container">
-        <div class="icon">🌐</div>
+        <div class="icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="9" />
+                <ellipse cx="12" cy="12" rx="4" ry="9" />
+                <path d="M3 12h18" />
+            </svg>
+        </div>
         <h1>Browser Update Required</h1>
         <p>
             Your current browser doesn't support all the modern features needed for the best 
@@ -127,25 +140,45 @@
         
         <div class="browsers">
             <a href="https://www.google.com/chrome/" class="browser" target="_blank" rel="noopener">
-                <div class="browser-icon">🟢</div>
+                <div class="browser-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false">
+                        <rect x="3" y="4" width="18" height="16" rx="2" />
+                        <path d="M3 9h18M7 6.5h.01M10 6.5h.01" />
+                    </svg>
+                </div>
                 <div class="browser-name">Chrome</div>
                 <div class="browser-version">Version 90+</div>
             </a>
             
             <a href="https://www.apple.com/safari/" class="browser" target="_blank" rel="noopener">
-                <div class="browser-icon">🔵</div>
+                <div class="browser-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false">
+                        <rect x="3" y="4" width="18" height="16" rx="2" />
+                        <path d="M3 9h18M7 6.5h.01M10 6.5h.01" />
+                    </svg>
+                </div>
                 <div class="browser-name">Safari</div>
                 <div class="browser-version">Version 14+</div>
             </a>
             
             <a href="https://www.mozilla.org/firefox/" class="browser" target="_blank" rel="noopener">
-                <div class="browser-icon">🟠</div>
+                <div class="browser-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false">
+                        <rect x="3" y="4" width="18" height="16" rx="2" />
+                        <path d="M3 9h18M7 6.5h.01M10 6.5h.01" />
+                    </svg>
+                </div>
                 <div class="browser-name">Firefox</div>
                 <div class="browser-version">Version 88+</div>
             </a>
             
             <a href="https://www.microsoft.com/edge" class="browser" target="_blank" rel="noopener">
-                <div class="browser-icon">🔷</div>
+                <div class="browser-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false">
+                        <rect x="3" y="4" width="18" height="16" rx="2" />
+                        <path d="M3 9h18M7 6.5h.01M10 6.5h.01" />
+                    </svg>
+                </div>
                 <div class="browser-name">Edge</div>
                 <div class="browser-version">Version 90+</div>
             </a>
