@@ -1,4 +1,5 @@
 import React from 'react';
+import { App } from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -29,6 +30,7 @@ const SimpleWarehouseCard = ({
   metaInfo,       // optional provenance strip rendered above the actions
 }) => {
   const { user } = useAuth();
+  const { message } = App.useApp();
   const isAdmin = !!user?.isAdmin;
 
   // Get first image from media (with fallback to photos CSV)
@@ -103,6 +105,35 @@ const SimpleWarehouseCard = ({
   const firstImage = getFirstImage();
   const microMarkets = getMicroMarketDisplayNames(warehouse.micromarket);
 
+  const handleCopyId = async (event) => {
+    event.stopPropagation();
+
+    try {
+      const id = String(warehouse.id);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(id);
+      } else {
+        const textarea = document.createElement('textarea');
+        const focusedElement = document.activeElement;
+        textarea.value = id;
+        textarea.readOnly = true;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        try {
+          textarea.select();
+          if (!document.execCommand('copy')) throw new Error('Copy failed');
+        } finally {
+          textarea.remove();
+          focusedElement?.focus({ preventScroll: true });
+        }
+      }
+      message.success('Warehouse ID copied', 1.5);
+    } catch {
+      message.error('Could not copy warehouse ID. Please copy it manually.');
+    }
+  };
+
   const handleToggleVisibility = (e) => {
     e.stopPropagation();
     if (onToggleVisibility) {
@@ -117,7 +148,17 @@ const SimpleWarehouseCard = ({
       {/* Header */}
       <div className="simple-warehouse-card__header">
         <div className="simple-warehouse-card__id">
-          <span>{idLabel || `#${warehouse.id}`}</span>
+          {idLabel ? <span>{idLabel}</span> : (
+            <button
+              type="button"
+              className="simple-warehouse-card__copy-id"
+              onClick={handleCopyId}
+              title="Copy warehouse ID"
+              aria-label={`Copy warehouse ID ${warehouse.id}`}
+            >
+              #{warehouse.id}
+            </button>
+          )}
         </div>
         {statusContent || (
           <div
