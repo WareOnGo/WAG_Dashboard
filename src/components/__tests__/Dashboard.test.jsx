@@ -9,7 +9,7 @@ import { warehouseService } from '../../services/warehouseService';
 vi.mock('../../services/warehouseService', () => ({
   warehouseService: {
     list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(),
-    getCoordinates: vi.fn(), getContactNumber: vi.fn(),
+    getCoordinates: vi.fn(), getContactNumber: vi.fn(), getById: vi.fn(),
   },
 }));
 vi.mock('../../services/imageLabelService', () => ({
@@ -51,6 +51,7 @@ beforeEach(() => {
   warehouseService.list.mockResolvedValue(page());
   warehouseService.getCoordinates.mockResolvedValue([]);
   warehouseService.getContactNumber.mockResolvedValue({ contactNumber: '9876543210' });
+  warehouseService.getById.mockResolvedValue({ WarehouseProximity: [] });
 });
 
 describe('Dashboard current list contract', () => {

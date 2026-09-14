@@ -1,0 +1,84 @@
+.warehouse-proximity h3 {
+  margin: 24px 0 8px;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.warehouse-proximity__help {
+  margin: 0 0 24px;
+  color: var(--text-muted, #8c8c8c);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.warehouse-proximity__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+  margin: 0 0 20px;
+}
+
+.warehouse-proximity__field {
+  min-width: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-primary, #303030);
+}
+
+.warehouse-proximity__label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted, #8c8c8c);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.warehouse-proximity__value {
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.warehouse-proximity__name {
+  display: block;
+}
+
+.warehouse-proximity__detail {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted, #8c8c8c);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.warehouse-proximity--readonly .warehouse-proximity__value {
+  padding: 10px 14px;
+  border: 1px solid var(--border-primary, #303030);
+  border-radius: 8px;
+  background: var(--bg-surface, #262626);
+  color: var(--text-secondary, #aaa);
+  cursor: not-allowed;
+}
+
+.warehouse-proximity__field--status .warehouse-proximity__value {
+  color: var(--text-muted, #8c8c8c);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+@media (max-width: 767px) {
+  .warehouse-proximity__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

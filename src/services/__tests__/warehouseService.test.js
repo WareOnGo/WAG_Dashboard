@@ -7,6 +7,12 @@ import { mockWarehouseFormData } from '../../test/mockData';
 const url = 'http://localhost:3001/api/warehouses';
 
 describe('warehouseService API contracts', () => {
+  it('forwards cancellation to the warehouse detail request', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(warehouseService.getById(1, { signal: controller.signal })).rejects.toMatchObject({ code: 'ERR_CANCELED' });
+  });
+
   it('keeps pagination metadata when fetching a filtered page', async () => {
     const result = await warehouseService.list({ page: 1, limit: 1, search: 'Industrial', includeImageLabels: 'true' });
     expect(result.data.map(row => row.id)).toEqual([1]);

@@ -17,6 +17,7 @@ const warehouse = {
   id: 2364,
   city: 'Bengaluru',
   state: 'Karnataka',
+  WarehouseProximity: [],
   media: { images: IMAGES, videos: [], docs: [] },
 };
 

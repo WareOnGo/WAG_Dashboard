@@ -6,6 +6,7 @@ import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
 import VisitNotes from './VisitNotes';
+import WarehouseProximityFields from './WarehouseProximityFields';
 import './ResponsiveModal.css';
 import './WarehouseForm.css';
 import { clearErrors } from '../utils/errorHandler';
@@ -1458,6 +1459,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             )}
 
           </Section>
+
+          {visible && initialData && (
+            <WarehouseProximityFields
+              warehouse={initialData}
+              coordinates={{ latitude: values.latitude, longitude: values.longitude }}
+              disabled
+            />
+          )}
 
           {/* ── Metadata ────────────────────────────────────────── */}
           <Section title="Metadata">

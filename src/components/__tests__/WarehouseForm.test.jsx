@@ -11,6 +11,7 @@ vi.mock('../VisitNotes', () => ({ default: () => <div>Visit notes</div> }));
 const record = {
   ...mockWarehouse, listing_type: 'Rent', warehouseType: 'PEB',
   state: 'Karnataka', city: 'Bangalore', zone: 'SOUTH', photos: '', media: null,
+  WarehouseProximity: [],
 };
 const field = label => {
   const node = screen.getByText((_, element) => element.tagName === 'LABEL'
@@ -91,7 +92,14 @@ describe('WarehouseForm current fields and payload', () => {
   });
 
   it('submits edited values and preserves coordinate precision', async () => {
-    const { props } = open({ initialData: record });
+    const { props } = open({ initialData: {
+      ...record,
+      WarehouseProximity: [{ category: 'aerodrome', status: 'OK', landmarkName: 'Bengaluru Airport', roadKm: 24.6, driveMinutes: 35 }],
+    } });
+    const airport = screen.getByText('Nearest Airport', { selector: 'dt' }).nextElementSibling;
+    expect(airport).toHaveTextContent('Bengaluru Airport');
+    expect(airport).toHaveTextContent('24.6 km by road · 35 min drive');
+    expect(screen.getByRole('region', { name: 'Geoproximity' }).querySelector('input, textarea, select, [contenteditable="true"]')).toBeNull();
     change('Address', 'Updated locality');
     change('Latitude', '12.9716123456789');
     change('Longitude', '77.5946123456789');
@@ -101,6 +109,8 @@ describe('WarehouseForm current fields and payload', () => {
       address: 'Updated locality', totalSpaceSqft: [10000, 5000],
       warehouseData: expect.objectContaining({ latitude: '12.9716123456789', longitude: '77.5946123456789' }),
     }));
+    expect(props.onSubmit.mock.lastCall[0]).not.toHaveProperty('WarehouseProximity');
+    expect(props.onSubmit.mock.lastCall[0].warehouseData).not.toHaveProperty('WarehouseProximity');
   });
 
   it('adds an area and includes both numeric values in the submission', async () => {

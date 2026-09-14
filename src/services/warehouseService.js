@@ -111,13 +111,14 @@ export const warehouseService = {
   },
 
   /**
-   * Get a single full warehouse by id (with nested WarehouseData). Used to
-   * lazy-load detail for a map marker when its popup is opened.
+   * Get a single full warehouse by id, including WarehouseData and computed
+   * WarehouseProximity. Used by map popups and warehouse view/edit details.
    * @param {number} id
+   * @param {{ signal?: AbortSignal }} options
    * @returns {Promise<Object>} Full warehouse object
    */
-  getById: async (id) => {
-    return apiClient.get(`/warehouses/${id}`);
+  getById: async (id, { signal } = {}) => {
+    return apiClient.get(`/warehouses/${id}`, { signal });
   },
 
   // --- Visit notes (site-visit log per warehouse) ---

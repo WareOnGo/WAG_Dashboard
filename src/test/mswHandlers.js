@@ -112,4 +112,12 @@ export const handlers = [
   http.get(`${API_BASE_URL}/warehouses/network-error`, () => {
     return HttpResponse.error();
   }),
+
+  // Detail responses include the saved proximity rows; list responses omit them.
+  http.get(`${API_BASE_URL}/warehouses/:id`, ({ params }) => {
+    const warehouse = mockWarehouses.find(row => row.id === Number(params.id));
+    return warehouse
+      ? HttpResponse.json({ ...warehouse, WarehouseProximity: warehouse.WarehouseProximity ?? [] })
+      : HttpResponse.json(mockApiErrors.notFound, { status: 404 });
+  }),
 ];

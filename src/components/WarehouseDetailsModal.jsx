@@ -15,6 +15,7 @@ import {
 import ResponsiveModal from './ResponsiveModal';
 import RedactedPhone from './RedactedPhone';
 import VisitNotes from './VisitNotes';
+import WarehouseProximityFields from './WarehouseProximityFields';
 import { useViewport } from '../hooks/useViewport';
 import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
 import { showSuccessMessage, showErrorNotification } from '../utils/errorHandler';
@@ -651,6 +652,8 @@ const WarehouseDetailsModal = ({
             col(<Field label="CAM" mobile={m}><TextValue mobile={m} value={warehouse.cam} /></Field>, true)
           )}
         </Section>
+
+        {visible && <WarehouseProximityFields warehouse={warehouse} />}
 
         {/* ── Metadata (incl. media) ──────────────────────────── */}
         <Section title="Metadata">
