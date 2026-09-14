@@ -4,9 +4,9 @@ import { PlusOutlined, AppstoreOutlined, SearchOutlined, CloseOutlined } from '@
 import GeoExplorerMap from './GeoExplorerMap'
 import GeoPointEditor from './GeoPointEditor'
 import {
-  CATEGORY_COLORS, FALLBACK_COLOR, OWN_POINT_COLOR, AVAILABILITY_COLORS,
-  poiCategoryLabel, poiCategoryGlyph,
-  iconSvg, humaniseCategory as humanise,
+  CATEGORY_COLORS, FALLBACK_COLOR, AVAILABILITY_COLORS,
+  poiCategoryLabel,
+  iconSvg, ownIconSvg, humaniseCategory as humanise,
 } from '../utils/geoIcons'
 import { geoService } from '../services/geoService'
 import { warehouseService } from '../services/warehouseService'
@@ -21,11 +21,11 @@ const { Text } = Typography
  * Legend badge — renders the exact glyph the map draws, so the sidebar and the
  * map are read with one visual vocabulary rather than two.
  */
-const Badge = ({ color, glyph }) => (
+const Badge = ({ color, glyph, own = false, category }) => (
   <span
-    style={{ display: 'inline-block', width: 18, height: 18, marginRight: 8, verticalAlign: 'middle' }}
+    style={{ display: 'inline-block', width: own ? 22 : 18, height: own ? 22 : 18, marginRight: 8, verticalAlign: 'middle', flexShrink: 0 }}
     // Local, non-user-supplied markup built from a fixed glyph table.
-    dangerouslySetInnerHTML={{ __html: iconSvg(color, glyph) }}
+    dangerouslySetInnerHTML={{ __html: own ? ownIconSvg(category) : iconSvg(color, glyph) }}
   />
 )
 
@@ -163,12 +163,12 @@ const GeoExplorer = () => {
             <Badge color={AVAILABILITY_COLORS.available} glyph="warehouse" />Warehouses
           </Checkbox>
           <Checkbox checked={showOwnPoints} onChange={e => setShowOwnPoints(e.target.checked)}>
-            <Badge color={OWN_POINT_COLOR} glyph="own" />Our points
+            <Badge own />Our points
             <Text type="secondary"> ({layers?.internal?.reduce((sum, c) => sum + c.count, 0) ?? '…'})</Text>
           </Checkbox>
           {showOwnPoints && <div className="geo-own-legend">
             {(layers?.internal ?? []).map(({ category, count }) => <div key={category}>
-              <Badge color={OWN_POINT_COLOR} glyph={poiCategoryGlyph(category)} />{poiCategoryLabel(category)} ({count})
+              <Badge own category={category} />{poiCategoryLabel(category)} ({count})
             </div>)}
             {layers && !layers.internal.length && <Text type="secondary">Save places with Add a point.</Text>}
           </div>}

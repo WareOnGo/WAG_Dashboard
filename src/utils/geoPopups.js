@@ -1,6 +1,6 @@
 import {
   AVAILABILITY_COLORS, colorForCategory, glyphForCategory, iconSvg, humaniseCategory,
-  OWN_POINT_COLOR, poiCategoryLabel, poiCategoryGlyph,
+  ownIconSvg, poiCategoryLabel,
 } from './geoIcons';
 import { getMediaFromWarehouse } from './mediaUtils';
 
@@ -170,7 +170,7 @@ export const ownPopupHTML = (p, canEdit = false) => `
         <button data-action="move-point" data-id="${esc(p.id)}" style="${MENU_ITEM}">Move on map</button>
         <button data-action="delete-point" data-id="${esc(p.id)}" style="${MENU_ITEM}color:#ef4444;border-top:1px solid rgba(255,255,255,0.1);">Delete</button>
       </div>` : ''}
-    ${header(iconSvg(OWN_POINT_COLOR, poiCategoryGlyph(p.category), 20), esc(p.name), '')}
+    ${header(ownIconSvg(p.category, 24), esc(p.name), '')}
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div><div style="${LABEL}">Type</div><div style="${VALUE}">${esc(poiCategoryLabel(p.category))}</div></div>
       ${p.notes ? `<div><div style="${LABEL}">Notes</div><div style="${VALUE}line-height:1.4;">${esc(p.notes)}</div></div>` : ''}

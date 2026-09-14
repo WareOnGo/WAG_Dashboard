@@ -10,6 +10,7 @@
  *
  *   GLYPH  says WHAT a thing is   (fuel pump, hospital cross, warehouse)
  *   COLOUR says its STATUS        (only warehouses have a status)
+ *   OUR POINTS have a purple centre and a category-coloured ring
  *
  * Before this, colour encoded availability on warehouses and category on POIs,
  * so a red hospital read as an unavailable warehouse. Category colours are now
@@ -51,7 +52,8 @@ export const CATEGORY_COLORS = {
 };
 
 export const FALLBACK_COLOR = '#64748b';
-export const OWN_POINT_COLOR = '#a855f7';
+export const OWN_POINT_COLOR = '#b8a0cc';
+export const OWN_POINT_GLYPH_COLOR = '#000000';
 
 /**
  * Glyph paths on a 24x24 grid. Deliberately simple: at ~20px on screen a
@@ -93,18 +95,17 @@ const GLYPHS = {
  * unlike the OSM categories which come from whatever the import contains.
  *
  * Codes are stored and labels live here, so renaming one is a string change
- * rather than an update across every row. The glyph varies per category while
- * the badge colour stays a single purple: colour says "this is ours", the glyph
- * says what it is, which keeps our points distinguishable from OSM reference
- * data at a glance.
+ * rather than an update across every row. A muted purple centre identifies our
+ * points; the vibrant ring and black glyph distinguish their categories. Black
+ * against this purple has approximately 8.9:1 contrast, including on dark maps.
  */
 export const POI_CATEGORIES = [
-  { value: 'POTENTIAL_CLIENT', label: 'Potential client', glyph: 'client' },
-  { value: 'POTENTIAL_WAREHOUSE', label: 'Potential warehouse', glyph: 'warehouse' },
-  { value: 'FOOD_PLACE', label: 'Good local food place', glyph: 'food' },
-  { value: 'HOTEL_RESTAURANT', label: 'Good local hotel/restaurant', glyph: 'hotel' },
-  { value: 'LABOR_QUARTERS', label: 'Residential quarters - labor', glyph: 'quarters' },
-  { value: 'OPEN_YARD_BTS', label: 'Potential open yard/BTS site', glyph: 'yard' },
+  { value: 'POTENTIAL_CLIENT', label: 'Potential client', glyph: 'client', ringColor: '#00b8f0' },
+  { value: 'POTENTIAL_WAREHOUSE', label: 'Potential warehouse', glyph: 'warehouse', ringColor: '#00c7b5' },
+  { value: 'FOOD_PLACE', label: 'Good local food place', glyph: 'food', ringColor: '#f2389b' },
+  { value: 'HOTEL_RESTAURANT', label: 'Good local hotel/restaurant', glyph: 'hotel', ringColor: '#637cff' },
+  { value: 'LABOR_QUARTERS', label: 'Residential quarters - labor', glyph: 'quarters', ringColor: '#5f86a7' },
+  { value: 'OPEN_YARD_BTS', label: 'Potential open yard/BTS site', glyph: 'yard', ringColor: '#d69a50' },
 ];
 
 const POI_BY_VALUE = Object.fromEntries(POI_CATEGORIES.map((c) => [c.value, c]));
@@ -119,11 +120,53 @@ export const poiCategoryLabel = (value) =>
 /** Glyph key for one of our point categories, defaulting to the star. */
 export const poiCategoryGlyph = (value) => POI_BY_VALUE[value]?.glyph ?? 'own';
 
+/** A neutral ring accompanies the star for uncategorised or older points. */
+export const poiCategoryRingColor = (value) => POI_BY_VALUE[value]?.ringColor ?? FALLBACK_COLOR;
+
 /** Image id for one of our point badges. */
 export const poiIconId = (value) => `wag-own-${POI_BY_VALUE[value] ? value : 'DEFAULT'}`;
 
 const SIZE = 22;         // logical px
 const PIXEL_RATIO = 2;   // draw at 2x so it stays crisp on retina
+
+// Shared 24-unit geometry keeps the canvas marker and inline legend identical.
+const OWN_GLYPH_SCALE = 0.55;
+const OWN_GLYPH_OFFSET = (24 - 24 * OWN_GLYPH_SCALE) / 2;
+const ownIconCircles = (value) => [
+  { radius: 11, color: '#ffffff' }, // A light edge separates the badge from dark imagery.
+  { radius: 10, color: poiCategoryRingColor(value) },
+  { radius: 7.9, color: OWN_POINT_COLOR },
+];
+
+function drawOwnIcon(value) {
+  const px = SIZE * PIXEL_RATIO;
+  const canvas = document.createElement('canvas');
+  canvas.width = px;
+  canvas.height = px;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(px / 24, px / 24);
+
+  for (const { radius, color } of ownIconCircles(value)) {
+    ctx.beginPath();
+    ctx.arc(12, 12, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  ctx.translate(OWN_GLYPH_OFFSET, OWN_GLYPH_OFFSET);
+  ctx.scale(OWN_GLYPH_SCALE, OWN_GLYPH_SCALE);
+  ctx.fillStyle = OWN_POINT_GLYPH_COLOR;
+  ctx.fill(new Path2D(GLYPHS[poiCategoryGlyph(value)]));
+  return ctx.getImageData(0, 0, px, px);
+}
+
+/** Our category badge for legends and popups, using the map's exact geometry. */
+export function ownIconSvg(value, size = 22) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">
+    ${ownIconCircles(value).map(({ radius, color }) => `<circle cx="12" cy="12" r="${radius}" fill="${color}"/>`).join('')}
+    <g transform="translate(${OWN_GLYPH_OFFSET} ${OWN_GLYPH_OFFSET}) scale(${OWN_GLYPH_SCALE})"><path d="${GLYPHS[poiCategoryGlyph(value)]}" fill="${OWN_POINT_GLYPH_COLOR}"/></g>
+  </svg>`;
+}
 
 /**
  * Draw one badge: a filled rounded disc with a white glyph on it, plus a light
@@ -222,11 +265,11 @@ export function registerMapIcons(map) {
   // `match` on icon-image instead.
   registerWarehouseIcons(map);
 
-  // One badge per own-point category, all in the same purple, plus a starred
-  // default for rows whose category predates the fixed list.
-  add(poiIconId(null), drawIcon(OWN_POINT_COLOR, 'own'));
+  // Purple centres, category rings and black glyphs, plus a starred default
+  // for rows whose category predates the fixed list.
+  add(poiIconId(null), drawOwnIcon(null));
   for (const c of POI_CATEGORIES) {
-    add(poiIconId(c.value), drawIcon(OWN_POINT_COLOR, c.glyph));
+    add(poiIconId(c.value), drawOwnIcon(c.value));
   }
 }
 
