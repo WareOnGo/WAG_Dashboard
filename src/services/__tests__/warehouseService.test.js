@@ -19,6 +19,16 @@ describe('warehouseService API contracts', () => {
     expect(result.pagination).toEqual({ page: 1, limit: 1, total: 1, totalPages: 1 });
   });
 
+  it('preserves the plus sign and formatting in mobile-number searches', async () => {
+    let search;
+    server.use(http.get(url, ({ request }) => {
+      search = new URL(request.url).searchParams.get('search');
+      return HttpResponse.json({ data: [{ id: 12 }], pagination: { total: 1 } });
+    }));
+    expect((await warehouseService.list({ search: '+91 (98765) 43210' })).data).toEqual([{ id: 12 }]);
+    expect(search).toBe('+91 (98765) 43210');
+  });
+
   it('requests all warehouses and unwraps the response envelope', async () => {
     let params;
     server.use(http.get(url, ({ request }) => {

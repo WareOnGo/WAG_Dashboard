@@ -39,7 +39,7 @@ const deferred = () => {
 };
 const open = (session = auth) => renderWithProviders(<Dashboard />, { auth: session });
 const loaded = () => screen.findByText('#1');
-const search = () => screen.getByPlaceholderText('Search warehouses...');
+const search = () => screen.getByRole('textbox', { name: 'Search warehouses' });
 const cardFor = id => screen.getByText(`#${id}`).closest('.simple-warehouse-card');
 const settleDebounce = () => act(() => new Promise(resolve => setTimeout(resolve, 350)));
 
@@ -106,12 +106,12 @@ describe('Dashboard current list contract', () => {
     expect(screen.queryByText('Connection problem')).not.toBeInTheDocument();
   });
 
-  it('searches on the server and clears the search parameter', async () => {
+  it.each(['Storage', '+91 (98765) 43210', '0091 98765-43210'])('searches on the server for %s and clears the search parameter', async term => {
     open();
     await loaded();
-    warehouseService.list.mockResolvedValue(page([mockWarehouses[1]]));
-    fireEvent.change(search(), { target: { value: 'Storage' } });
-    await waitFor(() => expect(warehouseService.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'Storage', page: 1 })));
+    warehouseService.list.mockResolvedValue(page([{ ...mockWarehouses[1], contactNumber: undefined }]));
+    fireEvent.change(search(), { target: { value: term } });
+    await waitFor(() => expect(warehouseService.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: term, page: 1 })));
     expect(await screen.findByText('1 of 1 results')).toBeInTheDocument();
     expect(screen.queryByText('#1')).not.toBeInTheDocument();
     warehouseService.list.mockResolvedValue(page());

@@ -297,6 +297,11 @@ cover all rows matching the active filters. Desktop users can switch between tab
 cards; phones always use cards. In cards view, the map toggle opens the split map beside
 the cards on desktop and above them on mobile.
 
+The search box also finds primary and alternate mobile numbers across all warehouses.
+Full Indian numbers match with or without `+91`, `91`, `0091`, or a leading `0`,
+including spaces, dashes, and brackets. Phone fragments of at least four digits
+also work. The same search applies to map results.
+
 | Action | Result |
 |---|---|
 | Search or change a filter | After the debounce, fetch page 1 with the committed filters and refresh an open map's coordinates. |

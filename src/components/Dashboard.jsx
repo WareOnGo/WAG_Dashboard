@@ -499,7 +499,7 @@ const Dashboard = () => {
           }}>
             <Input
               aria-label="Search warehouses"
-              placeholder="Search warehouses..."
+              placeholder="Search warehouses or mobile number"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
