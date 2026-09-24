@@ -18,6 +18,9 @@ import { apiClient } from './apiClient.js';
  * is not re-requested on every open.
  */
 const cache = new Map();
+const images = new Map();
+const expires = new Map();
+const fresh = id => (expires.get(Number(id)) ?? 0) > Date.now();
 
 export const imageLabelService = {
   /**
@@ -25,7 +28,8 @@ export const imageLabelService = {
    * @param {number|string} warehouseId
    * @returns {Record<string, { classification: string, description: string|null, confidence: number|null }>|undefined}
    */
-  getCached: (warehouseId) => cache.get(Number(warehouseId)),
+  getCached: (warehouseId) => fresh(warehouseId) ? cache.get(Number(warehouseId)) : undefined,
+  getCachedImages: warehouseId => fresh(warehouseId) ? images.get(Number(warehouseId)) : undefined,
 
   /**
    * Fetch labels for one warehouse, populating the cache.
@@ -36,12 +40,14 @@ export const imageLabelService = {
     const res = await apiClient.get(`/image-labels/warehouse/${warehouseId}`);
     const labels = (res?.data ?? res)?.labels ?? {};
     cache.set(Number(warehouseId), labels);
+    images.set(Number(warehouseId), (res?.data ?? res)?.images);
+    expires.set(Number(warehouseId), Date.now() + 300_000);
     return labels;
   },
 
   /** Drop cached labels. Call after anything that changes a warehouse's media. */
   invalidate: (warehouseId) => {
-    if (warehouseId === undefined) cache.clear();
-    else cache.delete(Number(warehouseId));
+    if (warehouseId === undefined) { cache.clear(); images.clear(); expires.clear(); }
+    else { cache.delete(Number(warehouseId)); images.delete(Number(warehouseId)); expires.delete(Number(warehouseId)); }
   },
 };

@@ -1,3 +1,5 @@
+import ImageWithFallback from './ImageWithFallback';
+import { imageVariant } from '../utils/mediaUtils';
 import { useState, useEffect } from 'react';
 import { Image, Space, Button, Tag } from 'antd';
 import {
@@ -196,6 +198,7 @@ const WarehouseDetailsModal = ({
   const wd = warehouse.WarehouseData || warehouse.warehouseData || {};
   const coordMapsLink = buildCoordMapsLink(wd.latitude, wd.longitude);
   const media = getMediaFromWarehouse(warehouse);
+  const imageRecords = warehouse.images ?? imageLabelService.getCachedImages?.(warehouseId);
   const imageUrls = media.images || [];
   const videoUrls = media.videos || [];
   const docUrls = media.docs || [];
@@ -225,11 +228,13 @@ const WarehouseDetailsModal = ({
       gridTemplateColumns: m ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
     }}>
       {urls.map((url) => (
-        <Image
+        <ImageWithFallback
+          as={Image}
           // Keyed by URL, not index: sectioning reorders images, and an index
           // key would make React reuse the wrong <img> across a re-group.
           key={url}
-          src={url}
+          originalUrl={url}
+          webpUrl={imageVariant(imageRecords, url)}
           alt={`Warehouse ${warehouse.id} - ${imageLabels?.[url]?.description || 'Image'}`}
           title={imageLabels?.[url]?.description || undefined}
           crossOrigin="anonymous"

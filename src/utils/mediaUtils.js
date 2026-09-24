@@ -3,17 +3,37 @@
  * @param {{ media?: { images?: string[], videos?: string[], docs?: string[] } | null, photos?: string | null }} warehouse
  * @returns {{ images: string[], videos: string[], docs: string[] }}
  */
-export const getMediaFromWarehouse = (warehouse) => {
-  if (warehouse.media) return warehouse.media;
-
-  // Fallback: parse legacy photos CSV into media shape
-  if (warehouse.photos && typeof warehouse.photos === 'string') {
-    const urls = warehouse.photos.split(',').map(u => u.trim()).filter(Boolean);
-    return { images: urls, videos: [], docs: [] };
+const decodeJson = raw => {
+  for (let i = 0; i < 2 && typeof raw === 'string'; i++) {
+    try { raw = JSON.parse(raw); } catch { break; }
   }
-
-  return { images: [], videos: [], docs: [] };
+  return raw;
 };
+const urls = raw => {
+  const value = decodeJson(raw);
+  return (Array.isArray(value) ? value : [value]).flatMap(entry => typeof entry === 'string'
+    ? entry.split(/,\s*(?=https?:\/\/)|,\s+(?![^,]*\/)/i).map(url => url.trim()).filter(Boolean) : []);
+};
+export const getMediaFromWarehouse = warehouse => {
+  const media = decodeJson(warehouse?.media);
+  const legacy = { images: [], videos: [], docs: [] };
+  for (const url of urls(warehouse?.photos)) {
+    const path = url.split(/[?#]/)[0];
+    const kind = /\.(mp4|mov|avi|mkv|webm)$/i.test(path) ? 'videos'
+      : /\.(pdf|docx?|xlsx?)$/i.test(path) ? 'docs' : 'images';
+    legacy[kind].push(url);
+  }
+  return {
+    images: Array.isArray(warehouse?.images)
+      ? warehouse.images.map(image => image?.originalUrl).filter(url => typeof url === 'string')
+      : Array.isArray(media?.images) ? media.images : legacy.images,
+    videos: Array.isArray(media?.videos) ? media.videos : legacy.videos,
+    docs: Array.isArray(media?.docs) ? media.docs : legacy.docs,
+  };
+};
+
+export const imageVariant = (images, originalUrl) =>
+  Array.isArray(images) ? images.find(image => image.originalUrl === originalUrl)?.webpUrl : null;
 
 /**
  * Display order and copy for image classifications. UNKNOWN is folded into

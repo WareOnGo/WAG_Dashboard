@@ -21,3 +21,18 @@
 .ppt-config-modal .ant-modal-footer > div {
   flex-wrap: wrap;
 }
+
+.ppt-uncompressed-badge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 2px 3px;
+  background: #fff7e6;
+  color: #873800;
+  border-top: 2px solid #fa8c16;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 12px;
+  text-align: center;
+  pointer-events: none;
+}

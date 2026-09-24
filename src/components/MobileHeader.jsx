@@ -358,20 +358,20 @@ const MobileHeader = ({ onMenuToggle }) => {
   };
 
   // Called from PptConfigModal when user clicks Generate
-  const handlePptGenerate = async ({ pptType, customDetails, selectedImages }) => {
+  const handlePptGenerate = async ({ pptType, customDetails, selectedImages, compressedPpt = false }) => {
     setGeneratingPpt(true);
     try {
       const ids = pptWarehouseIds.trim();
       if (pptType === 'detailed') {
-        await generateDetailedPpt({ ids, selectedImages, customDetails });
+        await generateDetailedPpt({ ids, selectedImages, customDetails, compressedPpt });
       } else if (pptType === 'v2') {
-        await generatePptV2({ ids, selectedImages, customDetails });
+        await generatePptV2({ ids, selectedImages, customDetails, compressedPpt });
       } else if (pptType === 'v3') {
-        await generatePptV3({ ids, selectedImages, customDetails });
+        await generatePptV3({ ids, selectedImages, customDetails, compressedPpt });
       } else if (pptType === 'godamwale') {
-        await generateGodamwalePpt({ ids, selectedImages, customDetails });
+        await generateGodamwalePpt({ ids, selectedImages, customDetails, compressedPpt });
       } else if (pptType === 'tci') {
-        await generateTciPpt({ ids, selectedImages, customDetails });
+        await generateTciPpt({ ids, selectedImages, customDetails, compressedPpt });
       } else if (pptType === 'last-mile') {
         await generateLastMileExcel({ ids, selectedImages, customDetails });
       } else {

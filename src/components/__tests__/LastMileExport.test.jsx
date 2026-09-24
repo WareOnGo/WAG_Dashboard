@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { message } from 'antd';
 import PptConfigModal from '../PptConfigModal';
@@ -44,6 +44,22 @@ beforeEach(() => {
 });
 
 describe('Last Mile configuration', () => {
+  it('displays the WebP preview but submits the original URL for export', async () => {
+    const webpUrl = 'https://photos.test/webp/images/hash/preview.webp';
+    const rows = [{ ...warehouses[0], media: { images: [photos[0]] },
+      images: [{ originalUrl: photos[0], webpUrl }] }];
+    getByIds.mockResolvedValue(rows);
+    const props = { ...modalProps(), allWarehouses: rows };
+    const user = userEvent.setup();
+    render(<PptConfigModal {...props} />);
+    await selectFormat(user);
+    const image = screen.getByAltText('Warehouse');
+    expect(image).toHaveAttribute('src', webpUrl);
+    await user.click(image);
+    await user.click(screen.getByRole('button', { name: 'Generate Excel' }));
+    expect(props.onGenerate.mock.calls[0][0].selectedImages).toEqual({ 1: [photos[0]] });
+  });
+
   it.each([false, true])('selects and submits an Excel export on mobile=%s', async (isMobile) => {
     viewport.isMobile = isMobile;
     const props = modalProps();
@@ -53,6 +69,7 @@ describe('Last Mile configuration', () => {
     expect(screen.getByText('Workbook Details')).toBeInTheDocument();
     expect(screen.queryByText('WareOnGo POC')).not.toBeInTheDocument();
     expect(screen.queryByText('Include rent / commercials')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Generate compressed PPT (beta)' })).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText('e.g., XYZ Corp')).not.toBeInTheDocument();
     await user.type(screen.getByPlaceholderText(/Nelamangala/), 'Indore - 25,000 sft');
     // Four selections are kept, and clicking a fifth cannot exceed the limit.
@@ -122,6 +139,91 @@ describe('Last Mile configuration', () => {
   });
 });
 
+describe('compressed PPT configuration', () => {
+  const toggle = () => screen.getByRole('checkbox', { name: 'Generate compressed PPT (beta)' });
+  const pairedRows = () => [{ ...warehouses[0],
+    images: [
+      { originalUrl: photos[0], webpUrl: 'https://photos.test/compressed/0.webp' },
+      { originalUrl: photos[1], webpUrl: null },
+    ],
+  }];
+
+  it('defaults off, survives Back, and resets when the modal opens again', async () => {
+    const user = userEvent.setup();
+    const props = { ...modalProps(), allWarehouses: pairedRows() };
+    const view = render(<PptConfigModal {...props} />);
+    await selectFormat(user, 'PPT v2 (Standard)');
+    expect(toggle()).not.toBeChecked();
+    expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Generate PPT' }));
+    expect(props.onGenerate.mock.calls[0][0].compressedPpt).toBe(false);
+    await user.click(toggle());
+    await user.click(screen.getByRole('button', { name: /Back/ }));
+    await selectFormat(user, 'PPT v2 (Standard)');
+    expect(toggle()).toBeChecked();
+    view.rerender(<PptConfigModal {...props} open={false} />);
+    view.rerender(<PptConfigModal {...props} />);
+    await selectFormat(user, 'PPT v2 (Standard)');
+    expect(toggle()).not.toBeChecked();
+  });
+
+  it('marks only missing or failed WebPs orange and always submits original identities', async () => {
+    const user = userEvent.setup();
+    const props = { ...modalProps(), allWarehouses: pairedRows() };
+    render(<PptConfigModal {...props} />);
+    await selectFormat(user, 'PPT v2 (Standard)');
+    await user.click(toggle());
+    const tiles = screen.getAllByRole('button', { name: /Photo for warehouse/ });
+    expect(within(tiles[0]).queryByText('Will be uncompressed')).not.toBeInTheDocument();
+    expect(within(tiles[1]).getByText('Will be uncompressed')).toHaveClass('ppt-uncompressed-badge');
+    fireEvent.error(within(tiles[0]).getByAltText('Warehouse'));
+    expect(within(tiles[0]).getByAltText('Warehouse')).toHaveAttribute('src', photos[0]);
+    expect(within(tiles[0]).getByText('Will be uncompressed')).toBeInTheDocument();
+    await user.click(tiles[0]);
+    await user.click(tiles[1]);
+    await user.click(screen.getByRole('button', { name: 'Generate PPT' }));
+    expect(props.onGenerate.mock.calls[0][0]).toMatchObject({
+      compressedPpt: true, selectedImages: { 1: [photos[0], photos[1]] },
+    });
+    await user.click(toggle());
+    expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
+  });
+
+  it('marks a missing WebP layout and preserves the V3 photo/CAD split', async () => {
+    const user = userEvent.setup();
+    const rows = pairedRows();
+    rows[0].imageLabels = {
+      [photos[0]]: { classification: 'INDOOR' },
+      [photos[1]]: { classification: 'DOCUMENT', documentKind: 'LAYOUT' },
+    };
+    const props = { ...modalProps(), allWarehouses: rows };
+    render(<PptConfigModal {...props} />);
+    await selectFormat(user, 'PPT V3 (beta)');
+    await user.click(toggle());
+    const cad = screen.getByRole('button', { name: /CAD for warehouse/ });
+    expect(cad).toHaveAttribute('aria-pressed', 'true');
+    expect(within(cad).getByText('Will be uncompressed')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Photo for warehouse/ }));
+    await user.click(screen.getByRole('button', { name: 'Generate PPT' }));
+    expect(props.onGenerate.mock.calls[0][0]).toMatchObject({
+      compressedPpt: true, selectedImages: { 1: { photos: [photos[0]], cad: [photos[1]] } },
+    });
+  });
+
+  it('does not leak the option into Excel after switching formats', async () => {
+    const user = userEvent.setup();
+    const props = modalProps();
+    render(<PptConfigModal {...props} />);
+    await selectFormat(user, 'PPT v2 (Standard)');
+    await user.click(toggle());
+    await user.click(screen.getByRole('button', { name: /Back/ }));
+    await selectFormat(user, 'Last Mile (Excel)');
+    expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Generate Excel' }));
+    expect(props.onGenerate.mock.calls[0][0]).not.toHaveProperty('compressedPpt');
+  });
+});
+
 describe('dashboard export wiring', () => {
   const openExport = async (user) => {
     render(<MemoryRouter><MobileToolsProvider><MobileHeader onMenuToggle={vi.fn()} /></MobileToolsProvider></MemoryRouter>);
@@ -142,9 +244,14 @@ describe('dashboard export wiring', () => {
     exports[fn].mockResolvedValue(undefined);
     await openExport(user);
     await selectFormat(user, label);
+    if (fn !== 'generateLastMileExcel') {
+      await user.click(screen.getByRole('checkbox', { name: 'Generate compressed PPT (beta)' }));
+    }
     await user.click(screen.getByRole('button', { name: button }));
     await waitFor(() => expect(exports[fn]).toHaveBeenCalledTimes(1));
     expect(exports[fn].mock.calls[0][0].ids).toBe('1');
+    if (fn !== 'generateLastMileExcel') expect(exports[fn].mock.calls[0][0].compressedPpt).toBe(true);
+    else expect(exports[fn].mock.calls[0][0]).not.toHaveProperty('compressedPpt');
     for (const [name, service] of Object.entries(exports)) {
       if (name !== fn) expect(service).not.toHaveBeenCalled();
     }

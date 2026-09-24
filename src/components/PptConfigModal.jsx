@@ -1,3 +1,5 @@
+import ImageWithFallback from './ImageWithFallback';
+import { imageVariant, getMediaFromWarehouse } from '../utils/mediaUtils';
 import React, { useState, useEffect, useId } from 'react';
 import { Modal, Radio, Input, Button, Spin, Typography, Image, Checkbox, message } from 'antd';
 import { verifiedNumberService } from '../services/verifiedNumberService';
@@ -93,7 +95,7 @@ const photoLimit = (type) => type === 'last-mile' || CAPPED_PHOTO_TYPES.includes
  *  - open: boolean
  *  - warehouseIds: string (comma-separated)
  *  - onCancel: () => void
- *  - onGenerate: ({ pptType, customDetails, selectedImages }) => Promise<void>
+ *  - onGenerate: ({ pptType, customDetails, selectedImages, compressedPpt }) => Promise<void>
  *  - generating: boolean
  */
 const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerate, generating }) => {
@@ -115,6 +117,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   // Layout drawings, kept separate from photographs because they land on their own
   // slides. An image is one or the other, never both — it appears once in the deck.
   const [selectedCad, setSelectedCad] = useState({}); // { warehouseId: [url, ...] }
+  const [compressedPpt, setCompressedPpt] = useState(false);
+  const [failedWebps, setFailedWebps] = useState(() => new Set());
   const [clientName, setClientName] = useState('');
   const [clientRequirement, setClientRequirement] = useState('');
   const [pocName, setPocName] = useState('');
@@ -144,6 +148,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setWarehouses([]);
       setSelectedImages({});
       setSelectedCad({});
+      setCompressedPpt(false);
+      setFailedWebps(new Set());
       setClientName('');
       setClientRequirement('');
       setPocName('');
@@ -219,9 +225,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
     // extract would be far worse than pre-ticking nothing.
     const autoCad = {};
     matched.forEach((wh) => {
-      if (wh.photos) {
-        const allUrls = wh.photos.split(',').map((u) => u.trim());
-        const imageUrls = allUrls.filter((u) => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(u));
+      {
+        const imageUrls = getMediaFromWarehouse(wh).images.filter(u => /\.(jpg|jpeg|png|gif|webp|svg)([?#].*)?$/i.test(u));
         if (pptType === 'detailed') {
           autoSelected[wh.id] = imageUrls.slice(0, 4);
         } else {
@@ -316,7 +321,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       )
       : selectedImages;
 
-    onGenerate({ pptType, customDetails, selectedImages: payloadImages });
+    onGenerate({ pptType, customDetails, selectedImages: payloadImages, ...(!isExcel ? { compressedPpt } : {}) });
   };
 
   // --- Render helpers ---
@@ -383,13 +388,15 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       ? (selectedCad[warehouse.id] || []).includes(url)
       : (selectedImages[warehouse.id] || []).includes(url);
     const accent = isCad ? 'var(--text-warning, #fa8c16)' : 'var(--accent-primary, #1890ff)';
+    const webpUrl = imageVariant(warehouse.images, url);
+    const uncompressed = !isExcel && compressedPpt && (!webpUrl || failedWebps.has(webpUrl));
 
     return (
       <button
         type="button"
         className="ppt-media-tile"
         aria-pressed={active}
-        aria-label={`${isCad ? "CAD" : "Photo"} for warehouse ${warehouse.id}: ${url.split("/").pop()}`}
+        aria-label={`${isCad ? "CAD" : "Photo"} for warehouse ${warehouse.id}: ${url.split("/").pop()}${uncompressed ? ' — Will be uncompressed' : ''}`}
         key={url}
         onClick={() => (isCad ? toggleCad(warehouse.id, url) : toggleImage(warehouse.id, url))}
         style={{
@@ -407,13 +414,21 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           transition: 'all 0.15s ease',
         }}
       >
-        <img
-          src={url}
+        <ImageWithFallback
+          originalUrl={url}
+          webpUrl={webpUrl}
+          onFallback={() => setFailedWebps(previous => new Set(previous).add(webpUrl))}
           alt="Warehouse"
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           loading="lazy"
           crossOrigin="anonymous"
         />
+        {uncompressed && (
+          <span className="ppt-uncompressed-badge" style={{ bottom: kind ? '14px' : 0 }}
+            title="No usable WebP is available. The original image will be used in the PPT.">
+            Will be uncompressed
+          </span>
+        )}
         {kind && (
           // What the classifier called it, so a pre-ticked drawing is explained and
           // a mislabelled one is visibly arguable rather than silently trusted.
@@ -455,16 +470,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   };
 
   const renderImageGallery = (warehouse) => {
-    if (!warehouse.photos) {
-      return (
-        <Text type="secondary" style={{ fontSize: '12px' }}>
-          No photos available
-        </Text>
-      );
-    }
-
-    const allUrls = warehouse.photos.split(',').map((u) => u.trim());
-    const imageUrls = allUrls.filter((u) => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(u));
+    const imageUrls = getMediaFromWarehouse(warehouse).images.filter(u => /\.(jpg|jpeg|png|gif|webp|svg)([?#].*)?$/i.test(u));
 
     if (imageUrls.length === 0) {
       return (
@@ -553,6 +559,16 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
   const renderStep2 = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {!isExcel && (
+        <div>
+          <Checkbox checked={compressedPpt} onChange={(e) => setCompressedPpt(e.target.checked)}>
+            Generate compressed PPT (beta)
+          </Checkbox>
+          <Text style={{ ...checkboxHintStyle, marginTop: '6px', display: 'block' }}>
+            Uses WebP images when available. Images marked in orange will use their originals.
+          </Text>
+        </div>
+      )}
       {/* Warehouse previews with image selection */}
       <div>
         <Text strong style={{ fontSize: '14px', color: 'var(--text-primary, rgba(255,255,255,0.85))', display: 'block', marginBottom: '12px' }}>
