@@ -32,8 +32,8 @@ export const getMediaFromWarehouse = warehouse => {
   };
 };
 
-export const imageVariant = (images, originalUrl) =>
-  Array.isArray(images) ? images.find(image => image.originalUrl === originalUrl)?.webpUrl : null;
+export const imageVariant = (images, originalUrl, format = 'webp') =>
+  Array.isArray(images) ? images.find(image => image.originalUrl === originalUrl)?.[`${format}Url`] : null;
 
 /**
  * Display order and copy for image classifications. UNKNOWN is folded into

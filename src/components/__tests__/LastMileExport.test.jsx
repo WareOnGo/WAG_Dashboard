@@ -143,8 +143,8 @@ describe('compressed PPT configuration', () => {
   const toggle = () => screen.getByRole('checkbox', { name: 'Generate compressed PPT (beta)' });
   const pairedRows = () => [{ ...warehouses[0],
     images: [
-      { originalUrl: photos[0], webpUrl: 'https://photos.test/compressed/0.webp' },
-      { originalUrl: photos[1], webpUrl: null },
+      { originalUrl: photos[0], webpUrl: 'https://photos.test/compressed/0.webp', jpegUrl: 'https://photos.test/jpeg/0.jpg' },
+      { originalUrl: photos[1], webpUrl: 'https://photos.test/compressed/1.webp', jpegUrl: null },
     ],
   }];
 
@@ -167,7 +167,7 @@ describe('compressed PPT configuration', () => {
     expect(toggle()).not.toBeChecked();
   });
 
-  it('marks only missing or failed WebPs orange and always submits original identities', async () => {
+  it('marks only missing or failed JPEGs orange and always submits original identities', async () => {
     const user = userEvent.setup();
     const props = { ...modalProps(), allWarehouses: pairedRows() };
     render(<PptConfigModal {...props} />);
@@ -176,6 +176,8 @@ describe('compressed PPT configuration', () => {
     const tiles = screen.getAllByRole('button', { name: /Photo for warehouse/ });
     expect(within(tiles[0]).queryByText('Will be uncompressed')).not.toBeInTheDocument();
     expect(within(tiles[1]).getByText('Will be uncompressed')).toHaveClass('ppt-uncompressed-badge');
+    expect(within(tiles[0]).getByAltText('Warehouse')).toHaveAttribute('src', 'https://photos.test/jpeg/0.jpg');
+    expect(within(tiles[1]).getByAltText('Warehouse')).toHaveAttribute('src', photos[1]);
     fireEvent.error(within(tiles[0]).getByAltText('Warehouse'));
     expect(within(tiles[0]).getByAltText('Warehouse')).toHaveAttribute('src', photos[0]);
     expect(within(tiles[0]).getByText('Will be uncompressed')).toBeInTheDocument();
@@ -189,7 +191,21 @@ describe('compressed PPT configuration', () => {
     expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
   });
 
-  it('marks a missing WebP layout and preserves the V3 photo/CAD split', async () => {
+  it('keeps a reused original JPEG available even if the gallery WebP failed', async () => {
+    const user = userEvent.setup();
+    const rows = pairedRows();
+    rows[0].images[0].jpegUrl = photos[0];
+    render(<PptConfigModal {...modalProps()} allWarehouses={rows} />);
+    await selectFormat(user, 'PPT v2 (Standard)');
+    const tile = screen.getAllByRole('button', { name: /Photo for warehouse/ })[0];
+    expect(within(tile).getByAltText('Warehouse')).toHaveAttribute('src', rows[0].images[0].webpUrl);
+    fireEvent.error(within(tile).getByAltText('Warehouse'));
+    await user.click(toggle());
+    expect(within(tile).getByAltText('Warehouse')).toHaveAttribute('src', photos[0]);
+    expect(within(tile).queryByText('Will be uncompressed')).not.toBeInTheDocument();
+  });
+
+  it('marks a missing JPEG layout and preserves the V3 photo/CAD split', async () => {
     const user = userEvent.setup();
     const rows = pairedRows();
     rows[0].imageLabels = {

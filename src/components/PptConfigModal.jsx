@@ -118,7 +118,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   // slides. An image is one or the other, never both — it appears once in the deck.
   const [selectedCad, setSelectedCad] = useState({}); // { warehouseId: [url, ...] }
   const [compressedPpt, setCompressedPpt] = useState(false);
-  const [failedWebps, setFailedWebps] = useState(() => new Set());
+  const [failedJpegs, setFailedJpegs] = useState(() => new Set());
   const [clientName, setClientName] = useState('');
   const [clientRequirement, setClientRequirement] = useState('');
   const [pocName, setPocName] = useState('');
@@ -149,7 +149,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setSelectedImages({});
       setSelectedCad({});
       setCompressedPpt(false);
-      setFailedWebps(new Set());
+      setFailedJpegs(new Set());
       setClientName('');
       setClientRequirement('');
       setPocName('');
@@ -389,7 +389,9 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       : (selectedImages[warehouse.id] || []).includes(url);
     const accent = isCad ? 'var(--text-warning, #fa8c16)' : 'var(--accent-primary, #1890ff)';
     const webpUrl = imageVariant(warehouse.images, url);
-    const uncompressed = !isExcel && compressedPpt && (!webpUrl || failedWebps.has(webpUrl));
+    const jpegUrl = imageVariant(warehouse.images, url, 'jpeg');
+    const useJpeg = !isExcel && compressedPpt;
+    const uncompressed = useJpeg && (!jpegUrl || failedJpegs.has(jpegUrl));
 
     return (
       <button
@@ -417,7 +419,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         <ImageWithFallback
           originalUrl={url}
           webpUrl={webpUrl}
-          onFallback={() => setFailedWebps(previous => new Set(previous).add(webpUrl))}
+          variantUrl={useJpeg ? (jpegUrl || null) : webpUrl}
+          onFallback={useJpeg ? () => setFailedJpegs(previous => new Set(previous).add(jpegUrl)) : undefined}
           alt="Warehouse"
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           loading="lazy"
@@ -425,7 +428,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
         />
         {uncompressed && (
           <span className="ppt-uncompressed-badge" style={{ bottom: kind ? '14px' : 0 }}
-            title="No usable WebP is available. The original image will be used in the PPT.">
+            title="No usable compressed JPEG is available. The original image will be used in the PPT.">
             Will be uncompressed
           </span>
         )}
@@ -565,7 +568,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
             Generate compressed PPT (beta)
           </Checkbox>
           <Text style={{ ...checkboxHintStyle, marginTop: '6px', display: 'block' }}>
-            Uses WebP images when available. Images marked in orange will use their originals.
+            Uses compressed JPEG images when available. Images marked in orange will use their originals.
           </Text>
         </div>
       )}

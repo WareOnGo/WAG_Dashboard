@@ -34,4 +34,25 @@ describe('explicit WebP image pairs', () => {
     expect(getMediaFromWarehouse({ media: JSON.stringify({ images: [] }), photos: originalUrl }).images).toEqual([]);
     expect(getMediaFromWarehouse({ media: { images: [originalUrl] }, images: rows }).images).toEqual([originalUrl]);
   });
+
+  it('selects JPEG explicitly while preserving the gallery WebP default', () => {
+    const originalUrl = 'https://fixture.test/original.jpg';
+    const webpUrl = 'https://fixture.test/gallery.webp';
+    const jpegUrl = 'https://fixture.test/ppt.jpg';
+    const rows = [{ originalUrl, webpUrl, jpegUrl }];
+    expect(imageVariant(rows, originalUrl)).toBe(webpUrl);
+    expect(imageVariant(rows, originalUrl, 'jpeg')).toBe(jpegUrl);
+    const fallback = vi.fn();
+    const view = render(<ImageWithFallback alt="Photo" originalUrl={originalUrl} webpUrl={webpUrl}
+      variantUrl={jpegUrl} onFallback={fallback} />);
+    const image = screen.getByAltText('Photo');
+    expect(image).toHaveAttribute('src', jpegUrl);
+    fireEvent.error(image);
+    expect(image).toHaveAttribute('src', originalUrl);
+    expect(fallback).toHaveBeenCalledTimes(1);
+    view.rerender(<ImageWithFallback alt="Photo" originalUrl={originalUrl} webpUrl={webpUrl} variantUrl={null} />);
+    expect(image).toHaveAttribute('src', originalUrl);
+    view.rerender(<ImageWithFallback alt="Photo" originalUrl={originalUrl} webpUrl={webpUrl} />);
+    expect(image).toHaveAttribute('src', webpUrl);
+  });
 });
