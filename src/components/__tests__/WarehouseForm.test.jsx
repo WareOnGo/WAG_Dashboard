@@ -114,7 +114,7 @@ describe('WarehouseForm current fields and payload', () => {
   });
 
   it('adds an area and includes both numeric values in the submission', async () => {
-    const { props } = open({ initialData: { ...record, totalSpaceSqft: [1000] } });
+    const { props } = open({ initialData: { ...record, totalSpaceSqft: [1000], offeredSpaceSqft: '99999' } });
     fireEvent.click(screen.getByText('Add Space Value').closest('button'));
     const areas = screen.getAllByPlaceholderText('Enter space');
     expect(areas).toHaveLength(2);
@@ -122,6 +122,7 @@ describe('WarehouseForm current fields and payload', () => {
     await submit();
     await waitFor(() => expect(props.onSubmit).toHaveBeenCalled());
     expect(props.onSubmit.mock.lastCall[0].totalSpaceSqft).toEqual([1000, 2500]);
+    expect(props.onSubmit.mock.lastCall[0]).not.toHaveProperty('offeredSpaceSqft');
   });
 
   it('rejects a warehouse whose offered areas are all empty or zero', async () => {

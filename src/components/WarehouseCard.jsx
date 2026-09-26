@@ -33,6 +33,7 @@ const WarehouseCard = ({
   const isAdmin = !!user?.isAdmin;
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const offeredAreas = Array.isArray(warehouse.totalSpaceSqft) ? warehouse.totalSpaceSqft : [];
 
   // Get first image from media (with fallback to photos CSV)
   const getFirstImage = () => {
@@ -223,10 +224,10 @@ const WarehouseCard = ({
               {warehouse.postalCode && <p>Postal Code: {warehouse.postalCode}</p>}
             </div>
 
-            {warehouse.offeredSpaceSqft && (
+            {(offeredAreas.length > 0 || warehouse.clearHeightFt) && (
               <div className="warehouse-card__detail-section">
                 <h5>Space Information</h5>
-                <p>Offered Space: {warehouse.offeredSpaceSqft}</p>
+                {offeredAreas.length > 0 && <p>Offered Area: {offeredAreas.map(value => Number(value).toLocaleString()).join(' / ')} sq ft</p>}
                 {warehouse.clearHeightFt && <p>Clear Height: {warehouse.clearHeightFt} ft</p>}
               </div>
             )}
