@@ -177,7 +177,9 @@ Dashboard previews use `images[].jpegUrl`, paired by `originalUrl` from
 `labeled_warehouse_images`. Cards, galleries, maps, editing and export pickers
 try that compressed JPEG first, falling back to the original when missing or
 when loading fails. Original URLs remain the identity for edits and export
-selections; the PPT compression option still controls the exported file.
+selections. Every PPT template uses compressed JPEGs automatically, with raw
+originals as fallbacks; there is no compression toggle. Excel exports retain
+their existing image handling.
 
 ### 11. `pptService` bypasses `apiClient` deliberately
 PPT generation returns a binary blob and can take minutes. It uses raw `fetch` with a

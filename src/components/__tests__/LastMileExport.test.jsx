@@ -140,7 +140,6 @@ describe('Last Mile configuration', () => {
 });
 
 describe('compressed PPT configuration', () => {
-  const toggle = () => screen.getByRole('checkbox', { name: 'Generate compressed PPT (beta)' });
   const pairedRows = () => [{ ...warehouses[0],
     images: [
       { originalUrl: photos[0], webpUrl: 'https://photos.test/compressed/0.webp', jpegUrl: 'https://photos.test/jpeg/0.jpg' },
@@ -148,23 +147,23 @@ describe('compressed PPT configuration', () => {
     ],
   }];
 
-  it('defaults off, survives Back, and resets when the modal opens again', async () => {
+  it('uses JPEG previews automatically without a compression checkbox or toggle payload', async () => {
     const user = userEvent.setup();
     const props = { ...modalProps(), allWarehouses: pairedRows() };
     const view = render(<PptConfigModal {...props} />);
     await selectFormat(user, 'PPT v2 (Standard)');
-    expect(toggle()).not.toBeChecked();
-    expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /compressed PPT/i })).not.toBeInTheDocument();
+    expect(screen.getAllByAltText('Warehouse')[0]).toHaveAttribute('src', 'https://photos.test/jpeg/0.jpg');
+    expect(screen.getByText('Will be uncompressed')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Generate PPT' }));
-    expect(props.onGenerate.mock.calls[0][0].compressedPpt).toBe(false);
-    await user.click(toggle());
+    expect(props.onGenerate.mock.calls[0][0]).not.toHaveProperty('compressedPpt');
     await user.click(screen.getByRole('button', { name: /Back/ }));
     await selectFormat(user, 'PPT v2 (Standard)');
-    expect(toggle()).toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: /compressed PPT/i })).not.toBeInTheDocument();
     view.rerender(<PptConfigModal {...props} open={false} />);
     view.rerender(<PptConfigModal {...props} />);
     await selectFormat(user, 'PPT v2 (Standard)');
-    expect(toggle()).not.toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: /compressed PPT/i })).not.toBeInTheDocument();
   });
 
   it('marks only missing or failed JPEGs orange and always submits original identities', async () => {
@@ -172,7 +171,6 @@ describe('compressed PPT configuration', () => {
     const props = { ...modalProps(), allWarehouses: pairedRows() };
     render(<PptConfigModal {...props} />);
     await selectFormat(user, 'PPT v2 (Standard)');
-    await user.click(toggle());
     const tiles = screen.getAllByRole('button', { name: /Photo for warehouse/ });
     expect(within(tiles[0]).queryByText('Will be uncompressed')).not.toBeInTheDocument();
     expect(within(tiles[1]).getByText('Will be uncompressed')).toHaveClass('ppt-uncompressed-badge');
@@ -185,10 +183,9 @@ describe('compressed PPT configuration', () => {
     await user.click(tiles[1]);
     await user.click(screen.getByRole('button', { name: 'Generate PPT' }));
     expect(props.onGenerate.mock.calls[0][0]).toMatchObject({
-      compressedPpt: true, selectedImages: { 1: [photos[0], photos[1]] },
+      selectedImages: { 1: [photos[0], photos[1]] },
     });
-    await user.click(toggle());
-    expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
+    expect(props.onGenerate.mock.calls[0][0]).not.toHaveProperty('compressedPpt');
   });
 
   it('uses a verified small original JPEG without treating it as a missing variant', async () => {
@@ -199,24 +196,26 @@ describe('compressed PPT configuration', () => {
     await selectFormat(user, 'PPT v2 (Standard)');
     const tile = screen.getAllByRole('button', { name: /Photo for warehouse/ })[0];
     expect(within(tile).getByAltText('Warehouse')).toHaveAttribute('src', photos[0]);
-    await user.click(toggle());
-    expect(within(tile).getByAltText('Warehouse')).toHaveAttribute('src', photos[0]);
     expect(within(tile).queryByText('Will be uncompressed')).not.toBeInTheDocument();
   });
 
-  it('remembers a failed JPEG preview when compressed export is enabled later', async () => {
+  it('retries previously failed JPEG previews when the modal opens again', async () => {
     const user = userEvent.setup();
-    render(<PptConfigModal {...modalProps()} allWarehouses={pairedRows()} />);
+    const props = { ...modalProps(), allWarehouses: pairedRows() };
+    const view = render(<PptConfigModal {...props} />);
     await selectFormat(user, 'PPT v2 (Standard)');
     const tile = screen.getAllByRole('button', { name: /Photo for warehouse/ })[0];
     const image = within(tile).getByAltText('Warehouse');
     expect(image).toHaveAttribute('src', 'https://photos.test/jpeg/0.jpg');
     fireEvent.error(image);
     expect(image).toHaveAttribute('src', photos[0]);
-    expect(within(tile).queryByText('Will be uncompressed')).not.toBeInTheDocument();
-    await user.click(toggle());
     expect(within(tile).getByText('Will be uncompressed')).toBeInTheDocument();
-    expect(image).toHaveAttribute('src', photos[0]);
+    view.rerender(<PptConfigModal {...props} open={false} />);
+    view.rerender(<PptConfigModal {...props} />);
+    await selectFormat(user, 'PPT v2 (Standard)');
+    const reopened = screen.getAllByRole('button', { name: /Photo for warehouse/ })[0];
+    expect(within(reopened).queryByText('Will be uncompressed')).not.toBeInTheDocument();
+    expect(within(reopened).getByAltText('Warehouse')).toHaveAttribute('src', 'https://photos.test/jpeg/0.jpg');
   });
 
   it('marks a missing JPEG layout and preserves the V3 photo/CAD split', async () => {
@@ -229,23 +228,21 @@ describe('compressed PPT configuration', () => {
     const props = { ...modalProps(), allWarehouses: rows };
     render(<PptConfigModal {...props} />);
     await selectFormat(user, 'PPT V3 (beta)');
-    await user.click(toggle());
     const cad = screen.getByRole('button', { name: /CAD for warehouse/ });
     expect(cad).toHaveAttribute('aria-pressed', 'true');
     expect(within(cad).getByText('Will be uncompressed')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Photo for warehouse/ }));
     await user.click(screen.getByRole('button', { name: 'Generate PPT' }));
     expect(props.onGenerate.mock.calls[0][0]).toMatchObject({
-      compressedPpt: true, selectedImages: { 1: { photos: [photos[0]], cad: [photos[1]] } },
+      selectedImages: { 1: { photos: [photos[0]], cad: [photos[1]] } },
     });
   });
 
-  it('does not leak the option into Excel after switching formats', async () => {
+  it('does not show PPT fallback indicators in Excel after switching formats', async () => {
     const user = userEvent.setup();
     const props = modalProps();
     render(<PptConfigModal {...props} />);
     await selectFormat(user, 'PPT v2 (Standard)');
-    await user.click(toggle());
     await user.click(screen.getByRole('button', { name: /Back/ }));
     await selectFormat(user, 'Last Mile (Excel)');
     expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
@@ -274,14 +271,11 @@ describe('dashboard export wiring', () => {
     exports[fn].mockResolvedValue(undefined);
     await openExport(user);
     await selectFormat(user, label);
-    if (fn !== 'generateLastMileExcel') {
-      await user.click(screen.getByRole('checkbox', { name: 'Generate compressed PPT (beta)' }));
-    }
+    expect(screen.queryByRole('checkbox', { name: /compressed PPT/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: button }));
     await waitFor(() => expect(exports[fn]).toHaveBeenCalledTimes(1));
     expect(exports[fn].mock.calls[0][0].ids).toBe('1');
-    if (fn !== 'generateLastMileExcel') expect(exports[fn].mock.calls[0][0].compressedPpt).toBe(true);
-    else expect(exports[fn].mock.calls[0][0]).not.toHaveProperty('compressedPpt');
+    expect(exports[fn].mock.calls[0][0]).not.toHaveProperty('compressedPpt');
     for (const [name, service] of Object.entries(exports)) {
       if (name !== fn) expect(service).not.toHaveBeenCalled();
     }

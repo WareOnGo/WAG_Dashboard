@@ -95,7 +95,7 @@ const photoLimit = (type) => type === 'last-mile' || CAPPED_PHOTO_TYPES.includes
  *  - open: boolean
  *  - warehouseIds: string (comma-separated)
  *  - onCancel: () => void
- *  - onGenerate: ({ pptType, customDetails, selectedImages, compressedPpt }) => Promise<void>
+ *  - onGenerate: ({ pptType, customDetails, selectedImages }) => Promise<void>
  *  - generating: boolean
  */
 const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerate, generating }) => {
@@ -117,7 +117,6 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   // Layout drawings, kept separate from photographs because they land on their own
   // slides. An image is one or the other, never both — it appears once in the deck.
   const [selectedCad, setSelectedCad] = useState({}); // { warehouseId: [url, ...] }
-  const [compressedPpt, setCompressedPpt] = useState(false);
   const [failedJpegs, setFailedJpegs] = useState(() => new Set());
   const [clientName, setClientName] = useState('');
   const [clientRequirement, setClientRequirement] = useState('');
@@ -148,7 +147,6 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setWarehouses([]);
       setSelectedImages({});
       setSelectedCad({});
-      setCompressedPpt(false);
       setFailedJpegs(new Set());
       setClientName('');
       setClientRequirement('');
@@ -321,7 +319,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       )
       : selectedImages;
 
-    onGenerate({ pptType, customDetails, selectedImages: payloadImages, ...(!isExcel ? { compressedPpt } : {}) });
+    onGenerate({ pptType, customDetails, selectedImages: payloadImages });
   };
 
   // --- Render helpers ---
@@ -389,8 +387,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       : (selectedImages[warehouse.id] || []).includes(url);
     const accent = isCad ? 'var(--text-warning, #fa8c16)' : 'var(--accent-primary, #1890ff)';
     const jpegUrl = imageVariant(warehouse.images, url);
-    const useJpeg = !isExcel && compressedPpt;
-    const uncompressed = useJpeg && (!jpegUrl || failedJpegs.has(jpegUrl));
+    const uncompressed = !isExcel && (!jpegUrl || failedJpegs.has(jpegUrl));
 
     return (
       <button
@@ -560,16 +557,6 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
 
   const renderStep2 = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {!isExcel && (
-        <div>
-          <Checkbox checked={compressedPpt} onChange={(e) => setCompressedPpt(e.target.checked)}>
-            Generate compressed PPT (beta)
-          </Checkbox>
-          <Text style={{ ...checkboxHintStyle, marginTop: '6px', display: 'block' }}>
-            Uses compressed JPEG images when available. Images marked in orange will use their originals.
-          </Text>
-        </div>
-      )}
       {/* Warehouse previews with image selection */}
       <div>
         <Text strong style={{ fontSize: '14px', color: 'var(--text-primary, rgba(255,255,255,0.85))', display: 'block', marginBottom: '12px' }}>

@@ -41,11 +41,11 @@ const ok = (size = 2048) => ({
 
 describe('PPT generation requests', () => {
   it.each(['generateDetailedPpt', 'generatePptV2', 'generatePptV3', 'generateGodamwalePpt', 'generateTciPpt'])(
-    '%s defaults to originals and sends the opt-in boolean without replacing selections', async fn => {
+    '%s always requests JPEGs, including from older callers, without replacing selections', async fn => {
       global.fetch.mockResolvedValue(ok());
       await service[fn](PPT_ARGS);
-      expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ ...PPT_ARGS, compressedPpt: false });
-      await service[fn]({ ...PPT_ARGS, compressedPpt: true });
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ ...PPT_ARGS, compressedPpt: true });
+      await service[fn]({ ...PPT_ARGS, compressedPpt: false });
       expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toEqual({ ...PPT_ARGS, compressedPpt: true });
     },
   );
