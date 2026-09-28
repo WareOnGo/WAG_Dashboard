@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import WarehouseDetailsModal from '../WarehouseDetailsModal';
 
 // The modal reads the cache during render and fetches on a miss; stub both.
@@ -31,6 +31,21 @@ describe('WarehouseDetailsModal image sections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     imageLabelService.getCached.mockReturnValue(undefined);
+  });
+
+  it('shows compressed JPEGs in the gallery and falls back to each original', async () => {
+    const jpegUrl = 'https://cdn/jpeg/a-compressed.jpg';
+    open({ ...warehouse, imageLabels: {}, images: [
+      { originalUrl: IMAGES[0], jpegUrl, webpUrl: 'https://cdn/a.webp' },
+      { originalUrl: IMAGES[1], jpegUrl: null },
+    ] });
+    const gallery = document.querySelectorAll('.ant-image img');
+    expect(gallery).toHaveLength(2);
+    expect(gallery[0]).toHaveAttribute('src', jpegUrl);
+    expect(gallery[1]).toHaveAttribute('src', IMAGES[1]);
+    fireEvent.error(gallery[0]);
+    await waitFor(() => expect(gallery[0]).toHaveAttribute('src', IMAGES[0]));
+    expect(imageLabelService.getForWarehouse).not.toHaveBeenCalled();
   });
 
   it('segments images by classification once labels arrive', async () => {

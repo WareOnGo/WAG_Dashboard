@@ -13,7 +13,8 @@ import {
 import { useViewport } from '../hooks/useViewport';
 import { useAuth } from '../contexts/AuthContext';
 import RedactedPhone from './RedactedPhone';
-import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import ImageWithFallback from './ImageWithFallback';
+import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
 import './WarehouseCard.css';
 
 /**
@@ -135,8 +136,9 @@ const WarehouseCard = ({
         {/* Image Section */}
         <div className="warehouse-card__image">
           {firstImage && firstImage.length > 0 && !imageError ? (
-            <img
-              src={firstImage}
+            <ImageWithFallback
+              originalUrl={firstImage}
+              variantUrl={imageVariant(warehouse.images, firstImage)}
               alt={`Warehouse ${warehouse.id}`}
               style={{
                 width: '100%',

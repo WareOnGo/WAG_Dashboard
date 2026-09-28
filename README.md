@@ -173,6 +173,12 @@ Warehouses may carry either the new `media` JSONB (`{ images, videos, docs }`) o
 comma-separated `photos` string. `utils/mediaUtils.getMediaFromWarehouse()` normalizes both,
 and every consumer goes through it. Writes double-write both columns.
 
+Dashboard previews use `images[].jpegUrl`, paired by `originalUrl` from
+`labeled_warehouse_images`. Cards, galleries, maps, editing and export pickers
+try that compressed JPEG first, falling back to the original when missing or
+when loading fails. Original URLs remain the identity for edits and export
+selections; the PPT compression option still controls the exported file.
+
 ### 11. `pptService` bypasses `apiClient` deliberately
 PPT generation returns a binary blob and can take minutes. It uses raw `fetch` with a
 10-minute timeout and its own `Authorization` header, and can point at a different origin

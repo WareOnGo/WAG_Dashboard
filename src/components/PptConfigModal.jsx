@@ -388,8 +388,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       ? (selectedCad[warehouse.id] || []).includes(url)
       : (selectedImages[warehouse.id] || []).includes(url);
     const accent = isCad ? 'var(--text-warning, #fa8c16)' : 'var(--accent-primary, #1890ff)';
-    const webpUrl = imageVariant(warehouse.images, url);
-    const jpegUrl = imageVariant(warehouse.images, url, 'jpeg');
+    const jpegUrl = imageVariant(warehouse.images, url);
     const useJpeg = !isExcel && compressedPpt;
     const uncompressed = useJpeg && (!jpegUrl || failedJpegs.has(jpegUrl));
 
@@ -418,9 +417,8 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       >
         <ImageWithFallback
           originalUrl={url}
-          webpUrl={webpUrl}
-          variantUrl={useJpeg ? (jpegUrl || null) : webpUrl}
-          onFallback={useJpeg ? () => setFailedJpegs(previous => new Set(previous).add(jpegUrl)) : undefined}
+          variantUrl={jpegUrl}
+          onFallback={() => setFailedJpegs(previous => new Set(previous).add(jpegUrl))}
           alt="Warehouse"
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           loading="lazy"

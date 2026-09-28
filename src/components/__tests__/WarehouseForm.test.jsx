@@ -38,6 +38,19 @@ beforeEach(() => {
 });
 
 describe('WarehouseForm current fields and payload', () => {
+  it('previews compressed JPEGs while submitting original media URLs', async () => {
+    const originalUrl = 'https://cdn/warehouse.jpg', jpegUrl = 'https://cdn/jpeg/warehouse.jpg';
+    const media = { images: [originalUrl], videos: [], docs: [] };
+    const { props } = open({ initialData: { ...record, media, images: [{ originalUrl, jpegUrl }] } });
+    const image = await screen.findByAltText('Image 1');
+    expect(image).toHaveAttribute('src', jpegUrl);
+    fireEvent.error(image);
+    await waitFor(() => expect(image).toHaveAttribute('src', originalUrl));
+    await submit();
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(1));
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ media, photos: originalUrl }));
+  });
+
   it('renders current sections and a native warehouse-type selection', () => {
     open();
     expect(screen.getByText('Create New Warehouse')).toBeInTheDocument();

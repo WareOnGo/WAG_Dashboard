@@ -76,6 +76,21 @@ async function mount(props = {}) {
 }
 
 describe('dashboard warehouse map', () => {
+  it('tries the compressed JPEG before the original and hides only after both fail', async () => {
+    const originalUrl = 'https://cdn/warehouse.jpg', jpegUrl = 'https://cdn/jpeg/warehouse.jpg';
+    warehouseService.getById.mockResolvedValue({ ...full(42), images: [{ originalUrl, jpegUrl }] });
+    const { map } = await mount();
+    clickPin(map, 42);
+    await screen.findByRole('button', { name: 'View', exact: true });
+    const image = document.querySelector('.warehouse-map-card__image');
+    expect(image).toHaveAttribute('src', jpegUrl);
+    fireEvent.error(image);
+    expect(image).toHaveAttribute('src', originalUrl);
+    expect(image).toBeVisible();
+    fireEvent.error(image);
+    expect(image).not.toBeVisible();
+  });
+
   it('uses one warehouse source and layer, with no eager detail fetches', async () => {
     const { map } = await mount({ filters: { fireNoc: 'available' } });
     expect(Object.keys(map.sources)).toEqual(['dashboard-warehouses']);

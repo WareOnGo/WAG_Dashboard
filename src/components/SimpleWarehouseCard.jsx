@@ -9,7 +9,8 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import RedactedPhone from './RedactedPhone';
-import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import ImageWithFallback from './ImageWithFallback';
+import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
 import { getMicroMarketDisplayNames } from '../utils/microMarketNames';
 import { useAuth } from '../contexts/AuthContext';
 import './SimpleWarehouseCard.css';
@@ -178,8 +179,9 @@ const SimpleWarehouseCard = ({
 
       {/* Image */}
       {firstImage ? (
-        <img
-          src={firstImage}
+        <ImageWithFallback
+          originalUrl={firstImage}
+          variantUrl={imageVariant(warehouse.images, firstImage)}
           alt={`Warehouse ${warehouse.id}`}
           className="simple-warehouse-card__image"
           loading="lazy"

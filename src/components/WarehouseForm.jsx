@@ -1477,7 +1477,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             )}
 
             <Field label="Upload Files">
-              <FileUpload value={values.media} onChange={set('media')} />
+              <FileUpload value={values.media} onChange={set('media')} imageRecords={initialData?.images} />
             </Field>
           </Section>
 

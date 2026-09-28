@@ -32,7 +32,9 @@ export const getMediaFromWarehouse = warehouse => {
   };
 };
 
-export const imageVariant = (images, originalUrl, format = 'webp') =>
+// Display the published JPEG pair without changing the original media identity.
+// Missing variants stay null/undefined so ImageWithFallback can use the original.
+export const imageVariant = (images, originalUrl, format = 'jpeg') =>
   Array.isArray(images) ? images.find(image => image.originalUrl === originalUrl)?.[`${format}Url`] : null;
 
 /**

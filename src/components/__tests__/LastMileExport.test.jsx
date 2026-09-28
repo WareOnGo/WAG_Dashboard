@@ -44,17 +44,17 @@ beforeEach(() => {
 });
 
 describe('Last Mile configuration', () => {
-  it('displays the WebP preview but submits the original URL for export', async () => {
-    const webpUrl = 'https://photos.test/webp/images/hash/preview.webp';
+  it('displays the compressed JPEG preview but submits the original URL for export', async () => {
+    const jpegUrl = 'https://photos.test/jpeg/images/hash/preview.jpg';
     const rows = [{ ...warehouses[0], media: { images: [photos[0]] },
-      images: [{ originalUrl: photos[0], webpUrl }] }];
+      images: [{ originalUrl: photos[0], jpegUrl, webpUrl: 'https://photos.test/preview.webp' }] }];
     getByIds.mockResolvedValue(rows);
     const props = { ...modalProps(), allWarehouses: rows };
     const user = userEvent.setup();
     render(<PptConfigModal {...props} />);
     await selectFormat(user);
     const image = screen.getByAltText('Warehouse');
-    expect(image).toHaveAttribute('src', webpUrl);
+    expect(image).toHaveAttribute('src', jpegUrl);
     await user.click(image);
     await user.click(screen.getByRole('button', { name: 'Generate Excel' }));
     expect(props.onGenerate.mock.calls[0][0].selectedImages).toEqual({ 1: [photos[0]] });
@@ -191,18 +191,32 @@ describe('compressed PPT configuration', () => {
     expect(screen.queryByText('Will be uncompressed')).not.toBeInTheDocument();
   });
 
-  it('keeps a reused original JPEG available even if the gallery WebP failed', async () => {
+  it('uses a verified small original JPEG without treating it as a missing variant', async () => {
     const user = userEvent.setup();
     const rows = pairedRows();
     rows[0].images[0].jpegUrl = photos[0];
     render(<PptConfigModal {...modalProps()} allWarehouses={rows} />);
     await selectFormat(user, 'PPT v2 (Standard)');
     const tile = screen.getAllByRole('button', { name: /Photo for warehouse/ })[0];
-    expect(within(tile).getByAltText('Warehouse')).toHaveAttribute('src', rows[0].images[0].webpUrl);
-    fireEvent.error(within(tile).getByAltText('Warehouse'));
+    expect(within(tile).getByAltText('Warehouse')).toHaveAttribute('src', photos[0]);
     await user.click(toggle());
     expect(within(tile).getByAltText('Warehouse')).toHaveAttribute('src', photos[0]);
     expect(within(tile).queryByText('Will be uncompressed')).not.toBeInTheDocument();
+  });
+
+  it('remembers a failed JPEG preview when compressed export is enabled later', async () => {
+    const user = userEvent.setup();
+    render(<PptConfigModal {...modalProps()} allWarehouses={pairedRows()} />);
+    await selectFormat(user, 'PPT v2 (Standard)');
+    const tile = screen.getAllByRole('button', { name: /Photo for warehouse/ })[0];
+    const image = within(tile).getByAltText('Warehouse');
+    expect(image).toHaveAttribute('src', 'https://photos.test/jpeg/0.jpg');
+    fireEvent.error(image);
+    expect(image).toHaveAttribute('src', photos[0]);
+    expect(within(tile).queryByText('Will be uncompressed')).not.toBeInTheDocument();
+    await user.click(toggle());
+    expect(within(tile).getByText('Will be uncompressed')).toBeInTheDocument();
+    expect(image).toHaveAttribute('src', photos[0]);
   });
 
   it('marks a missing JPEG layout and preserves the V3 photo/CAD split', async () => {

@@ -64,6 +64,34 @@ describe('availabilityBucket', () => {
 describe('warehousePopupHTML lazy rendering', () => {
   const summary = { id: 1141, city: 'Bengaluru', warehouseType: 'PEB', availability: 'Yes' };
 
+  it('loads the JPEG pair and retries the escaped original URL once before hiding', () => {
+    const originalUrl = 'https://cdn/a.jpg?caption="raw"&tag=\'photo\'';
+    const jpegUrl = 'https://cdn/jpeg/a.jpg?version=1&size=small';
+    const container = document.createElement('div');
+    container.innerHTML = warehousePopupHTML(summary, {
+      ...summary, images: [{ originalUrl, jpegUrl, webpUrl: 'https://cdn/a.webp' }],
+    });
+    const image = container.querySelector('img');
+    expect(image.getAttribute('src')).toBe(jpegUrl);
+    image.dispatchEvent(new Event('error'));
+    expect(image.getAttribute('src')).toBe(originalUrl);
+    expect(image.style.display).not.toBe('none');
+    image.dispatchEvent(new Event('error'));
+    expect(image.style.display).toBe('none');
+  });
+
+  it.each([null, 'https://cdn/a.jpg'])('does not retry an original used as the initial source (%s)', jpegUrl => {
+    const originalUrl = 'https://cdn/a.jpg';
+    const container = document.createElement('div');
+    container.innerHTML = warehousePopupHTML(summary, {
+      ...summary, images: [{ originalUrl, jpegUrl }],
+    });
+    const image = container.querySelector('img');
+    expect(image.getAttribute('src')).toBe(originalUrl);
+    image.dispatchEvent(new Event('error'));
+    expect(image.style.display).toBe('none');
+  });
+
   it('renders from the summary alone, with skeletons where the rest will go', () => {
     const html = warehousePopupHTML(summary);
     expect(html).toContain('Warehouse #1141');

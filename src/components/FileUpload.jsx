@@ -7,6 +7,8 @@ import {
 import { warehouseService } from '../services/warehouseService';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import { useViewport } from '../hooks/useViewport';
+import ImageWithFallback from './ImageWithFallback';
+import { imageVariant } from '../utils/mediaUtils';
 
 const { Text } = Typography;
 
@@ -86,8 +88,9 @@ const EMPTY_MEDIA = { images: [], videos: [], docs: [] };
  *   onChange : (media: { images, videos, docs }) => void
  *   disabled : boolean
  *   maxSize  : number (MB, default 50)
+ *   imageRecords : stored image variants for existing media previews
  */
-const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
+const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageRecords }) => {
   // Per-file upload tracking: Map<id, { name, progress, status }>
   const [activeUploads, setActiveUploads] = useState(new Map());
   const [media, setMedia] = useState(EMPTY_MEDIA);
@@ -223,7 +226,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
           </Text>
           <Row gutter={[8, 8]}>
             {media.images.map((url, i) => (
-              <Col key={i} xs={12} sm={8} md={6}>
+              <Col key={url} xs={12} sm={8} md={6}>
                 <Card
                   size="small"
                   style={{ background: '#262626', border: '1px solid #303030' }}
@@ -250,8 +253,10 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50 }) => {
                     />,
                   ]}
                 >
-                  <Image
-                    src={url}
+                  <ImageWithFallback
+                    as={Image}
+                    originalUrl={url}
+                    variantUrl={imageVariant(imageRecords, url)}
                     alt={`Image ${i + 1}`}
                     style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 4 }}
                     fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="

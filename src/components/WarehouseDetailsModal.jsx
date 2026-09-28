@@ -234,7 +234,7 @@ const WarehouseDetailsModal = ({
           // key would make React reuse the wrong <img> across a re-group.
           key={url}
           originalUrl={url}
-          webpUrl={imageVariant(imageRecords, url)}
+          variantUrl={imageVariant(imageRecords, url)}
           alt={`Warehouse ${warehouse.id} - ${imageLabels?.[url]?.description || 'Image'}`}
           title={imageLabels?.[url]?.description || undefined}
           crossOrigin="anonymous"

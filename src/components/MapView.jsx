@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { getMediaFromWarehouse } from '../utils/mediaUtils';
+import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
+import ImageWithFallback from './ImageWithFallback';
 import { warehouseService } from '../services/warehouseService';
 import { geoService, boundsToBbox } from '../services/geoService';
 import { registerWarehouseIcons, warehouseIconId, availabilityExpression, AVAILABILITY_COLORS } from '../utils/geoIcons';
@@ -37,7 +38,10 @@ function WarehousePopup({ id, warehouse, loading, error, onRetry, onView, onEdit
             {loading && <div role="status">Loading warehouse…</div>}
             {error && <div role="alert">Could not load this warehouse. <button onClick={onRetry}>Retry</button></div>}
             {warehouse && <>
-                {image && <img className="warehouse-map-card__image" src={image} alt="" loading="lazy" crossOrigin="anonymous" onError={event => { event.currentTarget.style.display = 'none'; }} />}
+                {image && <ImageWithFallback className="warehouse-map-card__image"
+                    originalUrl={image} variantUrl={imageVariant(warehouse.images, image)}
+                    alt="" loading="lazy" crossOrigin="anonymous"
+                    onError={event => { event.currentTarget.style.display = 'none'; }} />}
                 <strong className="warehouse-map-card__type">{warehouse.warehouseType}</strong>
                 <div className="warehouse-map-card__owner">{warehouse.warehouseOwnerType}</div>
                 <div>{[warehouse.city, warehouse.state].filter(Boolean).join(', ')}</div>

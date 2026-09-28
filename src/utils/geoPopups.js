@@ -2,7 +2,7 @@ import {
   AVAILABILITY_COLORS, colorForCategory, glyphForCategory, iconSvg, humaniseCategory,
   ownIconSvg, poiCategoryLabel,
 } from './geoIcons';
-import { getMediaFromWarehouse } from './mediaUtils';
+import { getMediaFromWarehouse, imageVariant } from './mediaUtils';
 
 /**
  * HTML builders for the on-map popups.
@@ -68,15 +68,16 @@ export const warehousePopupHTML = (p, full = null, failed = false) => {
   const badge = `<span style="flex:0 0 auto;font-size:10px;padding:3px 7px;border-radius:4px;font-weight:600;background:${AVAILABILITY_COLORS[bucket]};color:#0b0b0b;">${esc(full?.availability ?? p.availability ?? 'Unknown')}</span>`;
 
   const image = full ? getMediaFromWarehouse(full).images?.[0] : null;
+  const jpegUrl = imageVariant(full?.images, image);
 
   // The skeleton occupies exactly the height the image will, so the popup does
   // not resize when the photo arrives.
   let imageHtml;
   if (full) {
     imageHtml = image
-      ? `<img src="${esc(image)}" alt="" loading="lazy" crossorigin="anonymous" class="geo-reveal"
+      ? `<img src="${esc(jpegUrl || image)}" data-fallback-src="${esc(jpegUrl && jpegUrl !== image ? image : '')}" alt="" loading="lazy" crossorigin="anonymous" class="geo-reveal"
            style="width:100%;height:80px;object-fit:cover;border-radius:4px;margin-bottom:10px;"
-           onerror="this.style.display='none'" />`
+           onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;delete this.dataset.fallbackSrc;}else{this.style.display='none';}" />`
       : '';
   } else if (failed) {
     imageHtml = '';
