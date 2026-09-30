@@ -15,7 +15,7 @@ import './AdminUsers.css'
 const { Text } = Typography
 
 /**
- * The four capability columns on VerifiedNumber, in the order they're shown.
+ * The capability columns on VerifiedNumber, in the order they're shown.
  * `adminAccess` implies every other capability server-side, which is why the
  * others render as inherited (rather than off) for an admin.
  */
@@ -23,6 +23,7 @@ const CAPABILITIES = [
   { key: 'dashboardAccess', label: 'Dashboard', hint: 'Access the warehouse dashboard' },
   { key: 'callDashboardAccess', label: 'Calls', hint: 'Access the call dashboard' },
   { key: 'reviewerAccess', label: 'Reviewer', hint: 'Review staged submissions and micro-markets' },
+  { key: 'analystAccess', label: 'Analyst access', hint: 'Read all CRM leads and GA4 / Search Console reports in Wareongo Context' },
   { key: 'adminAccess', label: 'Admin', hint: 'Full access, including this panel' },
 ]
 
@@ -180,6 +181,9 @@ export default function AdminUsers() {
     if (ok) {
       const cap = CAPABILITIES.find((c) => c.key === key)
       message.success(`${value ? 'Granted' : 'Removed'} ${cap.label} for ${row.name}`)
+      if (key === 'analystAccess' && value) {
+        message.info('If their Context key is missing CRM or analytics access, they need to replace it and reconnect Claude.', 8)
+      }
     }
   }
 
@@ -273,6 +277,7 @@ export default function AdminUsers() {
     const control = (
       <Switch
         size="small"
+        aria-label={`${cap.label} for ${row.name || row.email}`}
         checked={!!row[cap.key]}
         disabled={lockedSelf || !row.is_active || savingIds.has(row.id)}
         onChange={(checked) => toggleCapability(row, cap.key, checked)}
@@ -349,8 +354,8 @@ export default function AdminUsers() {
         width: 110,
         render: (empID) => (empID ? <Text code>{empID}</Text> : <Text type="secondary">—</Text>),
       },
-      // Grouped so the four switches read as one thing — "what can they reach" —
-      // rather than as four unrelated columns sitting beside the identity fields.
+      // Grouped so the switches read as one thing — "what can they reach" —
+      // rather than as unrelated columns sitting beside the identity fields.
       {
         title: 'Access',
         key: 'access',
@@ -548,7 +553,7 @@ export default function AdminUsers() {
           dataSource={rows}
           loading={loading}
           pagination={false}
-          scroll={{ x: 1360 }}
+          scroll={{ x: 1470 }}
           rowClassName={(row) => (row.is_active ? '' : 'admin-users__row--inactive')}
           locale={{ emptyText: loading ? ' ' : emptyState }}
         />
@@ -561,7 +566,7 @@ export default function AdminUsers() {
         onOk={handleSubmit}
         okText={isCreate ? 'Add' : 'Save'}
         confirmLoading={submitting}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" requiredMark={false}>
           <Form.Item

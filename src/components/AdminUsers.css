@@ -116,7 +116,7 @@
   width: var(--touch-target-min);
 }
 
-/* The four capability switches are grouped under one "Access" header; a pair of
+/* The capability switches are grouped under one "Access" header; a pair of
    hairlines separates that block from the identity columns either side of it. */
 .admin-users .ant-table-thead th.admin-users__group {
   font-weight: 600;
