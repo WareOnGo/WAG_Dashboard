@@ -13,6 +13,7 @@ import ImageWithFallback from './ImageWithFallback';
 import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
 import { getMicroMarketDisplayNames } from '../utils/microMarketNames';
 import { useAuth } from '../contexts/AuthContext';
+import { formatAvailabilityReview } from '../utils/availabilityReview';
 import './SimpleWarehouseCard.css';
 
 /**
@@ -224,6 +225,10 @@ const SimpleWarehouseCard = ({
 
         <div className="simple-warehouse-card__bottom-content">
           {/* Metrics */}
+          <div className="simple-warehouse-card__availability-review">
+            <span>Availability: {warehouse.availability || 'Not recorded'}</span>
+            <span>Availability last reviewed: {formatAvailabilityReview(warehouse.availabilityLastReviewedOn)}</span>
+          </div>
           <div className="simple-warehouse-card__metrics">
             <div className="simple-warehouse-card__metric">
               <span className="simple-warehouse-card__metric-label">Offered Area</span>

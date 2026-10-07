@@ -25,6 +25,7 @@ import { getMediaFromWarehouse, groupImagesByClassification } from '../utils/med
 import { imageLabelService } from '../services/imageLabelService';
 import { buildCoordMapsLink } from '../utils/mapsLink';
 import { formatHandover } from '../utils/handover';
+import { formatAvailabilityReview } from '../utils/availabilityReview';
 import { waterSupplyToLabel } from '../utils/waterSupply';
 import { suitableForLabels } from '../utils/suitableFor';
 import './ResponsiveModal.css';
@@ -410,13 +411,14 @@ const WarehouseDetailsModal = ({
         <Section title="Availability">
           {row(<>
             {col(<Field label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)}
-            {col(<Field label="Status" mobile={m}><TextValue mobile={m} value={warehouse.status} /></Field>, true)}
+            {col(<Field label="Availability last reviewed" mobile={m}><TextValue mobile={m} value={formatAvailabilityReview(warehouse.availabilityLastReviewedOn)} /></Field>, true)}
           </>)}
 
           {row(<>
             {col(<Field label="Handover" mobile={m}><TextValue mobile={m} value={formatHandover(warehouse, formatDate)} /></Field>, true)}
             {col(<Field label="Lock-in Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.lockInDate)} /></Field>, true)}
           </>)}
+          {row(col(<Field label="Status" mobile={m}><TextValue mobile={m} value={warehouse.status} /></Field>, true))}
         </Section>
 
         {/* ── Location Details ────────────────────────────────── */}

@@ -13,8 +13,8 @@ import './CardView.css';
  * breakpoint and how wide the card ended up. Only widths are passed here, since
  * those are just the shape of the text being stood in for.
  */
-const Block = ({ width, line }) => (
-  <div className={`swc-skeleton__block swc-skeleton__line--${line}`} style={{ width }} />
+const Block = ({ width, line, children }) => (
+  <div className={`swc-skeleton__block swc-skeleton__line--${line}`} style={{ width }}>{children}</div>
 );
 
 /**
@@ -61,6 +61,10 @@ const SkeletonCard = () => (
       </div>
 
       <div className="simple-warehouse-card__bottom-content">
+        <div className="simple-warehouse-card__availability-review">
+          <Block line="availability">Availability: Yes</Block>
+          <Block line="availability">Availability last reviewed: Not recorded</Block>
+        </div>
         {/* Metrics keep the real tinted grid, so the columns reflow where they do */}
         <div className="simple-warehouse-card__metrics">
           {['area', 'rate', 'docks'].map((key) => (

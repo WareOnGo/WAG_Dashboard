@@ -1,7 +1,8 @@
 import { WAREHOUSE_TYPES } from '../utils/warehouseOptions';
-import { useState, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, useId, Children, isValidElement, cloneElement } from 'react';
 import { Button, Switch, Spin, Tooltip, message, DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
+import { availabilityPayload, reviewDateValue, suggestedReviewDate, todayInIndia } from '../utils/availabilityReview';
 import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
@@ -80,7 +81,7 @@ const INITIAL_VALUES = {
   city: '', state: '', postalCode: '', googleLocation: '',
   contactPerson: '', contactNumber: '',
   totalSpaceSqft: [1000], ratePerSqft: '', numberOfDocks: '',
-  clearHeightFt: '', availability: '', isBroker: '', uploadedBy: '',
+  clearHeightFt: '', availability: '', availabilityLastReviewedOn: '', isBroker: '', uploadedBy: '',
   visibility: true, compliances: '', otherSpecifications: '',
   latitude: '', longitude: '', fireNocAvailable: false,
   fireSafetyMeasures: '', landType: '', approachRoadWidth: '',
@@ -140,6 +141,7 @@ const toFormValues = (d) => {
     numberOfDocks: d.numberOfDocks ?? '',
     clearHeightFt: d.clearHeightFt ?? '',
     availability: d.availability || '',
+    availabilityLastReviewedOn: reviewDateValue(d.availabilityLastReviewedOn),
     isBroker: d.isBroker || '',
     uploadedBy: d.uploadedBy || '',
     visibility: d.visibility === true || d.visibility === 'true' || d.visibility === 1,
@@ -280,7 +282,7 @@ const scrollFieldIntoView = (fieldNameOrList) => {
 
 // ── Reusable field components ─────────────────────────────────────────────────
 
-const Field = ({ label, required, error, children, style, mobile, tooltip }) => {
+const Field = ({ label, required, error, hint, children, style, mobile, tooltip }) => {
   const id = useId();
   let controlIndex = 0;
   const connect = nodes => Children.map(nodes, child => {
@@ -295,7 +297,7 @@ const Field = ({ label, required, error, children, style, mobile, tooltip }) => 
         'aria-label': child.props['aria-label'] || name,
         'aria-required': required || undefined,
         'aria-invalid': error ? true : undefined,
-        'aria-describedby': error ? `${id}-error` : undefined,
+        'aria-describedby': [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined,
       });
     }
     return child.props.children ? cloneElement(child, {}, connect(child.props.children)) : child;
@@ -307,6 +309,7 @@ const Field = ({ label, required, error, children, style, mobile, tooltip }) => 
       {tooltip && <Tooltip title={tooltip} placement="top"><QuestionCircleOutlined style={{ marginLeft: 6, color: 'var(--text-secondary, #888)', cursor: 'help', fontSize: 13 }} /></Tooltip>}
     </label>}
     {connected}
+    {hint && <div id={`${id}-hint`} style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 6 }}>{hint}</div>}
     {error && <div id={`${id}-error`} role="alert" style={errorStyle}>{error}</div>}
   </div>;
 };
@@ -494,14 +497,37 @@ const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...
   );
 };
 
-const DateInput = ({ value, onChange, mobile, placeholder, ...rest }) => (
-  <DatePicker
-    value={value ? dayjs(value, 'YYYY-MM-DD') : null}
+const DateInput = ({ value, onChange, mobile, placeholder, ...rest }) => {
+  const [open, setOpen] = useState(false);
+  // Opening the calendar must not reset an in-progress typed date to the saved value.
+  const dateValue = useMemo(() => value ? dayjs(value, 'YYYY-MM-DD') : null, [value]);
+  return <DatePicker
+    value={dateValue}
     onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : '')}
     format="DD/MM/YYYY"
     placeholder={placeholder || 'DD/MM/YYYY'}
     size={mobile ? 'large' : 'middle'}
     {...rest}
+    open={open}
+    onOpenChange={setOpen}
+    onBlur={event => {
+      // rc-picker otherwise restores the previous date after text is deleted.
+      if (value && event.target.value === '') onChange('');
+    }}
+    onKeyDown={event => {
+      // Confirm the selected day without also submitting the warehouse form.
+      if (event.key === 'Enter') event.preventDefault();
+      if (!open && ['Enter', 'ArrowDown'].includes(event.key)) {
+        event.preventDefault();
+        setOpen(true);
+      }
+      // The picker handles Escape; the containing modal must keep the draft open.
+      if (open && event.key === 'Escape') event.stopPropagation();
+    }}
+    // The modal follows the visual viewport when a mobile keyboard opens.
+    getPopupContainer={node => node.closest('.responsive-modal')?.firstElementChild || document.body}
+    // Flip where possible, then shift into view when neither side has enough room.
+    popupAlign={{ offset: [0, 0], overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true } }}
     className="wf-datepicker"
     style={{
       width: '100%',
@@ -513,8 +539,8 @@ const DateInput = ({ value, onChange, mobile, placeholder, ...rest }) => (
     }}
     styles={{ popup: { root: { zIndex: 2000 } } }}
     allowClear
-  />
-);
+  />;
+};
 
 const ToggleSwitch = ({ checked, onChange, yesLabel = 'Yes', noLabel = 'No', ...rest }) => (
   <Switch
@@ -544,6 +570,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   // Reset form when modal opens
   const [initialSnapshot, setInitialSnapshot] = useState(null);
   const [contactTouched, setContactTouched] = useState(false);
+  const availabilitySnapshot = useRef(null);
+  const reviewDateTouched = useRef(false);
   // Once the user manually picks a zone, stop autofilling it from the state.
   const [zoneTouched, setZoneTouched] = useState(false);
   useEffect(() => {
@@ -551,6 +579,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
       setValues(toFormValues(initialData));
       setErrors({});
       setInitialSnapshot(initialData);
+      availabilitySnapshot.current = initialData;
+      reviewDateTouched.current = false;
       setContactTouched(false);
       setZoneTouched(false);
     }
@@ -568,7 +598,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   }, [visible, initialData, initialSnapshot, contactTouched]);
 
   const set = (field) => (val) => {
-    setValues(prev => ({ ...prev, [field]: val }));
+    if (field === 'availabilityLastReviewedOn') reviewDateTouched.current = true;
+    setValues(prev => ({
+      ...prev, [field]: val,
+      ...(field === 'availability' && !reviewDateTouched.current ? {
+        availabilityLastReviewedOn: suggestedReviewDate(availabilitySnapshot.current, val),
+      } : {}),
+    }));
     if (field === 'contactNumber') setContactTouched(true);
     if (field === 'zone') setZoneTouched(true);
     // Clear error on change
@@ -620,6 +656,11 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
       }
     }
 
+    if (values.availabilityLastReviewedOn) {
+      if (!values.availability?.trim()) e.availabilityLastReviewedOn = 'Select availability before recording a review date';
+      else if (values.availabilityLastReviewedOn > todayInIndia()) e.availabilityLastReviewedOn = 'Review date cannot be in the future';
+    }
+
     // Latitude and longitude validation removed to support high precision formats
 
     setErrors(e);
@@ -669,7 +710,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         compliances: values.compliances,
         otherSpecifications: values.otherSpecifications || null,
         ratePerSqft: values.ratePerSqft ? String(values.ratePerSqft) : null,
-        availability: values.availability || null,
+        ...availabilityPayload(values, availabilitySnapshot.current),
         uploadedBy: values.uploadedBy,
         visibility: Boolean(values.visibility),
         isBroker: values.isBroker || null,
@@ -923,8 +964,17 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
               {col(
-                <Field label="Status" tooltip="Mention the building construction status (not related to whether it is occupied or not).">
-                  <SelectInput mobile={m} value={values.status} onChange={set('status')} placeholder="Select status" options={STATUS_OPTIONS} />
+                <Field label="Availability last reviewed" error={errors.availabilityLastReviewedOn}
+                  hint="Select the date availability was last checked. Past dates are allowed.">
+                  <DateInput mobile={m} value={values.availabilityLastReviewedOn}
+                    onChange={set('availabilityLastReviewedOn')} data-field="availabilityLastReviewedOn"
+                    disabledDate={date => date.format('YYYY-MM-DD') > todayInIndia()} />
+                  {values.availabilityLastReviewedOn && reviewDateValue(availabilitySnapshot.current?.availabilityLastReviewedOn)
+                    && values.availabilityLastReviewedOn < reviewDateValue(availabilitySnapshot.current.availabilityLastReviewedOn) && (
+                    <div role="status" style={{ color: 'var(--text-warning, #d89614)', fontSize: 12, marginTop: 6 }}>
+                      This replaces a more recent review date. Check that you are correcting the recorded date.
+                    </div>
+                  )}
                 </Field>,
                 true)}
             </>)}
@@ -982,6 +1032,11 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
             </>)}
+            {row(col(
+              <Field label="Status" tooltip="Mention the building construction status (not related to whether it is occupied or not).">
+                <SelectInput mobile={m} value={values.status} onChange={set('status')} placeholder="Select status" options={STATUS_OPTIONS} />
+              </Field>,
+              true))}
           </Section>
 
           {/* ── Location Details ────────────────────────────────── */}

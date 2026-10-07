@@ -70,7 +70,7 @@ export const parseError = (error) => {
       case 400:
         errorInfo.type = ERROR_TYPES.VALIDATION;
         errorInfo.message = data.error || 'Validation failed';
-        errorInfo.issues = data.issues || [];
+        errorInfo.issues = data.details?.issues || data.issues || [];
         break;
       
       case 404:
@@ -283,15 +283,17 @@ export const withRetry = async (operation, options = {}) => {
       
       if (attempt === maxRetries) {
         // Final attempt failed
-        const errorInfo = handleOperationError(error, operationType);
+        const errorInfo = parseError(error);
         if (onError) onError(errorInfo);
+        else handleOperationError(error, operationType);
         throw error;
       }
       
       // Wait before retry (except for validation errors which shouldn't be retried)
       const errorInfo = parseError(error);
-      if (errorInfo.type === ERROR_TYPES.VALIDATION) {
-        handleOperationError(error, operationType);
+      if (errorInfo.type === ERROR_TYPES.VALIDATION || errorInfo.statusCode === 409) {
+        if (onError) onError(errorInfo);
+        else handleOperationError(error, operationType);
         throw error;
       }
       

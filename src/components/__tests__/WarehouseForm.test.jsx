@@ -3,6 +3,7 @@ import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouse } from '../../test/mockData';
 import WarehouseForm from '../WarehouseForm';
+import { todayInIndia } from '../../utils/availabilityReview';
 
 // Visit notes persist independently of the form; uploads have a separate API
 // boundary. These tests exercise the real form and its submitted payload.
@@ -35,6 +36,98 @@ const submit = () => act(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+});
+
+describe('Availability last reviewed', () => {
+  const reviewed = { ...record, availability: 'Yes', availabilityLastReviewedOn: '2025-01-10T00:00:00.000Z' };
+  const enterDate = async value => {
+    const input = field('Availability last reviewed');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+    fireEvent.blur(input);
+    await waitFor(() => expect(input).toHaveValue(value));
+  };
+
+  it('saves a backdated Yes-to-Yes review through the real date picker', async () => {
+    const { props } = open({ initialData: reviewed });
+    await enterDate('15/01/2025');
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      availability: 'Yes', availabilityLastReviewedOn: '2025-01-15',
+      expectedAvailability: { availability: 'Yes', availabilityLastReviewedOn: '2025-01-10' },
+    }));
+  });
+
+  it('automatically suggests today on a flip, and undoes the suggestion on reversal', async () => {
+    const { props } = open({ initialData: reviewed });
+    change('Availability', 'No');
+    expect(field('Availability last reviewed')).toHaveValue(todayInIndia().split('-').reverse().join('/'));
+    change('Availability', 'Yes');
+    expect(field('Availability last reviewed')).toHaveValue('10/01/2025');
+    await submit();
+    expect(props.onSubmit.mock.calls[0][0]).not.toHaveProperty('availabilityLastReviewedOn');
+    expect(props.onSubmit.mock.calls[0][0]).not.toHaveProperty('availability');
+  });
+
+  it('saves the suggested date and allows a manually chosen date to override it', async () => {
+    const { props } = open({ initialData: reviewed });
+    change('Availability', 'No');
+    await enterDate('02/01/2025');
+    expect(screen.getByRole('status')).toHaveTextContent('replaces a more recent review date');
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ availability: 'No', availabilityLastReviewedOn: '2025-01-02' }));
+  });
+
+  it('preserves a manually selected date when availability is subsequently changed', async () => {
+    const { props } = open({ initialData: reviewed });
+    await enterDate('02/01/2025');
+    change('Availability', 'No');
+    expect(field('Availability last reviewed')).toHaveValue('02/01/2025');
+    await submit();
+    expect(props.onSubmit.mock.calls[0][0].availabilityLastReviewedOn).toBe('2025-01-02');
+  });
+
+  it('explicitly clears a review and keeps it clear through a status change', async () => {
+    const { props } = open({ initialData: reviewed });
+    const picker = field('Availability last reviewed').closest('.ant-picker');
+    fireEvent.mouseDown(picker.querySelector('.ant-picker-clear'));
+    fireEvent.click(picker.querySelector('.ant-picker-clear'));
+    change('Availability', 'No');
+    await submit();
+    expect(props.onSubmit.mock.calls[0][0].availabilityLastReviewedOn).toBeNull();
+  });
+
+  it('leaves unrelated saves alone', async () => {
+    const { props } = open({ initialData: reviewed });
+    change('Address', 'An unrelated edit');
+    await submit();
+    expect(props.onSubmit.mock.calls[0][0]).not.toHaveProperty('availabilityLastReviewedOn');
+    expect(props.onSubmit.mock.calls[0][0]).not.toHaveProperty('expectedAvailability');
+  });
+
+  it('leaves a newly selected availability unreviewed until a date is supplied', () => {
+    open();
+    change('Availability', 'Yes');
+    expect(field('Availability last reviewed')).toHaveValue('');
+  });
+
+  it('submits today as a concrete date on a Yes/No flip', async () => {
+    const { props } = open({ initialData: reviewed });
+    change('Availability', 'No');
+    await submit();
+    expect(props.onSubmit.mock.calls[0][0]).toMatchObject({ availability: 'No', availabilityLastReviewedOn: todayInIndia() });
+  });
+
+  it('retains the draft and the original snapshot after a failed save and a background contact update', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new Error('Availability changed'));
+    const { props, rerender } = open({ initialData: reviewed, onSubmit });
+    await enterDate('15/01/2025');
+    rerender(<WarehouseForm {...props} initialData={{ ...reviewed, contactNumber: '9123456789' }} />);
+    await submit();
+    expect(field('Availability last reviewed')).toHaveValue('15/01/2025');
+    expect(onSubmit.mock.calls[0][0].expectedAvailability.availabilityLastReviewedOn).toBe('2025-01-10');
+  });
 });
 
 describe('WarehouseForm current fields and payload', () => {

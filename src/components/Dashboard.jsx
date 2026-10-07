@@ -30,7 +30,7 @@ const WarehouseForm = React.lazy(() => import('./WarehouseForm'));
 import WarehouseDetailsModal from './WarehouseDetailsModal';
 import WarehouseFilterBar, { AppliedWarehouseFilters } from './WarehouseFilterBar';
 import './ResponsiveModal.css';
-import { useViewport } from '../hooks';
+import { useViewport, useErrorHandler } from '../hooks';
 import useWarehouseFilters from '../hooks/useWarehouseFilters';
 import { useAuth } from '../contexts';
 import {
@@ -70,6 +70,7 @@ const Dashboard = () => {
 
   // Cards are the dashboard's listing view at every viewport width.
   const { isMobile } = useViewport();
+  const { showErrorMessage } = useErrorHandler();
 
   // Filter and search state + logic (shared with the review queue)
   const filters = useWarehouseFilters(warehouses);
@@ -306,6 +307,7 @@ const Dashboard = () => {
                 () => warehouseService.update(editingWarehouse.id, formData),
                 {
                   operationType,
+                  onError: errorInfo => showErrorMessage(errorInfo, { prefix: 'Failed to update warehouse', showDetails: true }),
                   maxRetries: 1
                 }
               );
@@ -335,6 +337,7 @@ const Dashboard = () => {
                 () => warehouseService.create(formData),
                 {
                   operationType,
+                  onError: errorInfo => showErrorMessage(errorInfo, { prefix: 'Failed to create warehouse', showDetails: true }),
                   maxRetries: 1
                 }
               );

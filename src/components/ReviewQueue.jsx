@@ -126,6 +126,7 @@ const ReviewQueue = () => {
       load();
     } catch (err) {
       message.error(err.message || 'Failed to save edits');
+      throw err; // Keep the form draft when a save (including a stale review) fails.
     }
   };
 
