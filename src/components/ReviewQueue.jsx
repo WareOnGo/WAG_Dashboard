@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useId } from 'react';
+import { useCallback, useEffect, useRef, useState, useId } from 'react';
 import {
   Alert, App, Button, Card, Input, Modal, Result, Segmented, Switch, Tag, Tooltip, Typography,
 } from 'antd';
@@ -15,6 +15,7 @@ import WarehouseForm from './WarehouseForm';
 import WarehouseDetailsModal from './WarehouseDetailsModal';
 import WarehouseFilterBar, { AppliedWarehouseFilters } from './WarehouseFilterBar';
 import CardView from './CardView';
+import { pasteAsOneLine } from '../utils/pasteLines';
 
 const { Title } = Typography;
 
@@ -68,6 +69,15 @@ const ReviewQueue = () => {
   const [autoApproveSaving, setAutoApproveSaving] = useState(false);
 
   const filters = useWarehouseFilters(rows);
+  // Search runs server-side over the whole tab (not just the loaded rows), with
+  // the dashboard's matcher and ranking. Debounced so typing is one request.
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(filters.searchText.trim()), 300);
+    return () => clearTimeout(t);
+  }, [filters.searchText]);
+  // Guards against out-of-order list responses (last request wins).
+  const reqIdRef = useRef(0);
   const isAdmin = !!user?.isAdmin;
   const isReviewer = !!user?.isReviewer;
   // Admins and reviewers can both open the panel; only admins get delete.
@@ -80,17 +90,22 @@ const ReviewQueue = () => {
   };
 
   const load = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
       const params = status === 'ALL' ? {} : { reviewStatus: status };
+      if (search) params.search = search;
       const data = await warehouseService.listStaged(params);
+      if (reqId !== reqIdRef.current) return;
       setRows(Array.isArray(data) ? data : []);
     } catch (err) {
-      message.error(err.message || 'Failed to load review queue');
+      if (reqId === reqIdRef.current) {
+        message.error(err.response?.data?.details?.issues?.[0]?.message || err.message || 'Failed to load review queue');
+      }
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
-  }, [status, message]);
+  }, [status, search, message]);
 
   useEffect(() => {
     if (canReview) load();
@@ -447,6 +462,7 @@ const ReviewQueue = () => {
             prefix={<SearchOutlined />}
             value={filters.searchText}
             onChange={(e) => filters.setSearchText(e.target.value)}
+            onPaste={(e) => pasteAsOneLine(e, filters.searchText, filters.setSearchText)}
             allowClear
             style={{ flex: 1, minWidth: 220, maxWidth: 360 }}
           />

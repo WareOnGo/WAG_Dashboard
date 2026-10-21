@@ -6,7 +6,8 @@ import {
   Tooltip,
   App,
   Input,
-  Result
+  Result,
+  Alert
 } from 'antd';
 
 import {
@@ -40,6 +41,7 @@ import {
 } from '../utils/errorHandler';
 import { imageLabelService } from '../services/imageLabelService';
 import { EDIT_PREFILL_REASON } from '../utils/revealReason';
+import { pasteAsOneLine } from '../utils/pasteLines';
 
 const { Text } = Typography;
 
@@ -91,6 +93,9 @@ const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
+  // The server's summary of the current search; for a pasted ID list it names
+  // the IDs that were not found or that the active filters exclude.
+  const [searchMeta, setSearchMeta] = useState(null);
 
   // Debounced copy of the filter query params so typing in search doesn't fire a
   // request per keystroke. Drives the server-side fetch. Seeded from the live
@@ -141,8 +146,10 @@ const Dashboard = () => {
       }
       setWarehouses(Array.isArray(res?.data) ? res.data : []);
       setTotal(nextTotal);
+      setSearchMeta(res?.search ?? null);
     } catch (err) {
-      if (reqId === reqIdRef.current) setError(err.message);
+      // A rejected search (e.g. too many pasted IDs) says why in its first issue.
+      if (reqId === reqIdRef.current) setError(err.response?.data?.details?.issues?.[0]?.message || err.message);
     } finally {
       if (reqId === reqIdRef.current) setLoading(false);
     }
@@ -159,6 +166,7 @@ const Dashboard = () => {
     } else {
       setWarehouses([]);
       setTotal(0);
+      setSearchMeta(null);
       setLoading(false);
     }
     // Access changes and unmounts also invalidate pending requests, even when
@@ -502,10 +510,11 @@ const Dashboard = () => {
           }}>
             <Input
               aria-label="Search warehouses"
-              placeholder="Search warehouses or mobile number"
+              placeholder="Search name, place, ID or phone, or paste IDs"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
+              onPaste={(e) => pasteAsOneLine(e, searchText, setSearchText)}
               allowClear
               style={{ maxWidth: isMobile ? '100%' : '400px' }}
             />
@@ -592,6 +601,23 @@ const Dashboard = () => {
 
         <AppliedWarehouseFilters filters={filters} resultCount={total} loading={loading} />
         {filtersVisible && <WarehouseFilterBar filters={filters} />}
+
+        {searchMeta?.mode === 'ids' && (searchMeta.missingIds.length > 0 || searchMeta.excludedIds.length > 0) && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message={`Showing ${total} of ${searchMeta.requested} pasted IDs`}
+            description={(
+              <>
+                {searchMeta.missingIds.length > 0 && <div>Not found: {searchMeta.missingIds.join(', ')}</div>}
+                {searchMeta.excludedIds.length > 0 && (
+                  <div>Excluded by your filters: {searchMeta.excludedIds.join(', ')}</div>
+                )}
+              </>
+            )}
+          />
+        )}
 
         {/* Thin banner only when we already have rows to show (a refresh failed):
             the empty-load failure is surfaced inside the content box below instead. */}

@@ -11,7 +11,11 @@ export const warehouseService = {
    *   zone, warehouseType, warehouseOwnerType, availability, isBroker, uploadedBy,
    *   contactPerson, listing_type, status,
    *   landType, visibility, fireNoc, minArea, maxArea, minRate, maxRate }
-   * @returns {Promise<{ data: Array, pagination: { page, limit, total, totalPages } }>}
+   *   With `search`, rows come back in relevance order (or pasted order for a
+   *   comma- or line-separated ID list) unless `sortBy` is given.
+   * @returns {Promise<{ data: Array, pagination: { page, limit, total, totalPages },
+   *   search?: { mode: 'ids', requested, missingIds: string[], excludedIds: string[] } }>}
+   *   `search` is present only for a pasted ID list.
    */
   list: async (params = {}) => {
     return apiClient.get('/warehouses', { params });
