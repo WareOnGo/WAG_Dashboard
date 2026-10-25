@@ -38,6 +38,69 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+describe('Explicit handover timing', () => {
+  const incomplete = { ...record, availability: 'Yes', handoverType: 'VARIABLE',
+    handoverDate: null, handoverLeadValue: 2, handoverLeadUnit: null };
+
+  it('preserves a missing unit during an unrelated edit', async () => {
+    const { props } = open({ initialData: incomplete });
+    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+    expect(screen.getByText(/PPTs and Last Mile Excel show .Unconfirmed./)).toBeInTheDocument();
+    change('Address', 'An unrelated address edit');
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'VARIABLE', handoverLeadValue: 2, handoverLeadUnit: null,
+    }));
+  });
+
+  it('saves the unit that the user explicitly selects', async () => {
+    const { props } = open({ initialData: incomplete });
+    fireEvent.change(screen.getByLabelText('Handover unit'), { target: { value: 'Weeks' } });
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'VARIABLE', handoverLeadValue: 2, handoverLeadUnit: 'WEEKS',
+    }));
+  });
+
+  it('keeps unknown timing saveable when availability is Yes', async () => {
+    const { props } = open({ initialData: { ...record, availability: 'Yes', handoverType: 'FIXED',
+      handoverDate: null, handoverLeadValue: null, handoverLeadUnit: null } });
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'FIXED', handoverDate: null, handoverLeadValue: null, handoverLeadUnit: null,
+    }));
+  });
+
+  it('does not invent a unit for a new variable handover', () => {
+    open();
+    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
+    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+  });
+
+  it('does not turn an impossible typed date into confirmed handover', async () => {
+    const { props } = open({ initialData: { ...record, handoverType: 'FIXED', handoverDate: null } });
+    const input = screen.getByLabelText('Handover date');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '30/02/2027' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+    fireEvent.blur(input);
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ handoverDate: null }));
+  });
+
+  it('preserves both timing values when the user switches modes', async () => {
+    const { props } = open({ initialData: { ...incomplete, handoverDate: '2027-03-15', handoverLeadUnit: 'WEEKS' } });
+    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Fixed' } });
+    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
+    expect(screen.getByLabelText('Handover lead time')).toHaveValue('2');
+    expect(screen.getByLabelText('Handover unit')).toHaveValue('Weeks');
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'VARIABLE', handoverDate: '2027-03-15', handoverLeadValue: 2, handoverLeadUnit: 'WEEKS',
+    }));
+  });
+});
+
 describe('Availability last reviewed', () => {
   const reviewed = { ...record, availability: 'Yes', availabilityLastReviewedOn: '2025-01-10T00:00:00.000Z' };
   const enterDate = async value => {

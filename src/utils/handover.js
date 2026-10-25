@@ -1,9 +1,7 @@
 // Handover timing is stored one of two ways (see the HandoverType enum in the Prisma
-// schema): a precise calendar date (FIXED, in handoverDate), or a lead time relative
-// to today (VARIABLE, in handoverLeadValue + handoverLeadUnit). Exactly one side is
-// populated on any row — the backend nulls the other on write — so every surface that
-// shows handover has to branch. Shared here so the dashboard table, the details modal
-// and the form can't drift apart on wording.
+// schema): a precise calendar date (FIXED, in handoverDate), or a lead time after
+// the letter of intent (VARIABLE, in handoverLeadValue + handoverLeadUnit). Both
+// values can be retained when switching modes; only the selected mode is displayed.
 
 /** Dropdown labels for the mode toggle, and their enum equivalents. */
 export const HANDOVER_TYPE_OPTIONS = ['Fixed', 'Variable'];

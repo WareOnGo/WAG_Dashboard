@@ -108,9 +108,9 @@ const INITIAL_VALUES = {
   totalFloors: '', liftAccess: false, passengerLiftCount: '',
   serviceLiftCount: '', liftLoadCapacity: '',
   status: '', lockInDate: '',
-  // Handover is either a precise date or a lead time; the mode drives which of the
-  // two below is sent. New rows default to Fixed, matching the pre-toggle behaviour.
-  handoverType: 'Fixed', handoverDate: '', handoverLeadValue: '', handoverLeadUnit: 'Months',
+  // The mode selects the displayed timing; both values are retained when switching.
+  // New rows default to Fixed, matching the pre-toggle behaviour.
+  handoverType: 'Fixed', handoverDate: '', handoverLeadValue: '', handoverLeadUnit: '',
   cam: '', chargeableArea: '',
   scoutNotes: '',
   // Derived server-side from the coordinates; displayed read-only and never submitted.
@@ -211,7 +211,7 @@ const toFormValues = (d) => {
     handoverType: handoverTypeToLabel(d.handoverType),
     handoverDate: d.handoverDate ? String(d.handoverDate).slice(0, 10) : '',
     handoverLeadValue: d.handoverLeadValue ?? '',
-    handoverLeadUnit: handoverUnitToLabel(d.handoverLeadUnit) || 'Months',
+    handoverLeadUnit: handoverUnitToLabel(d.handoverLeadUnit),
     lockInDate: d.lockInDate ? String(d.lockInDate).slice(0, 10) : '',
     cam: d.cam || '',
     chargeableArea: d.chargeableArea ?? '',
@@ -984,7 +984,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 <Field
                   label="Handover"
                   error={errors.handoverLeadValue}
-                  tooltip="When the warehouse can realistically be given. Pick Fixed for a known date, or Variable for a lead time from today (e.g. 2 months)."
+                  tooltip="Pick Fixed for a confirmed handover date, or Variable for a lead time after the letter of intent (LOI), including its unit."
+                  hint='PPTs and Last Mile Excel show "Unconfirmed" unless a handover date or complete lead time is recorded. Availability alone does not confirm handover.'
                 >
                   <div style={{ display: 'flex', flexDirection: m ? 'column' : 'row', gap: 8 }}>
                     <div style={{ width: m ? '100%' : 120, flexShrink: 0 }}>
