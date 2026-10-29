@@ -431,6 +431,7 @@ const MobileHeader = ({ onMenuToggle }) => {
 
           <Link
             to="/dashboard"
+            reloadDocument
             style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}
             className="brand-link"
           >
