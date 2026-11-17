@@ -13,8 +13,8 @@ export function useWarehouseFilterOptions(selectedState, rows) {
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    // Review Queue already loads all submissions for its current status via API.
-    // Its users do not necessarily have access to dashboard listings.
+    // Review queues supply their own scoped rows or suggestion metadata; never
+    // fetch dashboard-wide options for those callers.
     if (rows !== undefined) return;
     let cancelled = false;
     setLoading(true);

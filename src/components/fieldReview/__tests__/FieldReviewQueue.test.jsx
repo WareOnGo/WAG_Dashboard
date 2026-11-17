@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from 'antd';
 import { MemoryRouter } from 'react-router-dom';
 import AuthContext from '../../../contexts/AuthContext';
@@ -10,6 +10,47 @@ vi.mock('../../CardView', () => ({ default: ({ warehouses }) => <div>{warehouses
 vi.mock('../FieldReviewDialog', () => ({ default: () => null }));
 const result = id => ({ data: [{ id: crypto.randomUUID(), warehouseId: id, warehouse: {}, flags: [], activeCount: 1 }], counts: {}, pagination: { total: 1, totalPages: 1 } });
 const tree = user => <MemoryRouter><AuthContext.Provider value={{ user }}><App><FieldReviewQueue /></App></AuthContext.Provider></MemoryRouter>;
+beforeEach(() => fieldReviewService.list.mockReset());
+
+it('filters the server queue, resets pagination and preserves the selected review tab when filters clear', async () => {
+  fieldReviewService.list.mockResolvedValue({ ...result(4821), pagination: { total: 41, totalPages: 3 },
+    filterOptions: [{ city: 'Bhiwandi', state: 'Maharashtra', warehouseType: 'PEB' }]
+  });
+  render(tree({ email: 'employee@wareongo.com' }));
+  await screen.findByText('Warehouse #4821');
+  fireEvent.click(screen.getByTitle('2'));
+  await waitFor(() => expect(fieldReviewService.list).toHaveBeenLastCalledWith(
+    expect.objectContaining({ page: 2, limit: 20 }), expect.any(AbortSignal)));
+  fireEvent.click(screen.getByRole('button', { name: 'Filters', exact: true }));
+  fireEvent.change(screen.getByLabelText('City', { exact: true }), { target: { value: 'Bhiwandi' } });
+  await waitFor(() => expect(fieldReviewService.list).toHaveBeenLastCalledWith(
+    expect.objectContaining({ page: 1, city: 'Bhiwandi' }), expect.any(AbortSignal)));
+  fireEvent.click(screen.getByText(/Previously flagged/));
+  await waitFor(() => expect(fieldReviewService.list).toHaveBeenLastCalledWith(
+    expect.objectContaining({ page: 1, view: 'previous', city: 'Bhiwandi' }), expect.any(AbortSignal)));
+  fireEvent.click(within(screen.getByLabelText('Applied filters')).getByRole('button', { name: 'Clear All Filters' }));
+  await waitFor(() => expect(fieldReviewService.list).toHaveBeenLastCalledWith(
+    { view: 'previous', page: 1, limit: 20 }, expect.any(AbortSignal)));
+  expect(screen.queryByLabelText('Applied filters')).not.toBeInTheDocument();
+});
+
+it('discards filter suggestions and pending responses when warehouse access narrows', async () => {
+  const user = { email: 'employee@wareongo.com', capabilities: { DASHBOARD: true, WAREHOUSE_VIEW_OWN: true, WAREHOUSE_VIEW_ALL: true } };
+  let finishOld;
+  fieldReviewService.list.mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }))
+    .mockResolvedValueOnce({ ...result(4822), filterOptions: [] });
+  const { rerender } = render(tree(user));
+  await waitFor(() => expect(finishOld).toBeTypeOf('function'));
+  const previousSignal = fieldReviewService.list.mock.calls[0][1];
+  rerender(tree({ ...user, capabilities: { ...user.capabilities, WAREHOUSE_VIEW_ALL: false } }));
+  await screen.findByText('Warehouse #4822');
+  expect(previousSignal.aborted).toBe(true);
+  await act(async () => finishOld({ ...result(4821), filterOptions: [{ city: 'Restricted city', state: 'Restricted state' }] }));
+  expect(screen.queryByText('Warehouse #4821')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Filters', exact: true }));
+  fireEvent.focus(screen.getByLabelText('City', { exact: true }));
+  expect(screen.queryByText('Restricted city')).not.toBeInTheDocument();
+});
 
 it('clears the previous identity and ignores its late queue response', async () => {
   let finishOld, finishNew;

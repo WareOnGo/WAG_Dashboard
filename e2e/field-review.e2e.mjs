@@ -47,6 +47,60 @@ for (const width of [1280, 390]) test.describe('field review at ' + width + 'px'
     isMobile: width < 768,
     hasTouch: width < 768
   });
+  test('dashboard filters and pagination work across the assigned queue', async ({ page }) => {
+    const template = await server.db.warehouse.findUnique({ where: { id: 4821 } });
+    for (let index = 1; index <= 21; index++) {
+      await server.db.warehouse.create({ data: { ...template, id: 4821 + index,
+        city: index % 2 ? 'Ahmedabad' : 'Bhiwandi',
+        state: index % 2 ? 'Gujarat' : 'Maharashtra',
+        warehouseType: index % 2 ? 'RCC' : 'PEB', warehouseOwnerType: 'Individual',
+        totalSpaceSqft: [20000 + index * 1000], ratePerSqft: String(18 + index % 8)
+      } });
+    }
+    const reviews = [];
+    for (let warehouseId = 4821; warehouseId <= 4842; warehouseId++) {
+      reviews.push(await server.service.create({ requestId: randomUUID(), warehouseId, assigneeId: 2,
+        fields: [{ key: 'ratePerSqft', comment: 'Confirm the current rate with the owner.' }]
+      }, { email: 'admin@wareongo.com' }));
+    }
+    const completed = reviews[0];
+    const response = await server.service.respond(completed.id, completed.flags[0].id, {
+      requestId: randomUUID(), version: completed.flags[0].version,
+      baselineVersion: completed.flags[0].currentVersion,
+      resolution: 'NO_CHANGE', explanation: 'Owner confirmed the current rate.'
+    }, { email: 'employee@wareongo.com' });
+    await server.service.decide(completed.id, completed.flags[0].id, {
+      requestId: randomUUID(), version: response.flags[0].version,
+      currentVersion: response.flags[0].currentVersion, choice: 'PROPOSED'
+    }, { email: 'admin@wareongo.com' });
+
+    await page.goto(server.url + '/field-reviews?role=employee');
+    const cards = page.locator('.simple-warehouse-card:not(.simple-warehouse-card--skeleton)');
+    await expect(cards).toHaveCount(20);
+    await expect(page.getByText(width < 768 ? 'Current (21)' : 'Currently flagged (21)', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await noOverflow(page);
+    await page.screenshot({ path: test.info().outputPath('queue-filters-' + width + '.png'), animations: 'disabled' });
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    if (width < 768) await page.getByRole('button', { name: 'Next page', exact: true }).click();
+    else await page.locator('.ant-pagination-next').click();
+    await expect(cards).toHaveCount(1);
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await page.getByLabel('City', { exact: true }).fill('Bhiwandi');
+    await expect(cards).toHaveCount(10);
+    await expect(page.getByText('10 of 10 results', { exact: true })).toBeVisible();
+    await page.getByText(width < 768 ? 'Previous (1)' : 'Previously flagged (1)', { exact: true }).click();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('#4821');
+    await expect(page.getByLabel('City', { exact: true })).toHaveValue('Bhiwandi');
+    await page.getByLabel('Applied filters').getByRole('button', { name: 'Clear All Filters', exact: true }).click();
+    await expect(page.getByLabel('City', { exact: true })).toHaveValue('');
+    await page.getByText(width < 768 ? 'Current (21)' : 'Currently flagged (21)', { exact: true }).click();
+    await expect(cards).toHaveCount(20);
+    await page.getByRole('textbox', { name: 'Search field reviews', exact: true }).fill('4822, 4823');
+    await expect(cards).toHaveCount(2);
+    await noOverflow(page);
+  });
   test('create in current view, respond, verify conflict and no-change, then reopen', async ({
     page
   }) => {

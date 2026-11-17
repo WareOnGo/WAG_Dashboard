@@ -213,10 +213,8 @@ export function useWarehouseFilters(items = []) {
   ]);
 
   // Serialize the active filters into backend query params for server-side
-  // fetching (Dashboard). Only non-default values are included. The date ranges
-  // are review-queue-only (client-side) and intentionally excluded — the warehouse
-  // list endpoint doesn't support them. The dashboard uses this; the review queue
-  // keeps using `filtered` (client-side) above.
+  // fetching (Dashboard and field reviews). Only non-default values are included.
+  // Submission review dates remain client-side and are intentionally excluded.
   const queryParams = useMemo(() => {
     const p = {};
     if (searchText) p.search = searchText;
