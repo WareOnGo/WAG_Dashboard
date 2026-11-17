@@ -45,11 +45,13 @@ describe('structured dashboard fields', () => {
     const { onSubmit } = open();
     for (const [label, value, unit] of [
       ['Distance from Highway', '2.5', 'km'], ['Approach Road Width', '50', 'feet'],
-      ['Land Parcel Size', '2', 'hectares'], ['Built-up Area', '25000', 'sq ft'], ['Carpet Area', '2300', 'sq m'],
+      ['Land Parcel Size', '2', 'hectares'], ['Built-up Area', '25000', 'sq ft'], ['Carpet Area', '2300', 'sq ft'],
       ['Clear Height', '10', 'metres'], ['Centre Height', '12', 'metres'], ['Plinth Height', '0', 'feet'],
       ['Dock Apron Length', '15', 'metres'], ['Compound Gate Width', '20', 'feet'], ['Power', '100', 'HP'],
     ]) {
-      change(`${label} value`, value); change(`${label} unit`, unit);
+      change(`${label} value`, value);
+      const unitInput = document.querySelector(`[aria-label="${label} unit"]`);
+      if (unitInput) fireEvent.change(unitInput, { target: { value: unit } });
     }
     change('Dimensions length', '100'); change('Dimensions width', '60'); change('Dimensions height', '30');
     change('Dock Dimension width', '8'); change('Dock Dimension height', '10');
@@ -58,15 +60,15 @@ describe('structured dashboard fields', () => {
     change('Contact Number country code', 'GB'); change('Contact Number', '2079460018');
     change('Alternate Phone Number country code', 'DK'); change('Alternate Phone Number', '32123456');
     change('Canopy Type', 'Shutter'); change('Dock Platform Type', 'Angled/Cross'); change('Flooring Type', 'FM2');
-    fireEvent.click(screen.getByLabelText('Ventilation Type options'));
+    fireEvent.click(field('Ventilation Type options'));
     fireEvent.click(field('Ridge')); fireEvent.click(field('Turbo'));
     change('Ventilation Air Changes/Day', '4');
-    expect(screen.queryByLabelText('Nearest Bus Transport')).not.toBeInTheDocument();
+    expect(field('Nearest Bus Transport')).toBeFalsy();
     expect(field('Paved Roads inside Warehouse?')).toBeInTheDocument();
     await submit();
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       contactNumber: '+442079460018', alt_phone_number: '+4532123456', uploadedBy: original.uploadedBy,
-      distance_from_highway: '2.5 km', land_parcel_size: '2 hectares', builtup_area: '25000 sq ft', carpet_area: '2300 sq m',
+      distance_from_highway: '2.5 km', land_parcel_size: '2 hectares', builtup_area: '25000 sq ft', carpet_area: '2300 sq ft',
       clearHeightFt: '10 metres', centreHeight: '12 metres', plinthHeightFt: '0 feet', dockDimension: '8 x 10 feet',
       dockApronLengthFt: '15 metres', gateSizeFt: '20 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
       washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'FM2',
@@ -78,7 +80,7 @@ describe('structured dashboard fields', () => {
   it('preserves legacy ranges, descriptions, dropdown values, totals, setback, media and uploader', async () => {
     const legacy = { ...original, clearHeightFt: '20–25 feet', dimensions: '100 by 200', washroom_count: '5 total',
       ventilationType: 'Cross ventilation with fans', canopyType: 'Custom canopy', flooringType: 'Old stone',
-      builtup_area: '25000', googleLocation: 'legacy maps description', nearest_transport: 'Old bus stand',
+      builtup_area: '25000', carpet_area: '120 sqm', land_parcel_size: '400 m²', googleLocation: 'legacy maps description', nearest_transport: 'Old bus stand',
       setbackArea: '5m on all sides', media: { images: ['https://fixture.invalid/owned.jpg'], videos: [], docs: [] },
       WarehouseData: { landType: 'Old land type', dimensions: '100 by 200', powerKva: '100–200 kVA' } };
     const { onSubmit } = open({ initialData: legacy });
@@ -89,6 +91,7 @@ describe('structured dashboard fields', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       clearHeightFt: legacy.clearHeightFt, washroom_count: legacy.washroom_count, ventilationType: legacy.ventilationType,
       canopyType: legacy.canopyType, flooringType: legacy.flooringType, builtup_area: legacy.builtup_area,
+      carpet_area: legacy.carpet_area, land_parcel_size: legacy.land_parcel_size,
       googleLocation: legacy.googleLocation, nearest_transport: legacy.nearest_transport, setbackArea: legacy.setbackArea,
       uploadedBy: legacy.uploadedBy, media: legacy.media, warehouseData: expect.objectContaining(legacy.WarehouseData),
     }));

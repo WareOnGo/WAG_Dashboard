@@ -86,12 +86,15 @@ for (const width of [320, 390, 1280]) {
       await expect(page.getByRole('alert')).toHaveCount(0);
       for (const [key, label, unit] of [
         ['distance_from_highway', 'Distance from Highway', 'metres'], ['approachRoadWidth', 'Approach Road Width', 'feet'],
-        ['land_parcel_size', 'Land Parcel Size', 'hectares'], ['builtup_area', 'Built-up Area', 'sq m'],
+        ['land_parcel_size', 'Land Parcel Size', 'hectares'], ['builtup_area', 'Built-up Area', 'sq ft'],
         ['carpet_area', 'Carpet Area', 'sq ft'], ['clearHeightFt', 'Clear Height', 'metres'],
         ['centreHeight', 'Centre Height', 'feet'], ['plinthHeightFt', 'Plinth Height', 'feet'],
         ['dockApronLengthFt', 'Dock Apron Length', 'metres'], ['gateSizeFt', 'Compound Gate Width', 'feet'], ['powerKva', 'Power', 'HP'],
       ]) {
-        await data(page, key).fill('50.5'); await field(page, `${label} unit`).selectOption(unit);
+        await data(page, key).fill('50.5');
+        if (['builtup_area', 'carpet_area'].includes(key)) {
+          await expect(data(page, key).locator('..').locator('..').locator('.measurement-suffix')).toHaveText('sq ft');
+        } else await field(page, `${label} unit`).selectOption(unit);
         expect((await data(page, key).boundingBox()).height).toBeGreaterThanOrEqual(width < 768 ? 44 : 36);
       }
       for (const [label, value] of [['Dimensions length', '100'], ['Dimensions width', '60'], ['Dimensions height', '30'],
@@ -116,7 +119,7 @@ for (const width of [320, 390, 1280]) {
       const expected = {
         uploadedBy: 'dashboard@example.test', contactNumber: '+4532123456', alt_phone_number: '+442079460018',
         distance_from_highway: '50.5 metres', approachRoadWidth: '50.5 feet', land_parcel_size: '50.5 hectares',
-        builtup_area: '50.5 sq m', carpet_area: '50.5 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
+        builtup_area: '50.5 sq ft', carpet_area: '50.5 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
         plinthHeightFt: '50.5 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: '50.5 HP',
         dimensions: '100 x 60 x 30 feet', dockDimension: '8 x 10 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
         washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'FM2',
@@ -174,7 +177,7 @@ test('legacy review can save unrelated edits and reject an incomplete draft', as
     address: 'Legacy form QA', city: 'New Delhi', state: 'Delhi', warehouseType: 'PEB', listing_type: 'Rent',
     contactPerson: 'Legacy owner', contactNumber: '9876543210', totalSpaceSqft: [1000], ratePerSqft: '25', compliances: 'Legacy',
     uploadedBy: 'original@example.test', submittedBy: 'original@example.test', source: 'PARTNER_API', reviewStatus: 'PENDING',
-    clearHeightFt: '20–25 feet', washroom_count: '5 total', builtup_area: '10000', landType: null, googleLocation: null,
+    clearHeightFt: '20–25 feet', washroom_count: '5 total', builtup_area: '10000', carpet_area: '120 sqm', land_parcel_size: '400 m²', landType: null, googleLocation: null,
     nearest_transport: 'Old stop', setbackArea: '5m on all sides', ventilationType: 'Old description',
   } });
   await page.goto(`${server.url}/?review`);
@@ -197,6 +200,6 @@ test('legacy review can save unrelated edits and reject an incomplete draft', as
   await expect.poll(async () => (await server.prisma.stagedWarehouse.findUnique({ where: { id: legacy.id } })).reviewStatus).toBe('REJECTED');
   expect(await server.prisma.stagedWarehouse.findUnique({ where: { id: legacy.id } })).toMatchObject({
     uploadedBy: 'original@example.test', dimensions: null, landType: null, googleLocation: null,
-    clearHeightFt: '20–25 feet', washroom_count: '5 total', builtup_area: '10000', nearest_transport: 'Old stop', setbackArea: '5m on all sides',
+    clearHeightFt: '20–25 feet', washroom_count: '5 total', builtup_area: '10000', carpet_area: '120 sqm', land_parcel_size: '400 m²', nearest_transport: 'Old stop', setbackArea: '5m on all sides',
   });
 });
