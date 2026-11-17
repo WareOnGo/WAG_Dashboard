@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { App, Result } from 'antd'
 import { useAuth } from '../contexts'
+import { canViewWarehouses, warehouseAccessKey } from '../utils/warehousePermissions'
 import { microMarketService } from '../services/microMarketService'
 import { warehousesForCitySuggestion } from '../utils/microMarketWarehousePoints'
 import MicroMarketMap from './MicroMarketMap'
@@ -47,8 +48,14 @@ function inferCity(geometry, warehouses) {
 
 export default function MicroMarkets() {
   const { user } = useAuth()
+  return <ScopedMicroMarkets key={warehouseAccessKey(user)} />
+}
+
+function ScopedMicroMarkets() {
+  const { user } = useAuth()
   const { message } = App.useApp()
   const canAccess = !!user?.isReviewer || !!user?.isAdmin
+  const canView = canViewWarehouses(user)
 
   const [areas, setAreas] = useState([])          // [{ id, name, city, reviewerName, reviewerEmail }]
   const [initialFC, setInitialFC] = useState(null)
@@ -103,8 +110,10 @@ export default function MicroMarkets() {
       // Auto-fill city from the warehouses that fall inside the drawn polygon.
       let city = ''
       try {
-        const points = await warehousesForCitySuggestion(feature.geometry, { signal: controller.signal })
-        city = inferCity(feature.geometry, points)
+        if (canView) {
+          const points = await warehousesForCitySuggestion(feature.geometry, { signal: controller.signal })
+          city = inferCity(feature.geometry, points)
+        }
       } catch {
         if (controller.signal.aborted) return
         message.warning('City could not be suggested. You can enter it after saving the area.')
@@ -193,6 +202,7 @@ export default function MicroMarkets() {
         selectedId={selectedId}
         loadingAreas={loadingAreas}
         loadingWarehouses={warehouseStatus.loading}
+        canViewWarehouses={canView}
         warehouseCount={warehouseStatus.count}
         warehouseStatus={warehouseStatus}
         onRetryWarehouses={() => setPinRefreshKey(key => key + 1)}
@@ -211,7 +221,7 @@ export default function MicroMarkets() {
           onWarehouseStatus={handleWarehouseStatus}
           pinRefreshKey={pinRefreshKey}
           showAreas={showAreas}
-          showPins={showPins}
+          showPins={showPins && canView}
           onCreate={handleCreate}
           onUpdateGeometry={handleUpdateGeometry}
           onUserDelete={handleUserDelete}

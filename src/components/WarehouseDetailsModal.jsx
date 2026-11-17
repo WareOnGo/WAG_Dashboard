@@ -1,6 +1,11 @@
+import useFieldReviewCreation from './fieldReview/useFieldReviewCreation';
+import FieldReviewSelection from './fieldReview/FieldReviewSelection';
+import { FieldReviewSelectionContext } from './fieldReview/SelectionContext';
+import { withDefaultUnit } from '../utils/measurementDisplay';
 import ImageWithFallback from './ImageWithFallback';
+import VoiceNotesList from './VoiceNotesList';
 import { imageVariant } from '../utils/mediaUtils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Image, Space, Button, Tag } from 'antd';
 import {
   ZoomInOutlined,
@@ -17,6 +22,8 @@ import {
 import ResponsiveModal from './ResponsiveModal';
 import RedactedPhone from './RedactedPhone';
 import VisitNotes from './VisitNotes';
+import AuthContext from '../contexts/AuthContext';
+import { canEditWarehouse } from '../utils/warehousePermissions';
 import WarehouseProximityFields from './WarehouseProximityFields';
 import { useViewport } from '../hooks/useViewport';
 import { downloadAllImages, ERROR_MESSAGES, isMobileBrowser } from '../utils/imageDownloadUtils';
@@ -67,12 +74,13 @@ const sectionTitle = { color: 'var(--text-primary)', fontSize: 18, fontWeight: 7
 
 // ── Reusable read-only field components ───────────────────────────────────────
 
-const Field = ({ label, children, style, mobile }) => (
-  <div style={{ marginBottom: 20, ...style }}>
+const Field = ({ label, children, style, mobile, fieldKey }) => (
+  <div className="fr-flag-field" style={{ marginBottom: 20, ...style }}>
     {label && (
       <label style={labelStyle(mobile)}>{label}</label>
     )}
     {children}
+    <FieldReviewSelection fieldKey={fieldKey} label={label} />
   </div>
 );
 
@@ -144,8 +152,11 @@ const WarehouseDetailsModal = ({
   onClose,
   warehouse = null,
   footerActions = null, // optional extra footer buttons (e.g. review-queue revoke/reopen)
+  enableFieldReview = true,
   statusBanner = null,  // optional banner rendered at the top (e.g. review provenance)
 }) => {
+  const { user } = useContext(AuthContext) || {};
+  const creation = useFieldReviewCreation({warehouse, visible, onClose, enabled: enableFieldReview});
   const { isMobile } = useViewport();
   const m = isMobile;
   const [isDownloading, setIsDownloading] = useState(false);
@@ -343,7 +354,7 @@ const WarehouseDetailsModal = ({
           {footerActions}
         </div>
       )}
-      <Button size="large" onClick={onClose}
+      <Button size="large" onClick={creation.onClose}
         style={{ minWidth: 120, minHeight: m ? 44 : 'auto', height: 'auto', whiteSpace: 'normal' }}>
         Close
       </Button>
@@ -352,9 +363,10 @@ const WarehouseDetailsModal = ({
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
+    <FieldReviewSelectionContext.Provider value={creation.selection}>
     <ResponsiveModal
       visible={visible}
-      onClose={onClose}
+      onClose={creation.onClose}
       title={`Warehouse #${warehouse.id}`}
       maxWidth="900px"
       className="warehouse-details-modal"
@@ -362,19 +374,20 @@ const WarehouseDetailsModal = ({
     >
       <div style={{ color: 'var(--text-primary)' }}>
 
+        {creation.toolbar}
         {statusBanner && <div style={{ marginBottom: 16 }}>{statusBanner}</div>}
 
         {/* ── Owner Details ───────────────────────────────────── */}
         <Section title="Owner Details">
           {row(<>
-            {col(<Field label="Listing Type" mobile={m}><TextValue mobile={m} value={warehouse.listing_type} /></Field>, true)}
-            {col(<Field label="Warehouse Owner Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseOwnerType} /></Field>, true)}
+            {col(<Field fieldKey="listing_type" label="Listing Type" mobile={m}><TextValue mobile={m} value={warehouse.listing_type} /></Field>, true)}
+            {col(<Field fieldKey="warehouseOwnerType" label="Warehouse Owner Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseOwnerType} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Owner Company Name" mobile={m}><TextValue mobile={m} value={warehouse.ownerCompanyName} /></Field>, true)}
+            {col(<Field fieldKey="ownerCompanyName" label="Owner Company Name" mobile={m}><TextValue mobile={m} value={warehouse.ownerCompanyName} /></Field>, true)}
             {col(
-              <Field label="Contact Person" mobile={m}>
+              <Field fieldKey="contactPerson" label="Contact Person" mobile={m}>
                 <TextValue mobile={m} value={warehouse.contactPerson} />
               </Field>,
             true)}
@@ -382,27 +395,27 @@ const WarehouseDetailsModal = ({
 
           {row(<>
             {col(
-              <Field label="Contact Number" mobile={m}>
+              <Field fieldKey="contactNumber" label="Contact Number" mobile={m}>
                 <div style={valueBase(m)}>
                   <RedactedPhone warehouseId={warehouse.id} contactNumber={warehouse.contactNumber} />
                 </div>
               </Field>,
             true)}
-            {col(<Field label="Alternate Phone Number" mobile={m}><TextValue mobile={m} value={warehouse.alt_phone_number} /></Field>, true)}
+            {col(<Field fieldKey="alt_phone_number" label="Alternate Phone Number" mobile={m}><TextValue mobile={m} value={warehouse.alt_phone_number} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Owner Alternate POC" mobile={m}><TextValue mobile={m} value={warehouse.ownerAltPoc} /></Field>, true)}
-            {col(<Field label="Is Broker" mobile={m}><TextValue mobile={m} value={warehouse.isBroker} /></Field>, true)}
+            {col(<Field fieldKey="ownerAltPoc" label="Owner Alternate POC" mobile={m}><TextValue mobile={m} value={warehouse.ownerAltPoc} /></Field>, true)}
+            {col(<Field fieldKey="isBroker" label="Is Broker" mobile={m}><TextValue mobile={m} value={warehouse.isBroker} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Is Builder" mobile={m}><TextValue mobile={m} value={warehouse.is_builder} /></Field>, true)}
-            {col(<Field label="Owner Warmth" mobile={m}><TextValue mobile={m} value={warehouse.owner_warmnth} /></Field>, true)}
+            {col(<Field fieldKey="is_builder" label="Is Builder" mobile={m}><TextValue mobile={m} value={warehouse.is_builder} /></Field>, true)}
+            {col(<Field fieldKey="owner_warmnth" label="Owner Warmth" mobile={m}><TextValue mobile={m} value={warehouse.owner_warmnth} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Owner of Multiple Sites" mobile={m}><TextValue mobile={m} value={warehouse.owner_of_multiple_sites} /></Field>, true)}
+            {col(<Field fieldKey="owner_of_multiple_sites" label="Owner of Multiple Sites" mobile={m}><TextValue mobile={m} value={warehouse.owner_of_multiple_sites} /></Field>, true)}
             {col(<Field label="Uploaded By" mobile={m}><TextValue mobile={m} value={warehouse.uploadedBy} /></Field>, true)}
           </>)}
         </Section>
@@ -410,31 +423,31 @@ const WarehouseDetailsModal = ({
         {/* ── Availability ────────────────────────────────────── */}
         <Section title="Availability">
           {row(<>
-            {col(<Field label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)}
+            {col(<Field fieldKey="availabilityReview" label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)}
             {col(<Field label="Availability last reviewed" mobile={m}><TextValue mobile={m} value={formatAvailabilityReview(warehouse.availabilityLastReviewedOn)} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Handover" mobile={m}><TextValue mobile={m} value={formatHandover(warehouse, formatDate)} /></Field>, true)}
-            {col(<Field label="Lock-in Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.lockInDate)} /></Field>, true)}
+            {col(<Field fieldKey="handover" label="Handover" mobile={m}><TextValue mobile={m} value={formatHandover(warehouse, formatDate)} /></Field>, true)}
+            {col(<Field fieldKey="lockInDate" label="Lock-in Date" mobile={m}><TextValue mobile={m} value={formatDate(warehouse.lockInDate)} /></Field>, true)}
           </>)}
-          {row(col(<Field label="Status" mobile={m}><TextValue mobile={m} value={warehouse.status} /></Field>, true))}
+          {row(col(<Field fieldKey="status" label="Status" mobile={m}><TextValue mobile={m} value={warehouse.status} /></Field>, true))}
         </Section>
 
         {/* ── Location Details ────────────────────────────────── */}
         <Section title="Location Details">
-          <Field label="Address" mobile={m}>
+          <Field fieldKey="address" label="Address" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.address} />
           </Field>
 
           {row(<>
-            {col(<Field label="City" mobile={m}><TextValue mobile={m} value={warehouse.city} /></Field>, true)}
-            {col(<Field label="State" mobile={m}><TextValue mobile={m} value={warehouse.state} /></Field>, true)}
+            {col(<Field fieldKey="city" label="City" mobile={m}><TextValue mobile={m} value={warehouse.city} /></Field>, true)}
+            {col(<Field fieldKey="state" label="State" mobile={m}><TextValue mobile={m} value={warehouse.state} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Postal Code" mobile={m}><TextValue mobile={m} value={warehouse.postalCode} /></Field>, true)}
-            {col(<Field label="Zone" mobile={m}><TextValue mobile={m} value={warehouse.zone} /></Field>, true)}
+            {col(<Field fieldKey="postalCode" label="Postal Code" mobile={m}><TextValue mobile={m} value={warehouse.postalCode} /></Field>, true)}
+            {col(<Field fieldKey="zone" label="Zone" mobile={m}><TextValue mobile={m} value={warehouse.zone} /></Field>, true)}
           </>)}
 
           {/* Derived server-side from the coordinates, never entered by hand. */}
@@ -442,7 +455,7 @@ const WarehouseDetailsModal = ({
             <TextValue mobile={m} value={warehouse.micromarket} />
           </Field>
 
-          <Field label="Google Location URL" mobile={m}>
+          <Field fieldKey="googleLocation" label="Google Location URL" mobile={m}>
             {warehouse.googleLocation ? (
               <a
                 href={warehouse.googleLocation}
@@ -474,46 +487,46 @@ const WarehouseDetailsModal = ({
           </Field>
 
           {row(<>
-            {col(<Field label="Latitude" mobile={m}><TextValue mobile={m} value={wd.latitude} /></Field>, true)}
-            {col(<Field label="Longitude" mobile={m}><TextValue mobile={m} value={wd.longitude} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.latitude" label="Latitude" mobile={m}><TextValue mobile={m} value={wd.latitude} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.longitude" label="Longitude" mobile={m}><TextValue mobile={m} value={wd.longitude} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Nearest Bus Transport" mobile={m}><TextValue mobile={m} value={warehouse.nearest_transport} /></Field>, true)}
-            {col(<Field label="Distance from Highway" mobile={m}><TextValue mobile={m} value={warehouse.distance_from_highway} /></Field>, true)}
+            {col(<Field fieldKey="nearest_transport" label="Nearest Bus Transport" mobile={m}><TextValue mobile={m} value={warehouse.nearest_transport} /></Field>, true)}
+            {col(<Field fieldKey="distance_from_highway" label="Distance from Highway" mobile={m}><TextValue mobile={m} value={warehouse.distance_from_highway} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Approach Road Width (ft)" mobile={m}><TextValue mobile={m} value={wd.approachRoadWidth} /></Field>, true)}
-            {col(<Field label="Land Type" mobile={m}><TextValue mobile={m} value={wd.landType} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.approachRoadWidth" label="Approach Road Width" mobile={m}><TextValue mobile={m} value={withDefaultUnit(wd.approachRoadWidth, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.landType" label="Land Type" mobile={m}><TextValue mobile={m} value={wd.landType} /></Field>, true)}
           </>)}
 
           {row(
-            col(<Field label="Pollution Zone" mobile={m}><TextValue mobile={m} value={wd.pollutionZone} /></Field>, true)
+            col(<Field fieldKey="warehouseData.pollutionZone" label="Pollution Zone" mobile={m}><TextValue mobile={m} value={wd.pollutionZone} /></Field>, true)
           )}
         </Section>
 
         {/* ── Warehouse Technical Specifications ──────────────── */}
         <Section title="Warehouse Technical Specifications">
           {row(
-            col(<Field label="Warehouse Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseType} /></Field>, true)
+            col(<Field fieldKey="warehouseType" label="Warehouse Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseType} /></Field>, true)
           )}
 
           {/* RCC-specific specs — shown only for RCC, mirroring WarehouseForm. */}
           {warehouse.warehouseType === 'RCC' && (<>
             {row(<>
-              {col(<Field label="Total Number of Floors" mobile={m}><TextValue mobile={m} value={warehouse.totalFloors} /></Field>, true)}
-              {col(<Field label="Lift Access" mobile={m}><TextValue mobile={m} value={warehouse.liftAccess === true ? 'Yes' : warehouse.liftAccess === false ? 'No' : '-'} /></Field>, true)}
+              {col(<Field fieldKey="totalFloors" label="Total Number of Floors" mobile={m}><TextValue mobile={m} value={warehouse.totalFloors} /></Field>, true)}
+              {col(<Field fieldKey="liftAccess" label="Lift Access" mobile={m}><TextValue mobile={m} value={warehouse.liftAccess === true ? 'Yes' : warehouse.liftAccess === false ? 'No' : '-'} /></Field>, true)}
             </>)}
 
             {warehouse.liftAccess === true && (<>
               {row(<>
-                {col(<Field label="Number of Passenger Lifts" mobile={m}><TextValue mobile={m} value={warehouse.passengerLiftCount} /></Field>, true)}
-                {col(<Field label="Number of Service Lifts" mobile={m}><TextValue mobile={m} value={warehouse.serviceLiftCount} /></Field>, true)}
+                {col(<Field fieldKey="passengerLiftCount" label="Number of Passenger Lifts" mobile={m}><TextValue mobile={m} value={warehouse.passengerLiftCount} /></Field>, true)}
+                {col(<Field fieldKey="serviceLiftCount" label="Number of Service Lifts" mobile={m}><TextValue mobile={m} value={warehouse.serviceLiftCount} /></Field>, true)}
               </>)}
 
               {row(
-                col(<Field label="Lift Load Capacity" mobile={m}><TextValue mobile={m} value={warehouse.liftLoadCapacity} /></Field>, true)
+                col(<Field fieldKey="liftLoadCapacity" label="Lift Load Capacity" mobile={m}><TextValue mobile={m} value={warehouse.liftLoadCapacity} /></Field>, true)
               )}
             </>)}
           </>)}
@@ -521,92 +534,92 @@ const WarehouseDetailsModal = ({
           {row(<>
             {col(
               /* NOTE: 'totalSpaceSqft' from the schema is displayed as "Offered Area" here per user request */
-              <Field label={warehouse.warehouseType === 'RCC' ? 'Offered Area per Floor (sq ft)' : 'Offered Area (sq ft)'} mobile={m}>
+              <Field fieldKey="totalSpaceSqft" label={warehouse.warehouseType === 'RCC' ? 'Offered Area per Floor (sq ft)' : 'Offered Area (sq ft)'} mobile={m}>
                 <TextValue mobile={m} value={warehouse.totalSpaceSqft} />
               </Field>,
             true)}
-            {col(<Field label="Chargeable Area (sq ft)" mobile={m}><TextValue mobile={m} value={warehouse.chargeableArea} /></Field>, true)}
+            {col(<Field fieldKey="chargeableArea" label="Chargeable Area (sq ft)" mobile={m}><TextValue mobile={m} value={warehouse.chargeableArea} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Land Parcel Size" mobile={m}><TextValue mobile={m} value={warehouse.land_parcel_size} /></Field>, true)}
-            {col(<Field label="Built-up Area" mobile={m}><TextValue mobile={m} value={warehouse.builtup_area} /></Field>, true)}
+            {col(<Field fieldKey="land_parcel_size" label="Land Parcel Size" mobile={m}><TextValue mobile={m} value={warehouse.land_parcel_size} /></Field>, true)}
+            {col(<Field fieldKey="builtup_area" label="Built-up Area" mobile={m}><TextValue mobile={m} value={warehouse.builtup_area} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Carpet Area" mobile={m}><TextValue mobile={m} value={warehouse.carpet_area} /></Field>, true)}
-            {col(<Field label="Dimensions" mobile={m}><TextValue mobile={m} value={wd.dimensions} /></Field>, true)}
+            {col(<Field fieldKey="carpet_area" label="Carpet Area" mobile={m}><TextValue mobile={m} value={warehouse.carpet_area} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.dimensions" label="Dimensions" mobile={m}><TextValue mobile={m} value={wd.dimensions} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Clear Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.clearHeightFt} /></Field>, true)}
-            {col(<Field label="Centre Height" mobile={m}><TextValue mobile={m} value={warehouse.centreHeight} /></Field>, true)}
+            {col(<Field fieldKey="clearHeightFt" label="Clear Height" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.clearHeightFt, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="centreHeight" label="Centre Height" mobile={m}><TextValue mobile={m} value={warehouse.centreHeight} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Plinth Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.plinthHeightFt} /></Field>, true)}
-            {col(<Field label="Number of Docks" mobile={m}><TextValue mobile={m} value={warehouse.numberOfDocks} /></Field>, true)}
+            {col(<Field fieldKey="plinthHeightFt" label="Plinth Height" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.plinthHeightFt, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="numberOfDocks" label="Number of Docks" mobile={m}><TextValue mobile={m} value={warehouse.numberOfDocks} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Dock Dimension" mobile={m}><TextValue mobile={m} value={warehouse.dockDimension} /></Field>, true)}
+            {col(<Field fieldKey="dockDimension" label="Dock Dimension" mobile={m}><TextValue mobile={m} value={warehouse.dockDimension} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Dock Apron Length (ft)" mobile={m}><TextValue mobile={m} value={warehouse.dockApronLengthFt} /></Field>, true)}
+            {col(<Field fieldKey="dockApronLengthFt" label="Dock Apron Length" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.dockApronLengthFt, 'ft')} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Dock Platform Type" mobile={m}><TextValue mobile={m} value={warehouse.dockPlatformType} /></Field>, true)}
-            {col(<Field label="Gate Size (ft)" mobile={m}><TextValue mobile={m} value={warehouse.gateSizeFt} /></Field>, true)}
+            {col(<Field fieldKey="dockPlatformType" label="Dock Platform Type" mobile={m}><TextValue mobile={m} value={warehouse.dockPlatformType} /></Field>, true)}
+            {col(<Field fieldKey="gateSizeFt" label="Compound Gate Width" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.gateSizeFt, 'ft')} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Setback Area" mobile={m}><TextValue mobile={m} value={warehouse.setbackArea} /></Field>, true)}
-            {col(<Field label="CC Roads" mobile={m}><TextValue mobile={m} value={warehouse.ccRoads} /></Field>, true)}
+            {col(<Field fieldKey="setbackArea" label="Setback Area" mobile={m}><TextValue mobile={m} value={warehouse.setbackArea} /></Field>, true)}
+            {col(<Field fieldKey="ccRoads" label="Paved Roads inside Warehouse?" mobile={m}><TextValue mobile={m} value={warehouse.ccRoads} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Wall & Security Room" mobile={m}><TextValue mobile={m} value={warehouse.wallAndSecurityRoom} /></Field>, true)}
-            {col(<Field label="Canopy Type" mobile={m}><TextValue mobile={m} value={warehouse.canopyType} /></Field>, true)}
+            {col(<Field fieldKey="wallAndSecurityRoom" label="Security Features" mobile={m}><TextValue mobile={m} value={warehouse.wallAndSecurityRoom} /></Field>, true)}
+            {col(<Field fieldKey="canopyType" label="Canopy Type" mobile={m}><TextValue mobile={m} value={warehouse.canopyType} /></Field>, true)}
           </>)}
 
-          <Field label="Other Docking Specs" mobile={m}>
+          <Field fieldKey="otherDockingSpecs" label="Other Docking Specs" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.otherDockingSpecs} />
           </Field>
 
           {row(<>
-            {col(<Field label="Flooring Type" mobile={m}><TextValue mobile={m} value={warehouse.flooringType} /></Field>, true)}
-            {col(<Field label="Floor Strength (per sqm)" mobile={m}><TextValue mobile={m} value={warehouse.floorStrengthPerSqm} /></Field>, true)}
+            {col(<Field fieldKey="flooringType" label="Flooring Type" mobile={m}><TextValue mobile={m} value={warehouse.flooringType} /></Field>, true)}
+            {col(<Field fieldKey="floorStrengthPerSqm" label="Floor Strength" mobile={m}><TextValue mobile={m} value={warehouse.floorStrengthPerSqm} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Ventilation Type" mobile={m}><TextValue mobile={m} value={warehouse.ventilationType} /></Field>, true)}
-            {col(<Field label="Ventilation Air Changes/Day" mobile={m}><TextValue mobile={m} value={warehouse.ventilationAirChangesPerDay} /></Field>, true)}
+            {col(<Field fieldKey="ventilationType" label="Ventilation Type" mobile={m}><TextValue mobile={m} value={warehouse.ventilationType} /></Field>, true)}
+            {col(<Field fieldKey="ventilationAirChangesPerDay" label="Ventilation Air Changes/Day" mobile={m}><TextValue mobile={m} value={warehouse.ventilationAirChangesPerDay} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Insulation Present" mobile={m}><TextValue mobile={m} value={warehouse.insulationPresent} /></Field>, true)}
-            {col(<Field label="Insulation Type" mobile={m}><TextValue mobile={m} value={warehouse.insulationType} /></Field>, true)}
+            {col(<Field fieldKey="insulationPresent" label="Insulation Present" mobile={m}><TextValue mobile={m} value={warehouse.insulationPresent} /></Field>, true)}
+            {col(<Field fieldKey="insulationType" label="Insulation Type" mobile={m}><TextValue mobile={m} value={warehouse.insulationType} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Lighting Details" mobile={m}><TextValue mobile={m} value={warehouse.lightingDetails} /></Field>, true)}
-            {col(<Field label="Washroom Count" mobile={m}><TextValue mobile={m} value={warehouse.washroom_count} /></Field>, true)}
+            {col(<Field fieldKey="lightingDetails" label="Lighting" mobile={m}><TextValue mobile={m} value={warehouse.lightingDetails} /></Field>, true)}
+            {col(<Field fieldKey="washroom_count" label="Washroom Count" mobile={m}><TextValue mobile={m} value={warehouse.washroom_count} /></Field>, true)}
           </>)}
 
-          <Field label="Parking & Docking Space" mobile={m}>
+          <Field fieldKey="warehouseData.parkingDockingSpace" label="Parking Space Availability" mobile={m}>
             <TextAreaValue mobile={m} value={wd.parkingDockingSpace} />
           </Field>
 
           {row(<>
-            {col(<Field label="Power (KVA)" mobile={m}><TextValue mobile={m} value={wd.powerKva} /></Field>, true)}
-            {col(<Field label="Water Supply" mobile={m}><TextValue mobile={m} value={waterSupplyToLabel(warehouse.waterSupply) || '-'} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.powerKva" label="Power" mobile={m}><TextValue mobile={m} value={withDefaultUnit(wd.powerKva, 'kVA')} /></Field>, true)}
+            {col(<Field fieldKey="waterSupply" label="Water Supply" mobile={m}><TextValue mobile={m} value={waterSupplyToLabel(warehouse.waterSupply) || '-'} /></Field>, true)}
           </>)}
 
           {/* Tags rather than a comma-joined string: the values are a set, and
               chips make it obvious where one ends and the next begins. */}
-          <Field label="Suitable For" mobile={m}>
+          <Field fieldKey="suitableFor" label="Suitable For" mobile={m}>
             {suitableForLabels(warehouse.suitableFor).length ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: m ? '10px 0' : '6px 0' }}>
                 {suitableForLabels(warehouse.suitableFor).map((label) => (
@@ -618,29 +631,29 @@ const WarehouseDetailsModal = ({
             )}
           </Field>
 
-          <Field label="Other Specifications" mobile={m}>
+          <Field fieldKey="otherSpecifications" label="Other Specifications" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.otherSpecifications} />
           </Field>
         </Section>
 
         {/* ── Compliances ─────────────────────────────────────── */}
         <Section title="Compliances">
-          <Field label="Compliances" mobile={m}>
+          <Field fieldKey="compliances" label="Compliances" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.compliances} />
           </Field>
 
           {row(<>
-            {col(<Field label="Fire Exits" mobile={m}><TextValue mobile={m} value={warehouse.fire_exits} /></Field>, true)}
-            {col(<Field label="Fire NOC Available" mobile={m}><TextValue mobile={m} value={wd.fireNocAvailable} /></Field>, true)}
+            {col(<Field fieldKey="fire_exits" label="Fire Exits" mobile={m}><TextValue mobile={m} value={warehouse.fire_exits} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.fireNocAvailable" label="Fire NOC Available" mobile={m}><TextValue mobile={m} value={wd.fireNocAvailable} /></Field>, true)}
           </>)}
 
           {row(
-            col(<Field label="Fire Safety Measures" mobile={m}><TextValue mobile={m} value={wd.fireSafetyMeasures} /></Field>, true)
+            col(<Field fieldKey="warehouseData.fireSafetyMeasures" label="Fire Safety Measures" mobile={m}><TextValue mobile={m} value={wd.fireSafetyMeasures} /></Field>, true)
           )}
 
           {row(<>
-            {col(<Field label="Fire Compliance Cert Type" mobile={m}><TextValue mobile={m} value={warehouse.fire_compliance_cert_type} /></Field>, true)}
-            {col(<Field label="Vaastu Compliance" mobile={m}><TextValue mobile={m} value={wd.vaastuCompliance} /></Field>, true)}
+            {col(<Field fieldKey="fire_compliance_cert_type" label="Fire Compliance Certification Type" mobile={m}><TextValue mobile={m} value={warehouse.fire_compliance_cert_type} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.vaastuCompliance" label="Vaastu Compliance" mobile={m}><TextValue mobile={m} value={wd.vaastuCompliance} /></Field>, true)}
           </>)}
 
           {row(
@@ -651,12 +664,12 @@ const WarehouseDetailsModal = ({
         {/* ── Commercials ─────────────────────────────────────── */}
         <Section title="Commercials">
           {row(<>
-            {col(<Field label="Rate per sq ft" mobile={m}><TextValue mobile={m} value={warehouse.ratePerSqft} /></Field>, true)}
-            {col(<Field label="Negotiated Rent" mobile={m}><TextValue mobile={m} value={warehouse.negotiated_rent} /></Field>, true)}
+            {col(<Field fieldKey="ratePerSqft" label="Rate per sq ft" mobile={m}><TextValue mobile={m} value={warehouse.ratePerSqft} /></Field>, true)}
+            {col(<Field fieldKey="negotiated_rent" label="Negotiated Rent" mobile={m}><TextValue mobile={m} value={warehouse.negotiated_rent} /></Field>, true)}
           </>)}
 
           {row(
-            col(<Field label="CAM" mobile={m}><TextValue mobile={m} value={warehouse.cam} /></Field>, true)
+            col(<Field fieldKey="cam" label="CAM" mobile={m}><TextValue mobile={m} value={warehouse.cam} /></Field>, true)
           )}
         </Section>
 
@@ -664,6 +677,9 @@ const WarehouseDetailsModal = ({
 
         {/* ── Metadata (incl. media) ──────────────────────────── */}
         <Section title="Metadata">
+          {row(
+            col(<Field label="Last edited by" mobile={m}><TextValue mobile={m} value={warehouse.lastEditedBy} /></Field>, true)
+          )}
           {row(<>
             {col(<Field label="Visibility" mobile={m}><TextValue mobile={m} value={warehouse.visibility} /></Field>, true)}
             {col(<Field label="ID" mobile={m}><TextValue mobile={m} value={warehouse.id} /></Field>, true)}
@@ -807,7 +823,8 @@ const WarehouseDetailsModal = ({
 
         {/* ── Scout Notes ─────────────────────────────────────── */}
         <Section title="Scout Notes">
-          <Field label="Notes" mobile={m}>
+          <VoiceNotesList key={String(warehouse.id)} recordId={warehouse.id} notes={warehouse.scoutVoiceNotes} />
+          <Field fieldKey="scoutNotes" label="Notes" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.scoutNotes} />
           </Field>
         </Section>
@@ -815,7 +832,7 @@ const WarehouseDetailsModal = ({
         {/* ── Visit Notes (master warehouses only — staged rows have uuid ids) ── */}
         {typeof warehouse.id === 'number' && (
           <Section title="Visit Notes">
-            <VisitNotes warehouseId={warehouse.id} editable />
+            <VisitNotes warehouseId={warehouse.id} editable={canEditWarehouse(user, warehouse)} />
           </Section>
         )}
 
@@ -823,6 +840,8 @@ const WarehouseDetailsModal = ({
         {!m && actions}
       </div>
     </ResponsiveModal>
+    {creation.summary}
+    </FieldReviewSelectionContext.Provider>
   );
 };
 

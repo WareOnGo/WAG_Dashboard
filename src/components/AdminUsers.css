@@ -234,3 +234,31 @@
   color: var(--text-primary);
   font-weight: 500;
 }
+
+.admin-users__dashboard-access {
+  text-align: left;
+  font-size: 12px;
+}
+.admin-users__dashboard-parent,
+.admin-users__warehouse-permission {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-block: 6px;
+}
+.admin-users__dashboard-parent {
+  font-weight: 600;
+}
+.admin-users__warehouse-permissions {
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  color: var(--text-secondary);
+}
+.admin-users__warehouse-permission .ant-switch {
+  flex-shrink: 0;
+}
+.admin-users__card-dashboard {
+  padding: 10px var(--spacing-md);
+}

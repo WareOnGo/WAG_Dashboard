@@ -11,6 +11,7 @@ import { useViewport } from '../hooks/useViewport'
 import { verifiedNumberService } from '../services/verifiedNumberService'
 import ResponsiveTable from './ResponsiveTable'
 import './AdminUsers.css'
+import { WAREHOUSE_PERMISSIONS, effectiveWarehousePermissions } from '../utils/warehousePermissions'
 
 const { Text } = Typography
 
@@ -72,6 +73,7 @@ export default function AdminUsers() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
   const [savingIds, setSavingIds] = useState(() => new Set())
+  const pendingSaves = useRef(new Set())
 
   const [editing, setEditing] = useState(null) // row being edited, or {} for create
   const [submitting, setSubmitting] = useState(false)
@@ -137,6 +139,8 @@ export default function AdminUsers() {
    * @returns {Promise<boolean>} true if the row was saved
    */
   const patchRow = useCallback(async (id, data) => {
+    if (pendingSaves.current.has(id)) return false
+    pendingSaves.current.add(id)
     markSaving(id, true)
     try {
       const saved = await verifiedNumberService.adminUpdate(id, data)
@@ -172,6 +176,7 @@ export default function AdminUsers() {
       message.error(serverMessage(err, 'Could not save'))
       return false
     } finally {
+      pendingSaves.current.delete(id)
       markSaving(id, false)
     }
   }, [message, modal])
@@ -179,7 +184,7 @@ export default function AdminUsers() {
   const toggleCapability = async (row, key, value) => {
     const ok = await patchRow(row.id, { [key]: value })
     if (ok) {
-      const cap = CAPABILITIES.find((c) => c.key === key)
+      const cap = [...CAPABILITIES, ...WAREHOUSE_PERMISSIONS].find((c) => c.key === key)
       message.success(`${value ? 'Granted' : 'Removed'} ${cap.label} for ${row.name}`)
       if (key === 'analystAccess' && value) {
         message.info('If their Context key is missing CRM or analytics access, they need to replace it and reconnect Claude.', 8)
@@ -267,26 +272,45 @@ export default function AdminUsers() {
    */
   const renderCapability = (cap, row) => {
     const isSelf = sameEmail(row.email, user?.email)
-    const inherited = cap.key !== 'adminAccess' && row.adminAccess
+    const inherited = row.environmentAdmin || (cap.key !== 'adminAccess' && row.adminAccess)
+    const warehousePermission = WAREHOUSE_PERMISSIONS.some(permission => permission.key === cap.key)
+    const parentOff = warehousePermission && !row.dashboardAccess
     // Removing your own admin access would lock you out of this panel.
     const lockedSelf = cap.key === 'adminAccess' && isSelf && row[cap.key]
 
     if (inherited) {
-      return <Tooltip title="Included with admin access"><Tag>via admin</Tag></Tooltip>
+      return <Tooltip title={row.environmentAdmin ? "Included by the administrator allowlist" : "Included with admin access"}><Tag>via admin</Tag></Tooltip>
     }
     const control = (
       <Switch
         size="small"
         aria-label={`${cap.label} for ${row.name || row.email}`}
-        checked={!!row[cap.key]}
-        disabled={lockedSelf || !row.is_active || savingIds.has(row.id)}
+        checked={warehousePermission ? effectiveWarehousePermissions(row)[cap.key] : !!row[cap.key]}
+        disabled={lockedSelf || parentOff || !row.is_active || savingIds.has(row.id)}
         onChange={(checked) => toggleCapability(row, cap.key, checked)}
       />
     )
     if (lockedSelf) return <Tooltip title="You can't remove your own admin access">{control}</Tooltip>
     if (!row.is_active) return <Tooltip title="Reactivate this employee first">{control}</Tooltip>
-    return <Tooltip title={cap.hint}>{control}</Tooltip>
+    return <Tooltip title={parentOff ? 'Enable Dashboard access first' : cap.hint}>{control}</Tooltip>
   }
+
+  const renderDashboardAccess = (row) => (
+    <div className="admin-users__dashboard-access">
+      <div className="admin-users__dashboard-parent">
+        <span>Dashboard access</span>
+        {renderCapability(CAPABILITIES[0], row)}
+      </div>
+      <div className="admin-users__warehouse-permissions" role="group" aria-label={`Warehouse permissions for ${row.name || row.email}`}>
+        {WAREHOUSE_PERMISSIONS.map(cap => (
+          <div key={cap.key} className="admin-users__warehouse-permission">
+            <span>{cap.label}</span>
+            {renderCapability(cap, row)}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 
   const renderActive = (row) => {
     const lockedSelf = sameEmail(row.email, user?.email) && row.is_active
@@ -308,9 +332,9 @@ export default function AdminUsers() {
       title: cap.label,
       key: cap.key,
       dataIndex: cap.key,
-      width: 110,
+      width: cap.key === 'dashboardAccess' ? 300 : 110,
       align: 'center',
-      render: (_value, row) => renderCapability(cap, row),
+      render: (_value, row) => cap.key === 'dashboardAccess' ? renderDashboardAccess(row) : renderCapability(cap, row),
     }))
 
     return [
@@ -433,7 +457,8 @@ export default function AdminUsers() {
           <h2 className="admin-users__title">Admin Panel</h2>
           <Text type="secondary">
             Employee access — who can sign in and what they can reach. Changes take effect
-            on their next page load.
+            on their next page load. Turning off a warehouse permission also turns off dependent access.
+            Turning one on enables the permissions it needs.
           </Text>
           <div className="admin-users__stats">
             {stats.map((s) => (
@@ -533,10 +558,12 @@ export default function AdminUsers() {
 
               <div className="admin-users__card-caps">
                 {CAPABILITIES.map((cap) => (
-                  <div key={cap.key} className="admin-users__card-cap">
-                    <span>{cap.label}</span>
-                    {renderCapability(cap, row)}
-                  </div>
+                  cap.key === 'dashboardAccess'
+                    ? <div key={cap.key} className="admin-users__card-dashboard">{renderDashboardAccess(row)}</div>
+                    : <div key={cap.key} className="admin-users__card-cap">
+                        <span>{cap.label}</span>
+                        {renderCapability(cap, row)}
+                      </div>
                 ))}
                 <div className="admin-users__card-cap admin-users__card-cap--active">
                   <span>Active</span>
@@ -553,7 +580,7 @@ export default function AdminUsers() {
           dataSource={rows}
           loading={loading}
           pagination={false}
-          scroll={{ x: 1470 }}
+          scroll={{ x: 1660 }}
           rowClassName={(row) => (row.is_active ? '' : 'admin-users__row--inactive')}
           locale={{ emptyText: loading ? ' ' : emptyState }}
         />
@@ -618,7 +645,8 @@ export default function AdminUsers() {
 
           {isCreate && (
             <Text type="secondary">
-              An employee ID is generated automatically. Grant access with the switches
+              An employee ID is generated automatically. New employees can view all warehouse
+              entries and edit their own. Edit all starts off. Adjust access with the switches
               once they appear in the list.
             </Text>
           )}

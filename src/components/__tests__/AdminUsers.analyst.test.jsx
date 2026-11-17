@@ -34,7 +34,7 @@ describe('main dashboard Analyst access', () => {
   it('renders admin inheritance without an editable Analyst switch', async () => {
     render(<AdminUsers />);
     const row = (await screen.findByText('Synthetic admin')).closest('tr');
-    expect(within(row).getAllByText('via admin')).toHaveLength(4);
+    expect(within(row).getAllByText('via admin')).toHaveLength(8);
     expect(screen.queryByRole('switch', { name: 'Analyst access for Synthetic admin' })).not.toBeInTheDocument();
   });
   it('keeps the roster editor unavailable to an Analyst without admin access', () => {

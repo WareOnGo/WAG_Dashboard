@@ -13,6 +13,7 @@ import { warehouseService } from '../services/warehouseService'
 import WarehouseDetailsModal from './WarehouseDetailsModal'
 import { useViewport } from '../hooks/useViewport'
 import { useAuth } from '../contexts'
+import { canViewWarehouses, warehouseAccessKey } from '../utils/warehousePermissions'
 import './GeoExplorer.css'
 
 const { Text } = Typography
@@ -40,6 +41,7 @@ const GeoExplorer = () => {
   const { isMobile: phone, width, height } = useViewport()
   const isMobile = phone || (height < 500 && width < 1024)
   const { user } = useAuth()
+  const accessKey = warehouseAccessKey(user)
   // Sessions predating the capabilities map are treated as allowed.
   const hasDashboardAccess = !(user?.capabilities && !user.capabilities.DASHBOARD)
   const { message } = App.useApp()
@@ -68,6 +70,14 @@ const GeoExplorer = () => {
   // Full warehouse records, keyed by id. Popups fill in lazily, and reopening a
   // pin should not refetch what we already have.
   const warehouseCache = useRef(new Map())
+  const currentAccessKey = useRef(accessKey)
+  currentAccessKey.current = accessKey
+
+  useEffect(() => {
+    warehouseCache.current.clear()
+    setDetail(null)
+    setDetailLoading(false)
+  }, [accessKey])
 
   useEffect(() => {
     // /api/geo is gated on DASHBOARD, so skip the round trip that would only 403.
@@ -123,9 +133,10 @@ const GeoExplorer = () => {
     const cached = warehouseCache.current.get(id)
     if (cached) return cached
     const full = await warehouseService.getById(id)
+    if (currentAccessKey.current !== accessKey) return null
     warehouseCache.current.set(id, full)
     return full
-  }, [])
+  }, [accessKey])
 
   /**
    * Load and show the full record for a warehouse.
@@ -138,15 +149,16 @@ const GeoExplorer = () => {
     setDetailLoading(true)
     try {
       // Usually already cached by the popup that offered the button.
-      setDetail(await fetchWarehouse(id))
+      const full = await fetchWarehouse(id)
+      if (currentAccessKey.current === accessKey) setDetail(full)
     } catch (err) {
-      message.error(err?.message || 'Could not load that warehouse')
+      if (currentAccessKey.current === accessKey) message.error(err?.message || 'Could not load that warehouse')
     } finally {
-      setDetailLoading(false)
+      if (currentAccessKey.current === accessKey) setDetailLoading(false)
     }
-  }, [fetchWarehouse, message])
+  }, [fetchWarehouse, message, accessKey])
 
-  const activeCount = Number(showWarehouses) + Number(showOwnPoints) + enabledOsm.length
+  const activeCount = Number(showWarehouses && canViewWarehouses(user)) + Number(showOwnPoints) + enabledOsm.length
   const startPlacing = () => { setPlacementLocation(null); setDraft(null); setLayersOpen(false); setPlacing(true) }
   const editPoint = useCallback((at, existing = null) => {
     setPlacing(false)
@@ -159,7 +171,7 @@ const GeoExplorer = () => {
         action={<Button onClick={() => mapReady ? setRefreshKey(k => k + 1) : window.location.reload()}>Retry</Button>} />}
       <Collapse ghost defaultActiveKey={['ours']} items={[
         { key: 'ours', label: 'Our data', children: <div className="geo-layer-list">
-          <Checkbox checked={showWarehouses} onChange={e => setShowWarehouses(e.target.checked)}>
+          <Checkbox checked={showWarehouses && canViewWarehouses(user)} disabled={!canViewWarehouses(user)} onChange={e => setShowWarehouses(e.target.checked)}>
             <Badge color={AVAILABILITY_COLORS.available} glyph="warehouse" />Warehouses
           </Checkbox>
           <Checkbox checked={showOwnPoints} onChange={e => setShowOwnPoints(e.target.checked)}>
@@ -219,7 +231,8 @@ const GeoExplorer = () => {
       </aside>}
       <div className={`geo-map-pane${mapNotice || mapError ? ' geo-map-has-notice' : ''}`}>
         <GeoExplorerMap
-          enabledOsmCategories={enabledOsm} showWarehouses={showWarehouses} showOwnPoints={showOwnPoints}
+          key={accessKey}
+          enabledOsmCategories={enabledOsm} showWarehouses={showWarehouses && canViewWarehouses(user)} showOwnPoints={showOwnPoints}
           placingPoint={placing} placementLocation={placementLocation} canEditPoint={canEditPoint}
           onEditPoint={editPoint} onUpdatePoint={updatePoint} onDeletePoint={deletePoint}
           onOpenWarehouse={openWarehouse} onFetchWarehouse={fetchWarehouse}

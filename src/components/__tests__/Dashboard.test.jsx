@@ -330,3 +330,43 @@ describe('Dashboard mutation and session regressions', () => {
     expect(warehouseService.getCoordinates).not.toHaveBeenCalled();
   });
 });
+
+
+describe('warehouse access controls', () => {
+  const viewer = {
+    email: 'editor@wareongo.com',
+    capabilities: { DASHBOARD: true, WAREHOUSE_VIEW_OWN: true, WAREHOUSE_VIEW_ALL: true },
+  };
+  it('read-only access hides create, edit and visibility controls', async () => {
+    open({ ...auth, user: viewer });
+    await loaded();
+    expect(screen.queryByRole('button', { name: /Add Warehouse$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Edit$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Toggle visibility/ })).not.toBeInTheDocument();
+    expect(within(cardFor(1)).getByRole('button', { name: /View$/ })).toBeInTheDocument();
+  });
+  it('edit-own with view-all allows editing only the matching uploader', async () => {
+    warehouseService.list.mockResolvedValue(page([
+      { ...mockWarehouses[0], uploadedBy: 'EDITOR@wareongo.com' },
+      { ...mockWarehouses[1], uploadedBy: 'other@wareongo.com' },
+    ]));
+    open({ ...auth, user: { ...viewer, capabilities: { ...viewer.capabilities, WAREHOUSE_EDIT_OWN: true } } });
+    await loaded();
+    expect(within(cardFor(1)).getByRole('button', { name: /Edit$/ })).toBeInTheDocument();
+    expect(within(cardFor(2)).queryByRole('button', { name: /Edit$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Add Warehouse$/ })).toBeInTheDocument();
+  });
+  it('clears loaded rows while refetching after view-all is revoked', async () => {
+    const session = { ...auth, user: viewer };
+    const view = renderWithProviders(<AuthContext.Provider value={session}><Dashboard /></AuthContext.Provider>);
+    await loaded();
+    const ownPage = deferred();
+    warehouseService.list.mockReturnValue(ownPage.promise);
+    view.rerender(<AuthContext.Provider value={{ ...session, user: { ...viewer, capabilities: { ...viewer.capabilities, WAREHOUSE_VIEW_ALL: false } } }}><Dashboard /></AuthContext.Provider>);
+    await waitFor(() => expect(screen.queryByText('#2')).not.toBeInTheDocument());
+    await act(async () => ownPage.resolve(page([mockWarehouses[0]])));
+    await loaded();
+    expect(screen.queryByText('#2')).not.toBeInTheDocument();
+    expect(warehouseService.list).toHaveBeenCalledTimes(2);
+  });
+});

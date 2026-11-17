@@ -1,6 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render as renderComponent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MapView from '../MapView';
+import AuthContext from '../../contexts/AuthContext';
+const render = element => renderComponent(element, {
+  wrapper: ({ children }) => <AuthContext.Provider value={{ user: { isAdmin: true } }}>{children}</AuthContext.Provider>,
+});
 import { geoService } from '../../services/geoService';
 import { warehouseService } from '../../services/warehouseService';
 

@@ -112,4 +112,20 @@ describe('PPT generation requests', () => {
     await expect(service.generateLastMileExcel(PPT_ARGS)).rejects.toThrow('Excel generation failed');
     expect(global.URL.createObjectURL).not.toHaveBeenCalled();
   });
+
+  it.each(['generateDetailedPpt', 'generatePptV2', 'generatePptV3', 'generateGodamwalePpt', 'generateTciPpt', 'generateLastMileExcel'])
+  ('%s cancels the download if permission scope changes while the response is being read', async fn => {
+    const controller = new AbortController();
+    let complete;
+    const blob = vi.fn(() => new Promise(resolve => { complete = resolve; }));
+    global.fetch.mockResolvedValue({ ...ok(), blob });
+    const pending = service[fn]({ ...PPT_ARGS, signal: controller.signal });
+    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    await vi.waitFor(() => expect(blob).toHaveBeenCalled());
+    controller.abort();
+    expect(global.fetch.mock.calls[0][1].signal.aborted).toBe(true);
+    complete({ size: 2048 });
+    await rejected;
+    expect(global.URL.createObjectURL).not.toHaveBeenCalled();
+  });
 });

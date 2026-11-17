@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { screen, within, waitFor, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouse } from '../../test/mockData';
 import WarehouseForm from '../WarehouseForm';
@@ -15,9 +15,9 @@ const record = {
   WarehouseProximity: [],
 };
 const field = label => {
-  const node = screen.getByText((_, element) => element.tagName === 'LABEL'
+  const node = screen.getByText((_, element) => ['LABEL', 'LEGEND'].includes(element.tagName)
     && element.textContent.replace(/\s*\*\s*$/, '').trim() === label);
-  return node.parentElement.querySelector('input, textarea, select, [role="switch"]');
+  return node.parentElement.querySelector('input[data-field]') || node.parentElement.querySelector('input, textarea, select, [role="switch"]');
 };
 const change = (label, value) => fireEvent.change(field(label), { target: { value } });
 const chooseLocation = (label, value) => {
@@ -27,15 +27,79 @@ const chooseLocation = (label, value) => {
 };
 const open = (overrides = {}) => {
   const props = { visible: true, onSubmit: vi.fn().mockResolvedValue({}), onCancel: vi.fn(), ...overrides };
-  return { props, ...renderWithProviders(<WarehouseForm {...props} />) };
+  return { props, ...renderWithProviders(<WarehouseForm {...props} />, { auth: { user: { email: 'reviewer@example.test' } } }) };
 };
 const submit = () => act(async () => {
   fireEvent.click(screen.getByText(/^(Create|Update) Warehouse$/).closest('button'));
 });
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
   localStorage.clear();
+});
+
+describe('Explicit handover timing', () => {
+  const incomplete = { ...record, availability: 'Yes', handoverType: 'VARIABLE',
+    handoverDate: null, handoverLeadValue: 2, handoverLeadUnit: null };
+
+  it('preserves a missing unit during an unrelated edit', async () => {
+    const { props } = open({ initialData: incomplete });
+    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+    expect(screen.getByText(/PPTs and Last Mile Excel show .Unconfirmed./)).toBeInTheDocument();
+    change('Address', 'An unrelated address edit');
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'VARIABLE', handoverLeadValue: 2, handoverLeadUnit: null,
+    }));
+  });
+
+  it('saves the unit that the user explicitly selects', async () => {
+    const { props } = open({ initialData: incomplete });
+    fireEvent.change(screen.getByLabelText('Handover unit'), { target: { value: 'Weeks' } });
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'VARIABLE', handoverLeadValue: 2, handoverLeadUnit: 'WEEKS',
+    }));
+  });
+
+  it('keeps unknown timing saveable when availability is Yes', async () => {
+    const { props } = open({ initialData: { ...record, availability: 'Yes', handoverType: 'FIXED',
+      handoverDate: null, handoverLeadValue: null, handoverLeadUnit: null } });
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'FIXED', handoverDate: null, handoverLeadValue: null, handoverLeadUnit: null,
+    }));
+  });
+
+  it('does not invent a unit for a new variable handover', () => {
+    open();
+    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
+    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+  });
+
+  it('does not turn an impossible typed date into confirmed handover', async () => {
+    const { props } = open({ initialData: { ...record, handoverType: 'FIXED', handoverDate: null } });
+    const input = screen.getByLabelText('Handover date');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '30/02/2027' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+    fireEvent.blur(input);
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ handoverDate: null }));
+  });
+
+  it('preserves both timing values when the user switches modes', async () => {
+    const { props } = open({ initialData: { ...incomplete, handoverDate: '2027-03-15', handoverLeadUnit: 'WEEKS' } });
+    const availability = within(screen.getByText('Availability', { selector: 'div', exact: true }).parentElement);
+    fireEvent.change(availability.getByLabelText('Handover mode'), { target: { value: 'Fixed' } });
+    fireEvent.change(availability.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
+    expect(availability.getByLabelText('Handover lead time')).toHaveValue('2');
+    expect(availability.getByLabelText('Handover unit')).toHaveValue('Weeks');
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      handoverType: 'VARIABLE', handoverDate: '2027-03-15', handoverLeadValue: 2, handoverLeadUnit: 'WEEKS',
+    }));
+  });
 });
 
 describe('Availability last reviewed', () => {
@@ -131,6 +195,15 @@ describe('Availability last reviewed', () => {
 });
 
 describe('WarehouseForm current fields and payload', () => {
+  it('preserves voice notes during an unrelated warehouse edit and submits only their IDs', async () => {
+    const note = { id: '6e5f8cef-838a-4fda-a51c-85a2bd566f2b', durationMs: 43000, storageKey: 'private/audio.m4a' };
+    const { props } = open({ initialData: { ...record, scoutVoiceNotes: [note] } });
+    change('Address', 'Updated warehouse address');
+    await submit();
+    expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      address: 'Updated warehouse address', scoutVoiceNotes: [{ id: note.id }],
+    }));
+  });
   it('previews compressed JPEGs while submitting original media URLs', async () => {
     const originalUrl = 'https://cdn/warehouse.jpg', jpegUrl = 'https://cdn/jpeg/warehouse.jpg';
     const media = { images: [originalUrl], videos: [], docs: [] };
@@ -186,14 +259,18 @@ describe('WarehouseForm current fields and payload', () => {
     change('Contact Person', 'Test Owner');
     change('Contact Number', '9876543210');
     change('Rate per sq ft', '25');
-    change('Uploaded By', 'Test Employee');
+    expect(field('Uploaded By')).toHaveValue('reviewer@example.test');
+    expect(field('Uploaded By')).toHaveAttribute('readonly');
+    change('Land Type', 'Warehouse CLU');
+    change('Google Location URL', 'https://www.google.com/maps?q=12.9,77.6');
     change('Compliances', 'Fire Safety');
     await submit();
     await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(1));
     expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       listing_type: 'Rent', warehouseType: 'PEB', city: 'Bangalore', state: 'Karnataka', zone: 'SOUTH',
-      contactNumber: '9876543210', totalSpaceSqft: [1000], ratePerSqft: '25',
-      suitableFor: [], warehouseData: expect.objectContaining({ latitude: null, longitude: null }),
+      contactNumber: '+919876543210', totalSpaceSqft: [1000], ratePerSqft: '25',
+      suitableFor: [], googleLocation: 'https://www.google.com/maps?q=12.9,77.6',
+      warehouseData: expect.objectContaining({ latitude: null, longitude: null }),
     }));
   });
 

@@ -36,6 +36,12 @@ describe('current mobile navigation', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it.each([false, true])('shows warehouse tools only with warehouse view access (%s)', canView => {
+    open({ capabilities: { DASHBOARD: true, WAREHOUSE_VIEW_OWN: canView } });
+    expect(Boolean(screen.queryByRole('menuitem', { name: /PPT Generator/ }))).toBe(canView);
+    expect(Boolean(screen.queryByRole('menuitem', { name: /Itinerary/ }))).toBe(canView);
+  });
+
   it('closes on Escape and releases its scroll lock when unmounted', () => {
     const { onClose, unmount } = open();
     expect(document.body.style.overflow).toBe('hidden');

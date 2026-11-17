@@ -7,6 +7,7 @@ import {
   UserOutlined,
   CloseOutlined,
   DashboardOutlined,
+  FlagOutlined,
   LogoutOutlined,
   SafetyCertificateOutlined,
   EnvironmentOutlined,
@@ -16,6 +17,7 @@ import {
 import { useViewport } from '../hooks';
 import { useAuth } from '../contexts/AuthContext';
 import { useMobileTools } from '../contexts/MobileToolsContext';
+import { canViewWarehouses } from '../utils/warehousePermissions';
 
 const { Text } = Typography;
 
@@ -80,6 +82,12 @@ const MobileNavigation = ({ visible, onClose }) => {
       label: 'Dashboard',
       href: '/dashboard'
     },
+    {
+      key: 'field-reviews',
+      icon: <FlagOutlined />,
+      label: 'Flagged for review (beta)',
+      href: '/field-reviews'
+    },
     // Reviewers + admins: staged submission review queue
     ...((user?.isAdmin || user?.isReviewer) ? [{
       key: 'review',
@@ -110,7 +118,7 @@ const MobileNavigation = ({ visible, onClose }) => {
       href: '/map'
     },
     // In-app tools (rendered by MobileHeader, opened via shared MobileTools context)
-    {
+    ...(canViewWarehouses(user) ? [{
       key: 'ppt-generator',
       icon: <FileTextOutlined />,
       label: 'PPT Generator',
@@ -121,7 +129,7 @@ const MobileNavigation = ({ visible, onClose }) => {
       icon: <EnvironmentOutlined />,
       label: 'Itinerary',
       action: () => setItineraryOpen(true)
-    }
+    }] : [])
   ];
 
   const handleMenuClick = ({ key }) => {

@@ -30,6 +30,7 @@ const { Content } = Layout
 // is admin-only, so neither needs to be in the initial (sign-in) bundle.
 const Dashboard = lazy(() => import('./components/Dashboard'))
 const ReviewQueue = lazy(() => import('./components/ReviewQueue'))
+const FieldReviewQueue = lazy(() => import('./components/FieldReviewQueue'))
 const MicroMarkets = lazy(() => import('./components/MicroMarkets'))
 const AdminUsers = lazy(() => import('./components/AdminUsers'))
 // Pulls in mapbox-gl (~1MB), so lazy like the other map-bearing routes.
@@ -179,6 +180,22 @@ function AppContent() {
             }}>
               <ProtectedRoute>
                 <PageContent><Dashboard /></PageContent>
+              </ProtectedRoute>
+            </Content>
+          </Layout>
+        } />
+
+        <Route path="/field-reviews" element={
+          <Layout style={{ minHeight: '100vh', background: 'var(--bg-primary)' }} className="safe-area-bottom">
+            <MobileHeader onMenuToggle={handleMenuToggle} isMenuOpen={mobileMenuOpen} />
+            <MobileNavigation visible={mobileMenuOpen} onClose={handleMenuClose} />
+            <Content style={{
+              background: 'var(--bg-primary)',
+              minHeight: isMobile ? 'calc(100vh - 64px)' : 'calc(100vh - 56px)',
+              padding: isMobile ? 'var(--spacing-md)' : 'var(--spacing-xl)'
+            }}>
+              <ProtectedRoute>
+                <PageContent><FieldReviewQueue /></PageContent>
               </ProtectedRoute>
             </Content>
           </Layout>

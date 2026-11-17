@@ -1,5 +1,25 @@
 /* WarehouseForm Mobile Optimization Styles */
 
+:is(.warehouse-form-modal, .warehouse-field-controls) .structured-field { margin-bottom: 20px; }
+:is(.warehouse-form-modal, .warehouse-field-controls) .structured-field .form-label {
+  display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary);
+}
+:is(.warehouse-form-modal, .warehouse-field-controls) .structured-field .form-input {
+  width: 100%; box-sizing: border-box; border: 1px solid var(--border-primary);
+  border-radius: 8px; padding: var(--structured-control-padding); background: var(--bg-primary); color: var(--text-primary);
+  font-family: inherit;
+}
+:is(.warehouse-form-modal, .warehouse-field-controls) .structured-field .form-input:focus-visible {
+  outline: 2px solid var(--accent-primary, #1890ff); outline-offset: 1px;
+}
+:is(.warehouse-form-modal, .warehouse-field-controls) .structured-field .form-input[aria-invalid="true"] { border-color: #ff4d4f; }
+:is(.warehouse-form-modal, .warehouse-field-controls) .form-error, :is(.warehouse-form-modal, .warehouse-field-controls) .form-required { color: var(--text-danger, #ff4d4f); }
+:is(.warehouse-form-modal, .warehouse-field-controls) .form-error { margin: 6px 0 0; font-size: 13px; }
+:is(.warehouse-form-modal, .warehouse-field-controls) .form-btn {
+  border: 1px solid var(--border-primary); border-radius: 8px; padding: 8px 12px;
+  color: var(--text-primary); background: var(--bg-secondary); cursor: pointer; font: inherit;
+}
+
 /* Mobile form layout optimizations */
 @media (max-width: 767px) {
   .warehouse-form-modal .responsive-modal__body > .ant-spin-nested-loading,
@@ -278,5 +298,19 @@
 
   75% {
     transform: translateX(4px);
+  }
+}
+
+/* Match the native controls used by the existing form. */
+:is(.warehouse-form-modal, .warehouse-field-controls) {
+  --structured-control-height: 36px;
+  --structured-control-font-size: 14px;
+  --structured-control-padding: 6px 11px;
+}
+@media (max-width: 767px) {
+  :is(.warehouse-form-modal, .warehouse-field-controls) {
+    --structured-control-height: 44px;
+    --structured-control-font-size: 16px;
+    --structured-control-padding: 10px 14px;
   }
 }

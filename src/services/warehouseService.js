@@ -2,6 +2,10 @@ import axios from 'axios';
 import { apiClient } from './apiClient.js';
 
 export const warehouseService = {
+  getVoiceNotePlayback: (recordId, noteId) => apiClient.get(
+    (typeof recordId === 'number' ? '/warehouses/' : '/staging/') +
+    encodeURIComponent(recordId) + '/voice-notes/' + encodeURIComponent(noteId) + '/playback',
+  ),
   /** Distinct location and type suggestions across all dashboard listings. */
   getFilterOptions: async () => apiClient.get('/warehouses/filter-options'),
 

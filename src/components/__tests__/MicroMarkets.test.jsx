@@ -7,15 +7,17 @@ import { microMarketService } from '../../services/microMarketService';
 const fixture = vi.hoisted(() => ({
   polygon: { type: 'Feature', id: 'new-area', properties: {}, geometry: { type: 'Polygon', coordinates: [[[77, 12], [78, 12], [77, 13], [77, 12]]] } },
   message: { error: vi.fn(), warning: vi.fn() },
+  user: { isAdmin: true },
 }));
 vi.mock('../MicroMarketMap', () => ({ default: props => <button onClick={() => props.onCreate(fixture.polygon)}>Draw area</button> }));
-vi.mock('../../contexts', () => ({ useAuth: () => ({ user: { isAdmin: true } }) }));
+vi.mock('../../contexts', () => ({ useAuth: () => ({ user: fixture.user }) }));
 vi.mock('antd', async original => ({ ...await original(), App: { useApp: () => ({ message: fixture.message }) } }));
 vi.mock('../../services/geoService', () => ({ geoService: { warehouses: vi.fn() } }));
 vi.mock('../../services/microMarketService', () => ({ microMarketService: { list: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() } }));
 const point = (id, city, coords) => ({ type: 'Feature', properties: { id, city }, geometry: { type: 'Point', coordinates: coords } });
 
 beforeEach(() => {
+  fixture.user = { isAdmin: true };
   microMarketService.list.mockResolvedValue({ type: 'FeatureCollection', features: [] });
   microMarketService.create.mockReset().mockResolvedValue({ id: 'new-area', properties: {} });
   geoService.warehouses.mockReset(); fixture.message.warning.mockClear();
@@ -50,5 +52,25 @@ describe('micro-market drawing keeps its existing city and geometry behavior', (
     expect(signal.aborted).toBe(true);
     await act(async () => resolve({ type: 'FeatureCollection', features: [] }));
     expect(microMarketService.create).not.toHaveBeenCalled();
+  });
+  it('cancels a pending warehouse lookup when view scope is revoked', async () => {
+    let resolve;
+    geoService.warehouses.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    const { rerender } = render(<MicroMarkets />);
+    fireEvent.click(screen.getByRole('button', { name: 'Draw area' }));
+    const { signal } = geoService.warehouses.mock.calls[0][0];
+    fixture.user = { isReviewer: true, capabilities: { DASHBOARD: true } };
+    rerender(<MicroMarkets />);
+    expect(signal.aborted).toBe(true);
+    await act(async () => resolve({ type: 'FeatureCollection', features: [point(1, 'Restricted city', [77.1, 12.1])] }));
+    expect(microMarketService.create).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /warehouse pins/i })).not.toBeInTheDocument();
+  });
+  it('retains area editing for reviewers without using warehouse data they cannot view', async () => {
+    fixture.user = { isReviewer: true, capabilities: { DASHBOARD: true } };
+    render(<MicroMarkets />);
+    fireEvent.click(screen.getByRole('button', { name: 'Draw area' }));
+    await waitFor(() => expect(microMarketService.create).toHaveBeenCalledWith({ id: 'new-area', name: '', city: '', geometry: fixture.polygon.geometry }));
+    expect(geoService.warehouses).not.toHaveBeenCalled();
   });
 });

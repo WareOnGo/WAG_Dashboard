@@ -6,7 +6,7 @@ import MobileHeader from '../MobileHeader';
 import { useViewport } from '../../hooks/useViewport';
 
 vi.mock('../../hooks/useViewport', () => ({ useViewport: vi.fn() }));
-const auth = { user: { name: 'Employee', email: 'employee@wareongo.com' }, logout: vi.fn() };
+const auth = { user: { name: 'Employee', email: 'employee@wareongo.com', capabilities: { DASHBOARD: true, WAREHOUSE_VIEW_OWN: true } }, logout: vi.fn() };
 const open = () => {
   const onMenuToggle = vi.fn();
   return { onMenuToggle, ...renderWithProviders(<MobileHeader onMenuToggle={onMenuToggle} />, { auth, mobileTools: true }) };

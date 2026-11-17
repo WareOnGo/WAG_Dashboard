@@ -58,9 +58,12 @@ function downloadBlob(blob, filename) {
  * rather than from what the browser claimed — including the case this client
  * could never report, where the request is cut off and no code here runs again.
  */
-async function postPpt(endpoint, body, fallbackFilename) {
+async function postPpt(endpoint, body, fallbackFilename, signal) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PPT_TIMEOUT_MS);
+  const cancel = () => controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) cancel();
 
   try {
     const res = await fetch(`${PPT_API_BASE}${endpoint}`, {
@@ -85,12 +88,16 @@ async function postPpt(endpoint, body, fallbackFilename) {
     }
 
     const blob = await res.blob();
+    // The browser may already have received the response when the view scope
+    // changes. Check again before creating a downloadable object URL.
+    if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
     const filename = extractFilename(
       res.headers.get('Content-Disposition'),
       fallbackFilename,
     );
     downloadBlob(blob, filename);
   } catch (error) {
+    if (signal?.aborted) throw new DOMException('Export cancelled', 'AbortError');
     // A timeout aborts the fetch, so surface that rather than a bare "aborted".
     if (controller.signal.aborted) {
       throw new Error(`Timed out after ${PPT_TIMEOUT_MS / 1000}s`);
@@ -98,6 +105,7 @@ async function postPpt(endpoint, body, fallbackFilename) {
     throw error;
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener('abort', cancel);
   }
 }
 
@@ -121,46 +129,46 @@ function buildFilename(customDetails, idsCsv, isDetailed) {
  */
 // Keep the true flag on the wire so this frontend also uses JPEGs during a
 // rolling backend deployment. The current backend always prefers JPEGs.
-export async function generateDetailedPpt({ ids, selectedImages, customDetails }) {
+export async function generateDetailedPpt({ ids, selectedImages, customDetails, signal }) {
   const filename = buildFilename(customDetails, ids, true);
-  await postPpt('/generate-detailed-ppt', { ids, selectedImages, customDetails, compressedPpt: true }, filename);
+  await postPpt('/generate-detailed-ppt', { ids, selectedImages, customDetails, compressedPpt: true }, filename, signal);
 }
 
 /**
  * Generate and download a v2 PPT (sidebar layout, photo grid, fixed cover hero).
  */
-export async function generatePptV2({ ids, selectedImages, customDetails }) {
+export async function generatePptV2({ ids, selectedImages, customDetails, signal }) {
   const filename = buildFilename(customDetails, ids, false);
-  await postPpt('/generate-ppt-v2', { ids, selectedImages, customDetails, compressedPpt: true }, filename);
+  await postPpt('/generate-ppt-v2', { ids, selectedImages, customDetails, compressedPpt: true }, filename, signal);
 }
 
 /**
  * Generate and download a v3 PPT — v2's branding with the fuller specification
  * table and the photographs on a slide of their own.
  */
-export async function generatePptV3({ ids, selectedImages, customDetails }) {
+export async function generatePptV3({ ids, selectedImages, customDetails, signal }) {
   const filename = buildFilename(customDetails, ids, false);
-  await postPpt('/generate-ppt-v3', { ids, selectedImages, customDetails, compressedPpt: true }, filename);
+  await postPpt('/generate-ppt-v3', { ids, selectedImages, customDetails, compressedPpt: true }, filename, signal);
 }
 
 /**
  * Generate and download a Godamwale-branded PPT (external).
  * Photos come exclusively from selectedImages; DB photos are not used.
  */
-export async function generateGodamwalePpt({ ids, selectedImages, customDetails }) {
+export async function generateGodamwalePpt({ ids, selectedImages, customDetails, signal }) {
   const client = customDetails?.clientName?.trim() || customDetails?.companyName?.trim();
   const requirement = customDetails?.clientRequirement?.trim();
   const filename = client
     ? `Godamwale - WH options for ${client}_${requirement || 'Requirement'}.pptx`
     : `Godamwale_Warehouses_${ids.replace(/,\s*/g, '_')}.pptx`;
-  await postPpt('/generate-ppt-godamwale', { ids, selectedImages, customDetails, compressedPpt: true }, filename);
+  await postPpt('/generate-ppt-godamwale', { ids, selectedImages, customDetails, compressedPpt: true }, filename, signal);
 }
 
 /**
  * Generate and download a TCI-branded PPT (external).
  * `ids` may be empty — backend falls back to placeholder warehouses.
  */
-export async function generateTciPpt({ ids, selectedImages, customDetails }) {
+export async function generateTciPpt({ ids, selectedImages, customDetails, signal }) {
   const client = customDetails?.clientName?.trim() || customDetails?.companyName?.trim();
   const requirement = customDetails?.clientRequirement?.trim();
   const idsForName = (ids || '').trim();
@@ -169,14 +177,14 @@ export async function generateTciPpt({ ids, selectedImages, customDetails }) {
     : idsForName
       ? `TCI_Warehouses_${idsForName.replace(/,\s*/g, '_')}.pptx`
       : `TCI_Warehouses_Preview.pptx`;
-  await postPpt('/generate-ppt-tci', { ids, selectedImages, customDetails, compressedPpt: true }, filename);
+  await postPpt('/generate-ppt-tci', { ids, selectedImages, customDetails, compressedPpt: true }, filename, signal);
 }
 
 /** Generate and download the Last Mile Excel comparison using the shared export flow. */
-export async function generateLastMileExcel({ ids, selectedImages, customDetails }) {
+export async function generateLastMileExcel({ ids, selectedImages, customDetails, signal }) {
   const requirement = customDetails?.clientRequirement?.trim();
   const filename = requirement
     ? `Last Mile - WH options_${requirement}.xlsx`
     : `Last Mile_Warehouses_${ids.replace(/,\s*/g, '_')}.xlsx`;
-  await postPpt('/generate-xlsx-last-mile', { ids, selectedImages, customDetails }, filename);
+  await postPpt('/generate-xlsx-last-mile', { ids, selectedImages, customDetails }, filename, signal);
 }

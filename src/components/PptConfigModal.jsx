@@ -138,6 +138,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
   const [mapsLocation, setMapsLocation] = useState(true);
   const [pocSlide, setPocSlide] = useState(true);
   const [proximitySlide, setProximitySlide] = useState(false);
+  const [prosConsSlide, setProsConsSlide] = useState(true);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -158,6 +159,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
       setMapsLocation(true);
       setPocSlide(true);
       setProximitySlide(false);
+      setProsConsSlide(true);
     }
   }, [open]);
 
@@ -304,7 +306,7 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
           // Deck-level redaction flags, sent only to the decks that honour them;
           // unchecked → false redacts the corresponding content.
           ...(REDACTABLE_TYPES.includes(pptType) && { commercials, mapsLocation, pocSlide }),
-          ...(pptType === 'v3' && { proximitySlide }),
+          ...(pptType === 'v3' && { proximitySlide, prosConsSlide }),
         };
 
     // v3 renders layout drawings on their own slides, so its selection carries the
@@ -684,6 +686,14 @@ const PptConfigModal = ({ open, warehouseIds, allWarehouses, onCancel, onGenerat
                   <span style={checkboxLabelStyle}>
                     Include distances and map slide
                     <span style={checkboxHintStyle}>Adds each property’s Connectivity slide with landmark distances and a dedicated map</span>
+                  </span>
+                </Checkbox>
+              )}
+              {pptType === 'v3' && (
+                <Checkbox checked={prosConsSlide} onChange={(e) => setProsConsSlide(e.target.checked)}>
+                  <span style={checkboxLabelStyle}>
+                    Include pros / cons slide
+                    <span style={checkboxHintStyle}>Adds a blank pros and cons table for the selected properties</span>
                   </span>
                 </Checkbox>
               )}

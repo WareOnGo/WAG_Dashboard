@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Layout, Typography, Button, Dropdown, Avatar, Tooltip, Modal, Input, Checkbox, message } from 'antd';
 import {
   UserOutlined,
@@ -10,6 +10,7 @@ import {
   CopyOutlined,
   SafetyCertificateOutlined,
   DashboardOutlined,
+  FlagOutlined,
   GlobalOutlined,
   CloseOutlined,
   TeamOutlined
@@ -21,6 +22,7 @@ import { warehouseService } from '../services/warehouseService';
 import RevealReasonModal from './RevealReasonModal';
 import { generateDetailedPpt, generatePptV2, generatePptV3, generateGodamwalePpt, generateTciPpt, generateLastMileExcel } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
+import { canViewWarehouses, warehouseAccessKey } from '../utils/warehousePermissions';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -79,10 +81,21 @@ const buildItineraryText = (foundWarehouses, contactMap, hideOwner, hideRent) =>
   return itineraryLines.join('\n\n');
 };
 
-const MobileHeader = ({ onMenuToggle }) => {
+// A scope change disposes of every preview, contact reveal, and child modal's
+// state together. Old requests belong to the disposed scope, even if access is
+// later changed back to the same permissions.
+const MobileHeader = props => {
+  const { user } = useAuth();
+  return <ScopedMobileHeader key={warehouseAccessKey(user)} {...props} />;
+};
+
+const ScopedMobileHeader = ({ onMenuToggle }) => {
   const { pathname } = useLocation();
   const { isMobile } = useViewport();
   const { user, logout } = useAuth();
+  const canView = canViewWarehouses(user);
+  const active = useRef(false);
+  const exportRequest = useRef(null);
   // PPT/Itinerary open-state is shared (via context) so the mobile nav drawer can
   // open these tools while this header renders them. Aliased to the previous names.
   const {
@@ -115,6 +128,16 @@ const MobileHeader = ({ onMenuToggle }) => {
   // spinner on the PPT Submit button.
   const [warehousesLoading, setWarehousesLoading] = useState(false);
 
+  useEffect(() => {
+    active.current = true;
+    setPptExpanded(false);
+    setItineraryExpanded(false);
+    return () => {
+      active.current = false;
+      exportRequest.current?.abort();
+    };
+  }, [setPptExpanded, setItineraryExpanded]);
+
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
@@ -130,17 +153,20 @@ const MobileHeader = ({ onMenuToggle }) => {
 
   // Toggle the inline itinerary input in the navbar (used by the desktop nav link)
   const handleItineraryToggle = () => {
+    if (!canView) return;
     setItineraryExpanded(prev => !prev);
   };
 
   // Second half of itinerary generation, run once the user has stated why they need
   // the numbers: fetch every unmasked number under that one reason, then build the text.
   const revealAndBuildItinerary = async (ids, foundWarehouses, reason) => {
+    if (!canView || !active.current) return;
     setGeneratingItinerary(true);
     try {
       const contactResults = await Promise.allSettled(
         foundWarehouses.map(wh => warehouseService.getContactNumber(wh.id, reason))
       );
+      if (!active.current) return;
       const contactMap = {};
       foundWarehouses.forEach((wh, i) => {
         if (contactResults[i].status === 'fulfilled') {
@@ -166,17 +192,19 @@ const MobileHeader = ({ onMenuToggle }) => {
         message.warning(`${missingCount} warehouse ID(s) not found`);
       }
     } catch (error) {
+      if (!active.current) return;
       console.error('Error generating itinerary:', error);
       // Rethrow so the reason prompt shows the failure inline and stays open — the
       // user has already typed a reason, and losing it silently is worse.
       throw error;
     } finally {
-      setGeneratingItinerary(false);
+      if (active.current) setGeneratingItinerary(false);
     }
   };
 
   // Generate itinerary from comma-separated IDs
   const handleGenerateItinerary = async () => {
+    if (!canView || !active.current) return;
     if (!warehouseIds.trim()) {
       message.warning('Please enter warehouse IDs');
       return;
@@ -202,6 +230,7 @@ const MobileHeader = ({ onMenuToggle }) => {
       // Resolve just the requested warehouses server-side (?ids=), preserving
       // the order the user typed them in.
       const fetched = await warehouseService.getByIds(ids);
+      if (!active.current) return;
       const byId = new Map(fetched.map(w => [w.id, w]));
       const foundWarehouses = ids
         .map(id => byId.get(id))
@@ -218,10 +247,11 @@ const MobileHeader = ({ onMenuToggle }) => {
       // under that single reason.
       setReasonPrompt({ ids, foundWarehouses });
     } catch (error) {
+      if (!active.current) return;
       console.error('Error generating itinerary:', error);
       message.error('Failed to generate itinerary');
     } finally {
-      setGeneratingItinerary(false);
+      if (active.current) setGeneratingItinerary(false);
     }
   };
 
@@ -277,6 +307,13 @@ const MobileHeader = ({ onMenuToggle }) => {
       icon: <DashboardOutlined />,
       tooltip: 'Back to dashboard',
     },
+    {
+      key: 'field-reviews',
+      label: 'Flagged for review (beta)',
+      href: '/field-reviews',
+      icon: <FlagOutlined />,
+      tooltip: user?.isAdmin ? 'Verify flagged warehouse fields' : 'Review fields assigned to you',
+    },
     ...((user?.isAdmin || user?.isReviewer)
       ? [{
           key: 'review',
@@ -320,11 +357,13 @@ const MobileHeader = ({ onMenuToggle }) => {
 
   // Handle PPT inline toggle
   const handlePptToggle = () => {
+    if (!canView) return;
     setPptExpanded(!pptExpanded);
   };
 
   // Open config modal when user submits IDs
   const handlePptSubmitIds = async () => {
+    if (!canView || !active.current) return;
     if (!pptWarehouseIds.trim()) {
       message.warning('Please enter warehouse IDs');
       return;
@@ -342,55 +381,55 @@ const MobileHeader = ({ onMenuToggle }) => {
         return;
       }
       const data = await warehouseService.getByIds(ids);
+      if (!active.current) return;
       if (!Array.isArray(data) || data.length === 0) {
         message.error('No matching warehouses found for the entered IDs');
         return;
       }
       setWarehouses(data);
     } catch (error) {
+      if (!active.current) return;
       console.error('Failed to fetch warehouses:', error);
       message.error('Failed to load warehouse data');
       return;
     } finally {
-      setWarehousesLoading(false);
+      if (active.current) setWarehousesLoading(false);
     }
     setPptModalOpen(true);
   };
 
   // Called from PptConfigModal when user clicks Generate
   const handlePptGenerate = async ({ pptType, customDetails, selectedImages }) => {
+    if (!canView || !active.current) return;
+    exportRequest.current?.abort();
+    const controller = new AbortController();
+    exportRequest.current = controller;
     setGeneratingPpt(true);
     try {
       const ids = pptWarehouseIds.trim();
-      if (pptType === 'detailed') {
-        await generateDetailedPpt({ ids, selectedImages, customDetails });
-      } else if (pptType === 'v2') {
-        await generatePptV2({ ids, selectedImages, customDetails });
-      } else if (pptType === 'v3') {
-        await generatePptV3({ ids, selectedImages, customDetails });
-      } else if (pptType === 'godamwale') {
-        await generateGodamwalePpt({ ids, selectedImages, customDetails });
-      } else if (pptType === 'tci') {
-        await generateTciPpt({ ids, selectedImages, customDetails });
-      } else if (pptType === 'last-mile') {
-        await generateLastMileExcel({ ids, selectedImages, customDetails });
-      } else {
-        throw new Error(`Unsupported PPT type: ${pptType}`);
-      }
+      const generate = {
+        detailed: generateDetailedPpt, v2: generatePptV2, v3: generatePptV3,
+        godamwale: generateGodamwalePpt, tci: generateTciPpt, 'last-mile': generateLastMileExcel,
+      }[pptType];
+      if (!generate) throw new Error(`Unsupported PPT type: ${pptType}`);
+      await generate({ ids, selectedImages, customDetails, signal: controller.signal });
+      if (!active.current || controller.signal.aborted) return;
       message.success(pptType === 'last-mile' ? 'Excel workbook downloaded successfully!' : 'Presentation downloaded successfully!');
       setPptModalOpen(false);
       setPptWarehouseIds('');
       setPptExpanded(false);
     } catch (error) {
+      if (!active.current || controller.signal.aborted) return;
       console.error('PPT generation error:', error);
       message.error(error.message || (pptType === 'last-mile' ? 'Failed to generate Excel workbook' : 'Failed to generate presentation'));
     } finally {
-      setGeneratingPpt(false);
+      if (active.current && exportRequest.current === controller) setGeneratingPpt(false);
     }
   };
 
+  // Keep the whole navigation stacking context below portalled dialogs.
   return (
-    <div style={{ position: 'sticky', top: 0, zIndex: 'var(--z-sticky, 1000)', width: '100%' }}>
+    <div style={{ position: 'sticky', top: 0, zIndex: 'calc(var(--z-modal, 1050) - 100)', width: '100%' }}>
       <Header
         className="modern-header"
         style={{
@@ -453,7 +492,7 @@ const MobileHeader = ({ onMenuToggle }) => {
           {!isMobile && (
             <nav className="header-nav" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: '28px' }}>
               {/* PPT Generator inline */}
-              <div className="header-tool" style={{ display: 'flex', alignItems: 'center' }}>
+              {canView && <div className="header-tool" style={{ display: 'flex', alignItems: 'center' }}>
                 <Tooltip title={pptTooltip} placement="bottom">
                   <a
                     href="#"
@@ -513,7 +552,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                     </Button>
                   </div>
                 )}
-              </div>
+              </div>}
 
               {linkItems.map((item) => (
                 <Tooltip key={item.key} title={item.tooltip} placement="bottom">
@@ -541,7 +580,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                   </Link>
                 </Tooltip>
               ))}
-              <div className="header-tool" style={{ display: 'flex', alignItems: 'center' }}>
+              {canView && <div className="header-tool" style={{ display: 'flex', alignItems: 'center' }}>
                 <Tooltip title={itineraryTooltip} placement="bottom">
                   <a
                     href="#"
@@ -602,7 +641,7 @@ const MobileHeader = ({ onMenuToggle }) => {
                     </Button>
                   </div>
                 )}
-              </div>
+              </div>}
             </nav>
           )}
         </div>
@@ -676,7 +715,7 @@ const MobileHeader = ({ onMenuToggle }) => {
       </Header>
 
       {/* Mobile inline PPT input bar */}
-      {isMobile && pptExpanded && (
+      {canView && isMobile && pptExpanded && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -722,7 +761,7 @@ const MobileHeader = ({ onMenuToggle }) => {
       )}
 
       {/* Mobile inline itinerary input bar */}
-      {isMobile && itineraryExpanded && (
+      {canView && isMobile && itineraryExpanded && (
         <div style={{
           display: 'flex',
           alignItems: 'center',

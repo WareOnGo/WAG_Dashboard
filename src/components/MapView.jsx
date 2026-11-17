@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -11,6 +11,8 @@ import { availabilityBucket } from '../utils/geoPopups';
 import { createWarehouseViewportLoader, EMPTY_WAREHOUSE_POINTS } from '../utils/warehouseViewport';
 import { useViewport } from '../hooks/useViewport';
 import './MapView.css';
+import AuthContext from '../contexts/AuthContext';
+import { canEditWarehouse } from '../utils/warehousePermissions';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 const SOURCE = 'dashboard-warehouses';
@@ -23,6 +25,7 @@ const NO_FILTERS = {};
 const INITIAL_STATUS = { loading: true, ready: false, count: 0, error: null, truncated: false, zoomRequired: false };
 
 function WarehousePopup({ id, warehouse, loading, error, onRetry, onView, onEdit }) {
+    const { user } = useContext(AuthContext) || {};
     const image = warehouse && getMediaFromWarehouse(warehouse).images?.[0];
     const space = Array.isArray(warehouse?.totalSpaceSqft)
         ? warehouse.totalSpaceSqft.reduce((sum, value) => sum + (Number(value) || 0), 0)
@@ -51,7 +54,7 @@ function WarehousePopup({ id, warehouse, loading, error, onRetry, onView, onEdit
                 </div>
                 <div className="warehouse-map-card__actions">
                     <button className="warehouse-map-card__view" onClick={() => onView?.(warehouse)}>View</button>
-                    <button onClick={() => onEdit?.(warehouse)}>Edit</button>
+                    {canEditWarehouse(user, warehouse) && onEdit && <button onClick={() => onEdit(warehouse)}>Edit</button>}
                 </div>
             </>}
         </div>

@@ -6,6 +6,7 @@ import {
   EyeOutlined,
   EnvironmentOutlined,
   PhoneOutlined,
+  ExclamationCircleOutlined,
   UserOutlined
 } from '@ant-design/icons';
 import RedactedPhone from './RedactedPhone';
@@ -13,6 +14,7 @@ import ImageWithFallback from './ImageWithFallback';
 import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
 import { getMicroMarketDisplayNames } from '../utils/microMarketNames';
 import { useAuth } from '../contexts/AuthContext';
+import { canEditWarehouse } from '../utils/warehousePermissions';
 import { formatAvailabilityReview } from '../utils/availabilityReview';
 import './SimpleWarehouseCard.css';
 
@@ -30,10 +32,12 @@ const SimpleWarehouseCard = ({
   statusContent,  // overrides the visibility status chip
   actions,        // overrides the default View/Edit/Delete action row
   metaInfo,       // optional provenance strip rendered above the actions
+  fieldReviewSummary,
 }) => {
   const { user } = useAuth();
   const { message } = App.useApp();
   const isAdmin = !!user?.isAdmin;
+  const editable = canEditWarehouse(user, warehouse);
 
   // Get first image from media (with fallback to photos CSV)
   const getFirstImage = () => {
@@ -138,7 +142,7 @@ const SimpleWarehouseCard = ({
 
   const handleToggleVisibility = (e) => {
     e.stopPropagation();
-    if (onToggleVisibility) {
+    if (editable && onToggleVisibility) {
       const currentVisibility = getVisibilityStatus();
       const newVisibility = currentVisibility === 'visible' ? 'hidden' : 'visible';
       onToggleVisibility(warehouse, newVisibility);
@@ -165,13 +169,13 @@ const SimpleWarehouseCard = ({
         {statusContent || (
           <div
             className={`simple-warehouse-card__status ${getVisibilityClass()}`}
-            role={onToggleVisibility ? "button" : undefined}
-            tabIndex={onToggleVisibility ? 0 : undefined}
-            aria-label={onToggleVisibility ? `Warehouse ${warehouse.id} visibility: ${getVisibilityStatus()}. Toggle visibility` : undefined}
-            onKeyDown={e => { if (onToggleVisibility && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); handleToggleVisibility(e); } }}
+            role={editable && onToggleVisibility ? "button" : undefined}
+            tabIndex={editable && onToggleVisibility ? 0 : undefined}
+            aria-label={editable && onToggleVisibility ? `Warehouse ${warehouse.id} visibility: ${getVisibilityStatus()}. Toggle visibility` : undefined}
+            onKeyDown={e => { if (editable && onToggleVisibility && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); handleToggleVisibility(e); } }}
             onClick={handleToggleVisibility}
-            style={{ cursor: onToggleVisibility ? 'pointer' : 'default' }}
-            title={onToggleVisibility ? 'Click to toggle visibility' : ''}
+            style={{ cursor: editable && onToggleVisibility ? 'pointer' : 'default' }}
+            title={editable && onToggleVisibility ? 'Click to toggle visibility' : ''}
           >
             {getVisibilityStatus()}
           </div>
@@ -263,6 +267,19 @@ const SimpleWarehouseCard = ({
             )}
           </div>
 
+          {fieldReviewSummary?.activeCount > 0 && (
+            <div className="simple-warehouse-card__review-marker">
+              <ExclamationCircleOutlined aria-hidden="true" />
+              {fieldReviewSummary.canOpen ? (
+                <a href={'/field-reviews?review=' + fieldReviewSummary.reviewId}>
+                  Flagged for review · {fieldReviewSummary.activeCount} {fieldReviewSummary.activeCount === 1 ? 'field' : 'fields'}
+                </a>
+              ) : (
+                <span>Flagged for review · {fieldReviewSummary.activeCount} {fieldReviewSummary.activeCount === 1 ? 'field' : 'fields'}</span>
+              )}
+            </div>
+          )}
+
           {metaInfo && (
             <div style={{
               marginTop: 8,
@@ -286,12 +303,14 @@ const SimpleWarehouseCard = ({
                 >
                   <EyeOutlined /> View
                 </button>
+                {editable && onEdit && (
                 <button
                   className="simple-warehouse-card__action-btn"
                   onClick={(e) => { e.stopPropagation(); onEdit?.(warehouse); }}
                 >
                   <EditOutlined /> Edit
                 </button>
+                )}
                 {isAdmin && (
                   <button
                     className="simple-warehouse-card__action-btn simple-warehouse-card__action-btn--danger"

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Row, Col, Empty } from 'antd';
+import { Row, Col, Empty, Alert, Button } from 'antd';
 import ListingPagination from './ListingPagination';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
+import { fieldReviewService } from '../services/fieldReviewService';
 import './CardView.css';
 
 /**
@@ -116,6 +117,9 @@ const CardView = ({
   const [currentPage, setCurrentPage] = useState(1);
   const resultsRef = useRef(null);
   const [pageSize, setPageSize] = useState(isMobile ? 6 : 12);
+  const [reviewSummaries, setReviewSummaries] = useState({});
+  const [reviewRevision, setReviewRevision] = useState(0);
+  const [reviewError, setReviewError] = useState(false);
 
   // Reset to first page whenever the dataset changes (filters/search applied upstream)
   useEffect(() => {
@@ -145,6 +149,28 @@ const CardView = ({
     const startIndex = (currentPage - 1) * pageSize;
     return warehouses.slice(startIndex, startIndex + pageSize);
   }, [paginated, warehouses, currentPage, pageSize]);
+
+  // One request for the visible cards; review queues already supply their own status.
+  const reviewIds = getCardProps ? '' : paginatedData.map(w => w.id).filter(Number.isInteger).join(',');
+  useEffect(() => {
+    if (!reviewIds || loading) return;
+    const controller = new AbortController();
+    fieldReviewService.summaries(reviewIds.split(',').map(Number), controller.signal)
+      .then(rows => {
+        if (!controller.signal.aborted) {
+          setReviewSummaries(Object.fromEntries(rows.map(r => [r.warehouseId, r])));
+          setReviewError(false);
+        }
+      })
+      // Preserve a known active marker during a transient failure.
+      .catch(() => { if (!controller.signal.aborted) setReviewError(true); });
+    return () => controller.abort();
+  }, [reviewIds, loading, reviewRevision]);
+  useEffect(() => {
+    const refresh = () => setReviewRevision(n => n + 1);
+    window.addEventListener('warehouse-field-review-updated', refresh);
+    return () => window.removeEventListener('warehouse-field-review-updated', refresh);
+  }, []);
 
   if (loading) {
     // Skeleton grid sized like a typical page so pagination/filter changes
@@ -179,6 +205,9 @@ const CardView = ({
 
   return (
     <div ref={resultsRef} style={{ scrollMarginTop: isMobile ? 80 : undefined }} className={`card-view${columnsPerRow === 2 ? ' card-view--two-columns' : ''}`}>
+      {!getCardProps && reviewError && <Alert type="warning" showIcon style={{ marginBottom: 16 }}
+        message="Review status could not be refreshed. Previously loaded flags are still shown."
+        action={<Button size="small" onClick={() => setReviewRevision(n => n + 1)}>Retry review status</Button>} />}
       <Row gutter={[16, 16]}>
         {paginatedData.map((warehouse) => (
           <Col key={warehouse.id} {...colSpan}>
@@ -188,6 +217,7 @@ const CardView = ({
               onDelete={onDelete}
               onViewDetails={onViewDetails}
               onToggleVisibility={onToggleVisibility}
+              fieldReviewSummary={reviewSummaries[warehouse.id]}
               {...(getCardProps ? getCardProps(warehouse) : {})}
             />
           </Col>

@@ -40,6 +40,7 @@ import {
 } from '../utils/errorHandler';
 import { imageLabelService } from '../services/imageLabelService';
 import { EDIT_PREFILL_REASON } from '../utils/revealReason';
+import { canViewWarehouses, canCreateWarehouse, canEditWarehouse, warehouseAccessKey } from '../utils/warehousePermissions';
 
 const { Text } = Typography;
 
@@ -62,11 +63,10 @@ const Dashboard = () => {
 
   // Authentication context
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-  // The warehouse routes are gated on the DASHBOARD capability server-side. Fetching
-  // anyway would just spend a round trip to be told 403, so the effects below check
-  // this too — the render-time refusal alone runs after the hooks have already fired.
-  // Sessions predating the capabilities map are treated as allowed.
-  const hasDashboardAccess = !(user?.capabilities && !user.capabilities.DASHBOARD);
+  // Follow the server's granular permissions, including refreshed sessions.
+  const hasDashboardAccess = canViewWarehouses(user);
+  const canCreate = canCreateWarehouse(user);
+  const accessKey = warehouseAccessKey(user);
 
   // Cards are the dashboard's listing view at every viewport width.
   const { isMobile } = useViewport();
@@ -105,11 +105,25 @@ const Dashboard = () => {
   // the effects so both list and map use the current query and access state.
   const refreshWarehouses = useCallback(() => setRefreshVersion(version => version + 1), []);
 
+  useEffect(() => {
+    window.addEventListener('warehouse-field-review-updated', refreshWarehouses);
+    return () => window.removeEventListener('warehouse-field-review-updated', refreshWarehouses);
+  }, [refreshWarehouses]);
+
   // Split view state
   const [splitViewEnabled, setSplitViewEnabled] = useState(false);
 
   // Get modal instance from App context
   const { modal, message } = App.useApp();
+
+  useEffect(() => {
+    setWarehouses([]);
+    setTotal(0);
+    setSelectedWarehouse(null);
+    setViewDetailsVisible(false);
+    setEditingWarehouse(null);
+    setFormVisible(false);
+  }, [accessKey]);
 
   // Fetch a page of warehouses with the current filters/page applied server-side.
   const fetchWarehouses = useCallback(async () => {
@@ -146,7 +160,7 @@ const Dashboard = () => {
     } finally {
       if (reqId === reqIdRef.current) setLoading(false);
     }
-  }, [authLoading, isAuthenticated, hasDashboardAccess, debouncedParams, currentPage, pageSize]);
+  }, [authLoading, isAuthenticated, hasDashboardAccess, accessKey, debouncedParams, currentPage, pageSize]);
 
   // Network/connection failures (no HTTP response) get a connection-specific
   // message + icon; everything else is a generic error.
@@ -241,6 +255,7 @@ const Dashboard = () => {
   }, [modal, refreshWarehouses]);
 
   const handleEdit = useCallback((warehouse) => {
+    if (!canEditWarehouse(user, warehouse)) return;
     setEditingWarehouse(warehouse);
     setFormVisible(true);
 
@@ -256,9 +271,10 @@ const Dashboard = () => {
         );
       })
       .catch(() => {});
-  }, []);
+  }, [user]);
 
   const handleCreate = () => {
+    if (!canCreate) return;
     setEditingWarehouse(null);
     setFormVisible(true);
   };
@@ -270,6 +286,10 @@ const Dashboard = () => {
   };
 
   const handleFormSubmit = async (formData) => {
+    if (editingWarehouse ? !canEditWarehouse(user, editingWarehouse) : !canCreate) {
+      message.error('Your warehouse edit access has changed.');
+      return;
+    }
     const operationType = editingWarehouse ? 'update' : 'create';
     const actionText = editingWarehouse ? 'update' : 'create';
 
@@ -425,6 +445,7 @@ const Dashboard = () => {
 
   // Handle toggle visibility
   const handleToggleVisibility = useCallback(async (warehouse, newVisibility) => {
+    if (!canEditWarehouse(user, warehouse)) return;
     try {
       const visibilityBoolean = newVisibility === 'visible';
 
@@ -456,18 +477,14 @@ const Dashboard = () => {
       );
       // Error already handled by withRetry
     }
-  }, [message, refreshWarehouses]);
+  }, [message, refreshWarehouses, user]);
 
-  // The warehouse routes are gated on the DASHBOARD capability server-side, so an
-  // account that isn't on the employee roster would otherwise sign in successfully
-  // and then meet a bare error toast over an empty page. Sessions predating the
-  // capabilities map are treated as allowed, so a stale token locks nobody out.
   if (!hasDashboardAccess) {
     return (
       <Result
         status="403"
-        title="No dashboard access"
-        subTitle="Your account isn't set up for the dashboard yet. Ask an admin to grant you access."
+        title="No warehouse access"
+        subTitle="Ask an admin to enable Dashboard access and View own warehouse entries for your account."
       />
     );
   }
@@ -568,14 +585,14 @@ const Dashboard = () => {
               </Tooltip>
             </div>
 
-            <Button
+            {canCreate && <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={handleCreate}
               size={isMobile ? 'small' : 'large'}
             >
               {isMobile ? 'Add' : 'Add Warehouse'}
-            </Button>
+            </Button>}
           </div>
         </div>
 
@@ -591,7 +608,7 @@ const Dashboard = () => {
         )}
 
         <AppliedWarehouseFilters filters={filters} resultCount={total} loading={loading} />
-        {filtersVisible && <WarehouseFilterBar filters={filters} />}
+        {filtersVisible && <WarehouseFilterBar key={accessKey} filters={filters} />}
 
         {/* Thin banner only when we already have rows to show (a refresh failed):
             the empty-load failure is surfaced inside the content box below instead. */}
@@ -692,6 +709,7 @@ const Dashboard = () => {
                   </div>
                 }>
                   <MapView
+                    key={accessKey}
                     filters={debouncedParams}
                     refreshKey={refreshVersion}
                     active={!authLoading && isAuthenticated && hasDashboardAccess}
@@ -719,7 +737,7 @@ const Dashboard = () => {
       </Card>
 
       {/* Warehouse Form Modal — lazy: only mount (and fetch its chunk) when opened */}
-      {formVisible && (
+      {formVisible && (editingWarehouse ? canEditWarehouse(user, editingWarehouse) : canCreate) && (
         <Suspense fallback={null}>
           <WarehouseForm
             visible={formVisible}

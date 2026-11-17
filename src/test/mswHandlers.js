@@ -4,6 +4,7 @@ import { mockWarehouses, mockWarehouse, mockApiErrors } from './mockData';
 const API_BASE_URL = 'http://localhost:3001/api';
 
 export const handlers = [
+  http.get('*/api/field-reviews/summaries', () => HttpResponse.json({ success: true, data: [] })),
   // Match the list envelope, including full-data consumers that use all=true.
   http.get(`${API_BASE_URL}/warehouses`, ({ request }) => {
     const params = new URL(request.url).searchParams;

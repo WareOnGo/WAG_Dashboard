@@ -53,6 +53,7 @@ export default function MicroMarketSidebar({
   selectedId,
   loadingAreas,
   loadingWarehouses,
+  canViewWarehouses = true,
   warehouseCount,
   warehouseStatus = {},
   onRetryWarehouses,
@@ -176,7 +177,7 @@ export default function MicroMarketSidebar({
           show={showAreas}
           onToggle={onToggleAreas}
         />
-        <StatRow
+        {canViewWarehouses && <><StatRow
           label="Warehouse pins"
           loading={loadingWarehouses}
           count={warehouseCount}
@@ -189,7 +190,7 @@ export default function MicroMarketSidebar({
           {showPins && warehouseStatus.error && <div className="mm-pin-status__error">{warehouseStatus.error}
             {warehouseStatus.ready && <button type="button" onClick={onRetryWarehouses}>Retry warehouse pins</button>}
           </div>}
-        </div>
+        </div></>}
       </div>
 
       {!loadingAreas && areas.length > 0 && (

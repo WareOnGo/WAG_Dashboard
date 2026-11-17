@@ -1,9 +1,16 @@
+import { TextInput, TextAreaInput, SelectInput, MultiSelectInput, ComboBox, DateInput, ToggleSwitch, OfferedAreaInput, HandoverInput } from './WarehouseFormControls';
+import { inputBase } from '../utils/warehouseFormStyles';
+import { ZONES, POLLUTION_ZONES, BROKER_OPTIONS, STATUS_OPTIONS, OWNER_TYPES, OWNER_WARMTH_OPTIONS, INDIA_STATE_CITIES, INDIA_STATES, LISTING_TYPES, YES_NO } from '../utils/warehouseFormOptions';
+import AuthContext from '../contexts/AuthContext';
+import { MeasurementField, PhoneField, WashroomField, VentilationField } from './StructuredFields';
+import { MEASUREMENTS, LAND_TYPES, CANOPY_TYPES, DOCK_PLATFORM_TYPES, FLOORING_TYPES, hydrateMeasurements, serializeMeasurements, measurementError, washroomError } from '../utils/formFields';
+import { phoneState, phoneError, serializePhone } from '../utils/phone';
 import { WAREHOUSE_TYPES } from '../utils/warehouseOptions';
-import { useState, useEffect, useCallback, useMemo, useRef, useId, Children, isValidElement, cloneElement } from 'react';
-import { Button, Switch, Spin, Tooltip, message, DatePicker, Select } from 'antd';
-import dayjs from 'dayjs';
+import VoiceNotesList from './VoiceNotesList';
+import { useState, useContext, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement } from 'react';
+import { Button, Switch, Spin, Tooltip, message, Select } from 'antd';
 import { availabilityPayload, reviewDateValue, suggestedReviewDate, todayInIndia } from '../utils/availabilityReview';
-import { SaveOutlined, PlusOutlined, MinusCircleOutlined, QuestionCircleOutlined, ExportOutlined } from '@ant-design/icons';
+import { SaveOutlined, QuestionCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
 import VisitNotes from './VisitNotes';
@@ -16,7 +23,6 @@ import { getMediaFromWarehouse } from '../utils/mediaUtils';
 import { buildCoordMapsLink, COORD_MAPS_LINK_TOOLTIP } from '../utils/mapsLink';
 import { deriveZone } from '../utils/deriveZone';
 import {
-  HANDOVER_TYPE_OPTIONS, HANDOVER_UNIT_OPTIONS,
   handoverTypeToEnum, handoverTypeToLabel, handoverUnitToEnum, handoverUnitToLabel,
 } from '../utils/handover';
 import { WATER_SUPPLY_OPTIONS, waterSupplyToEnum, waterSupplyToLabel } from '../utils/waterSupply';
@@ -24,57 +30,6 @@ import { SUITABLE_FOR_OPTIONS } from '../utils/suitableFor';
 
 // ── Tiny helpers ──────────────────────────────────────────────────────────────
 
-// Canonical zone values, matching what deriveZone (and the backend) produce, so
-// an autofilled zone lines up cleanly with a dropdown option.
-const ZONES = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'];
-const LAND_TYPES = ['Commercial', 'Industrial', 'Others'];
-const POLLUTION_ZONES = ['Green', 'Yellow', 'Red'];
-const BROKER_OPTIONS = ['Yes', 'No'];
-const STATUS_OPTIONS = ['Under construction', 'Build to suit', 'Ready to move'];
-const OWNER_TYPES = ['Individual', 'Company', '3PL'];
-const OWNER_WARMTH_OPTIONS = ['Green', 'Yellow', 'Red'];
-
-
-const INDIA_STATE_CITIES = {
-  'Andhra Pradesh': ['Alluri Sitharama Raju', 'Anakapalli', 'Anantapur', 'Ananthapuramu', 'Annamayya', 'Bapatla', 'Bhimavaram', 'Chittoor', 'Dr. B. R. Ambedkar Konaseema', 'East Godavari', 'Eluru', 'Guntur', 'Hindupur', 'Kadapa', 'Kakinada', 'Krishna', 'Kurnool', 'Machilipatnam', 'Markapuram', 'Nandyal', 'Nellore', 'NTR', 'Ongole', 'Palnadu', 'Parvathipuram Manyam', 'Polavaram', 'Prakasam', 'Rajahmundry', 'Sri Potti Sriramulu Nellore', 'Sri Sathya Sai', 'Srikakulam', 'Tenali', 'Tirupati', 'Vijayawada', 'Visakhapatnam', 'Vizianagaram', 'West Godavari', 'YSR Kadapa'],
-  'Arunachal Pradesh': ['Along', 'Anjaw', 'Bichom', 'Bomdila', 'Changlang', 'Dibang Valley', 'East Kameng', 'East Siang', 'Itanagar', 'Kamle', 'Keyi Panyor', 'Kra Daadi', 'Kurung Kumey', 'Lepa-Rada', 'Lohit', 'Longding', 'Lower Dibang Valley', 'Lower Siang', 'Lower Subansiri', 'Naharlagun', 'Namsai', 'Pakke-Kessang', 'Papum Pare', 'Pasighat', 'Shi-Yomi', 'Siang', 'Tawang', 'Tirap', 'Upper Siang', 'Upper Subansiri', 'West Kameng', 'West Siang', 'Ziro'],
-  'Assam': ['Bajali', 'Baksa', 'Barpeta', 'Biswanath', 'Bongaigaon', 'Cachar', 'Charaideo', 'Chirang', 'Darrang', 'Dhemaji', 'Dhubri', 'Dibrugarh', 'Dima Hasao', 'Goalpara', 'Golaghat', 'Guwahati', 'Hailakandi', 'Hojai', 'Jorhat', 'Kamrup', 'Kamrup Metropolitan', 'Karbi Anglong', 'Karimganj', 'Kokrajhar', 'Lakhimpur', 'Majuli', 'Morigaon', 'Nagaon', 'Nalbari', 'Silchar', 'Sivasagar', 'Sonitpur', 'South Salmara-Mankachar', 'Sribhumi', 'Tamulpur', 'Tezpur', 'Tinsukia', 'Udalguri', 'West Karbi Anglong'],
-  'Bihar': ['Ara', 'Araria', 'Arwal', 'Aurangabad', 'Banka', 'Begusarai', 'Bettiah', 'Bhagalpur', 'Bhojpur', 'Bihar Sharif', 'Buxar', 'Chapra', 'Darbhanga', 'East Champaran', 'Gaya', 'Gopalganj', 'Hajipur', 'Jamui', 'Jehanabad', 'Kaimur', 'Katihar', 'Khagaria', 'Kishanganj', 'Lakhisarai', 'Madhepura', 'Madhubani', 'Motihari', 'Munger', 'Muzaffarpur', 'Nalanda', 'Nawada', 'Patna', 'Purnia', 'Rohtas', 'Saharsa', 'Samastipur', 'Saran', 'Sasaram', 'Sheikhpura', 'Sheohar', 'Sitamarhi', 'Siwan', 'Supaul', 'Vaishali', 'West Champaran'],
-  'Chhattisgarh': ['Ambikapur', 'Balod', 'Baloda Bazar', 'Balrampur', 'Bastar', 'Bemetara', 'Bhilai', 'Bijapur', 'Bilaspur', 'Dantewada', 'Dhamtari', 'Durg', 'Gariaband', 'Gaurela-Pendra-Marwahi', 'Jagdalpur', 'Janjgir-Champa', 'Jashpur', 'Kabirdham', 'Kanker', 'Kawardha', 'Khairagarh-Chhuikhadan-Gandai', 'Kondagaon', 'Korba', 'Koriya', 'Mahasamund', 'Manendragarh-Chirmiri-Bharatpur', 'Mohla-Manpur-Ambagarh Chowki', 'Mungeli', 'Narayanpur', 'Raigarh', 'Raipur', 'Rajnandgaon', 'Sakti', 'Sarangarh-Bilaigarh', 'Sukma', 'Surajpur', 'Surguja'],
-  'Goa': ['Bicholim', 'Calangute', 'Kushavati', 'Mapusa', 'Margao', 'Mormugao', 'North Goa', 'Panaji', 'Ponda', 'Sanquelim', 'South Goa', 'Vasco da Gama'],
-  'Gujarat': ['Ahmedabad', 'Amreli', 'Anand', 'Aravalli', 'Banaskantha', 'Bharuch', 'Bhavnagar', 'Botad', 'Chhota Udaipur', 'Dahej', 'Dahod', 'Dang', 'Devbhoomi Dwarka', 'Dwarka', 'Gandhidham', 'Gandhinagar', 'Gir Somnath', 'Halol', 'Jamnagar', 'Junagadh', 'Kheda', 'Kutch', 'Mahisagar', 'Mehsana', 'Morbi', 'Mundra', 'Nadiad', 'Narmada', 'Navsari', 'Panchmahal', 'Patan', 'Porbandar', 'Rajkot', 'Sabarkantha', 'Sanand', 'Surat', 'Surendranagar', 'Tapi', 'Vadodara', 'Valsad'],
-  'Haryana': ['Ambala', 'Bahadurgarh', 'Bawal', 'Bhiwani', 'Charkhi Dadri', 'Faridabad', 'Fatehabad', 'Gurugram', 'Hisar', 'Jhajjar', 'Jind', 'Kaithal', 'Karnal', 'Kundli', 'Kurukshetra', 'Mahendragarh', 'Manesar', 'Narnaul', 'Nuh', 'Palwal', 'Panchkula', 'Panipat', 'Rewari', 'Rohtak', 'Sirsa', 'Sonipat', 'Yamunanagar'],
-  'Himachal Pradesh': ['Baddi', 'Bilaspur', 'Chamba', 'Dharamshala', 'Hamirpur', 'Kangra', 'Kinnaur', 'Kullu', 'Lahaul and Spiti', 'Mandi', 'Nahan', 'Nalagarh', 'Paonta Sahib', 'Shimla', 'Sirmaur', 'Solan', 'Una'],
-  'Jharkhand': ['Bokaro', 'Chaibasa', 'Chatra', 'Chirkunda', 'Deoghar', 'Dhanbad', 'Dumka', 'East Singhbhum', 'Garhwa', 'Giridih', 'Godda', 'Gumla', 'Hazaribagh', 'Jamshedpur', 'Jamtara', 'Khunti', 'Koderma', 'Latehar', 'Lohardaga', 'Medininagar', 'Pakur', 'Palamu', 'Phusro', 'Ramgarh', 'Ranchi', 'Sahebganj', 'Seraikela Kharsawan', 'Simdega', 'West Singhbhum'],
-  'Karnataka': ['Bagalkot', 'Ballari', 'Bangalore', 'Belagavi', 'Bidar', 'Chamarajanagar', 'Chikballapur', 'Chikkamagaluru', 'Chitradurga', 'Dakshina Kannada', 'Davanagere', 'Dharwad', 'Gadag', 'Hassan', 'Haveri', 'Hosapete', 'Hubli', 'Kalaburagi', 'Kodagu', 'Kolar', 'Koppal', 'Mandya', 'Mangaluru', 'Mysore', 'Raichur', 'Ramanagara', 'Robertsonpet', 'Shivamogga', 'Tumakuru', 'Udupi', 'Uttara Kannada', 'Vijayanagara', 'Vijayapura', 'Yadgir'],
-  'Kerala': ['Alappuzha', 'Attingal', 'Ernakulam', 'Idukki', 'Irinjalakuda', 'Kannur', 'Kasaragod', 'Kochi', 'Kollam', 'Kottayam', 'Kozhikode', 'Malappuram', 'Palakkad', 'Pathanamthitta', 'Punalur', 'Thiruvananthapuram', 'Thrippunithura', 'Thrissur', 'Wayanad'],
-  'Madhya Pradesh': ['Agar Malwa', 'Alirajpur', 'Anuppur', 'Ashoknagar', 'Balaghat', 'Barwani', 'Betul', 'Bhind', 'Bhopal', 'Burhanpur', 'Chhatarpur', 'Chhindwara', 'Damoh', 'Datia', 'Dewas', 'Dhar', 'Dindori', 'Guna', 'Gwalior', 'Harda', 'Hoshangabad', 'Indore', 'Itarsi', 'Jabalpur', 'Jhabua', 'Katni', 'Khandwa', 'Khargone', 'Maihar', 'Mandla', 'Mandsaur', 'Mauganj', 'Morena', 'Murwara', 'Narmadapuram', 'Narsinghpur', 'Neemuch', 'Niwari', 'Pandhurna', 'Panna', 'Pithampur', 'Raisen', 'Rajgarh', 'Ratlam', 'Rewa', 'Sagar', 'Satna', 'Sehore', 'Seoni', 'Shahdol', 'Shajapur', 'Sheopur', 'Shivpuri', 'Sidhi', 'Singrauli', 'Tikamgarh', 'Ujjain', 'Umaria', 'Vidisha'],
-  'Maharashtra': ['Ahilyanagar / Ahmednagar', 'Ahmednagar', 'Akola', 'Amravati', 'Beed', 'Bhandara', 'Bhiwandi', 'Buldhana', 'Chandrapur', 'Chhatrapati Sambhajinagar', 'Chhatrapati Sambhajinagar / Aurangabad', 'Dharashiv', 'Dharashiv / Osmanabad', 'Dhule', 'Dombivli', 'Gadchiroli', 'Gondia', 'Hingoli', 'Jalgaon', 'Jalna', 'Kalyan', 'Kolhapur', 'Latur', 'Malegaon', 'Mumbai', 'Mumbai City', 'Mumbai Suburban', 'Nagpur', 'Nanded', 'Nandurbar', 'Nashik', 'Navi Mumbai', 'Palghar', 'Panvel', 'Parbhani', 'Pimpri-Chinchwad', 'Pune', 'Raigad', 'Ratnagiri', 'Sangli', 'Satara', 'Sindhudurg', 'Solapur', 'Thane', 'Vasai-Virar', 'Wardha', 'Washim', 'Yavatmal'],
-  'Manipur': ['Bishnupur', 'Chandel', 'Churachandpur', 'Imphal', 'Imphal East', 'Imphal West', 'Jiribam', 'Kakching', 'Kamjong', 'Kangpokpi', 'Noney', 'Pherzawl', 'Senapati', 'Tamenglong', 'Tengnoupal', 'Thoubal', 'Ukhrul'],
-  'Meghalaya': ['Baghmara', 'East Garo Hills', 'East Jaintia Hills', 'East Khasi Hills', 'Eastern West Khasi Hills', 'Jowai', 'Nongstoin', 'North Garo Hills', 'Ri Bhoi', 'Shillong', 'South Garo Hills', 'South West Garo Hills', 'South West Khasi Hills', 'Tura', 'West Garo Hills', 'West Jaintia Hills', 'West Khasi Hills', 'Williamnagar'],
-  'Mizoram': ['Aizawl', 'Champhai', 'Hnahthial', 'Khawzawl', 'Kolasib', 'Lawngtlai', 'Lunglei', 'Mamit', 'Saiha', 'Saitual', 'Serchhip'],
-  'Nagaland': ['Chümoukedima', 'Dimapur', 'Kiphire', 'Kohima', 'Longleng', 'Meluri', 'Mokokchung', 'Mon', 'Niuland', 'Noklak', 'Peren', 'Phek', 'Shamator', 'Tseminyü', 'Tuensang', 'Wokha', 'Zunheboto', 'Zünheboto'],
-  'Odisha': ['Angul', 'Balangir', 'Balasore', 'Barbil', 'Bargarh', 'Baripada', 'Bhadrak', 'Bhawanipatna', 'Bhubaneswar', 'Boudh', 'Brahmapur', 'Cuttack', 'Debagarh', 'Dhenkanal', 'Gajapati', 'Ganjam', 'Jagatsinghpur', 'Jajpur', 'Jharsuguda', 'Kalahandi', 'Kandhamal', 'Kendrapara', 'Kendujhar', 'Khordha', 'Koraput', 'Malkangiri', 'Mayurbhanj', 'Nabarangpur', 'Nayagarh', 'Nuapada', 'Paradip', 'Puri', 'Rayagada', 'Rourkela', 'Sambalpur', 'Subarnapur', 'Sundargarh', 'Talcher'],
-  'Punjab': ['Abohar', 'Amritsar', 'Barnala', 'Bathinda', 'Faridkot', 'Fatehgarh Sahib', 'Fazilka', 'Firozpur', 'Gurdaspur', 'Hoshiarpur', 'Jalandhar', 'Kapurthala', 'Ludhiana', 'Malerkotla', 'Mansa', 'Moga', 'Mohali', 'Muktsar', 'Pathankot', 'Patiala', 'Phagwara', 'Rajpura', 'Ropar', 'Rupnagar', 'Sahibzada Ajit Singh Nagar', 'Sangrur', 'Shaheed Bhagat Singh Nagar', 'Sri Muktsar Sahib', 'Tarn Taran'],
-  'Rajasthan': ['Ajmer', 'Alwar', 'Balotra', 'Banswara', 'Baran', 'Barmer', 'Beawar', 'Bharatpur', 'Bhilwara', 'Bhiwadi', 'Bikaner', 'Bundi', 'Chittorgarh', 'Churu', 'Dausa', 'Deeg', 'Dholpur', 'Didwana-Kuchaman', 'Dungarpur', 'Hanumangarh', 'Jaipur', 'Jaisalmer', 'Jalore', 'Jhalawar', 'Jhunjhunu', 'Jodhpur', 'Karauli', 'Khairthal-Tijara', 'Kishangarh', 'Kota', 'Kotputli-Behror', 'Nagaur', 'Neemrana', 'Pali', 'Phalodi', 'Pratapgarh', 'Rajsamand', 'Salumbar', 'Sawai Madhopur', 'Sikar', 'Sirohi', 'Sri Ganganagar', 'Tonk', 'Udaipur'],
-  'Sikkim': ['Gangtok', 'Gyalshing', 'Jorethang', 'Mangan', 'Namchi', 'Pakyong', 'Rangpo', 'Soreng'],
-  'Tamil Nadu': ['Ambattur', 'Ariyalur', 'Avadi', 'Chengalpattu', 'Chennai', 'Coimbatore', 'Cuddalore', 'Dharmapuri', 'Dindigul', 'Erode', 'Hosur', 'Kallakurichi', 'Kanchipuram', 'Kanyakumari', 'Karur', 'Krishnagiri', 'Kumbakonam', 'Madurai', 'Mayiladuthurai', 'Nagapattinam', 'Nagercoil', 'Namakkal', 'Ooty', 'Perambalur', 'Pudukkottai', 'Ramanathapuram', 'Ranipet', 'Salem', 'Sivaganga', 'Sivakasi', 'Sriperumbudur', 'Tambaram', 'Tenkasi', 'Thanjavur', 'The Nilgiris', 'Theni', 'Thoothukudi', 'Tiruchirappalli', 'Tirunelveli', 'Tirupattur', 'Tiruppur', 'Tiruvallur', 'Tiruvannamalai', 'Tiruvarur', 'Vellore', 'Viluppuram', 'Virudhunagar'],
-  'Telangana': ['Adilabad', 'Bhadradri Kothagudem', 'Bhongir', 'Hanumakonda', 'Hyderabad', 'Jagtial', 'Jangaon', 'Jayashankar Bhupalpally', 'Jogulamba Gadwal', 'Kamareddy', 'Karimnagar', 'Khammam', 'Kumuram Bheem', 'Mahabubabad', 'Mahabubnagar', 'Mahbubnagar', 'Mancherial', 'Medak', 'Medchal', 'Medchal-Malkajgiri', 'Miryalaguda', 'Mulugu', 'Nagarkurnool', 'Nalgonda', 'Narayanpet', 'Nirmal', 'Nizamabad', 'Peddapalli', 'Rajanna Sircilla', 'Ramagundam', 'Ranga Reddy', 'Sangareddy', 'Shamirpet', 'Siddipet', 'Suryapet', 'Vikarabad', 'Wanaparthy', 'Warangal', 'Yadadri Bhuvanagiri', 'Zaheerabad'],
-  'Tripura': ['Agartala', 'Ambassa', 'Belonia', 'Dhalai', 'Dharmanagar', 'Gomati', 'Kailasahar', 'Khowai', 'North Tripura', 'Sabroom', 'Sepahijala', 'South Tripura', 'Udaipur', 'Unakoti', 'West Tripura'],
-  'Uttar Pradesh': ['Agra', 'Aligarh', 'Ambedkar Nagar', 'Amethi', 'Amroha', 'Auraiya', 'Ayodhya', 'Azamgarh', 'Baghpat', 'Bahraich', 'Ballia', 'Balrampur', 'Banda', 'Barabanki', 'Bareilly', 'Basti', 'Bhadohi', 'Bijnor', 'Budaun', 'Bulandshahr', 'Chandauli', 'Chitrakoot', 'Deoria', 'Etah', 'Etawah', 'Faizabad', 'Farrukhabad', 'Fatehpur', 'Firozabad', 'Gautam Buddha Nagar', 'Ghaziabad', 'Ghazipur', 'Gonda', 'Gorakhpur', 'Greater Noida', 'Hamirpur', 'Hapur', 'Hardoi', 'Hathras', 'Jalaun', 'Jaunpur', 'Jhansi', 'Kannauj', 'Kanpur', 'Kanpur Dehat', 'Kanpur Nagar', 'Kasganj', 'Kaushambi', 'Kushinagar', 'Lakhimpur', 'Lakhimpur Kheri', 'Lalitpur', 'Lucknow', 'Maharajganj', 'Mahoba', 'Mainpuri', 'Mathura', 'Mau', 'Meerut', 'Mirzapur', 'Moradabad', 'Muzaffarnagar', 'Noida', 'Pilibhit', 'Pratapgarh', 'Prayagraj', 'Rae Bareli', 'Raebareli', 'Rampur', 'Saharanpur', 'Sambhal', 'Sant Kabir Nagar', 'Shahjahanpur', 'Shamli', 'Shravasti', 'Siddharthnagar', 'Sitapur', 'Sonbhadra', 'Sultanpur', 'Unnao', 'Varanasi', 'Vrindavan'],
-  'Uttarakhand': ['Almora', 'Bageshwar', 'Chamoli', 'Champawat', 'Dehradun', 'Haldwani', 'Haridwar', 'Kashipur', 'Kotdwar', 'Nainital', 'Pauri Garhwal', 'Pithoragarh', 'Ramnagar', 'Rishikesh', 'Roorkee', 'Rudraprayag', 'Rudrapur', 'Sitarganj', 'Tehri Garhwal', 'Udham Singh Nagar', 'Uttarkashi'],
-  'West Bengal': ['Alipurduar', 'Asansol', 'Bally', 'Bankura', 'Barasat', 'Bardhaman', 'Barrackpore', 'Birbhum', 'Cooch Behar', 'Dakshin Dinajpur', 'Darjeeling', 'Durgapur', 'Haldia', 'Hooghly', 'Howrah', 'Jalpaiguri', 'Jhargram', 'Kalimpong', 'Kalyani', 'Kharagpur', 'Kolkata', 'Krishnanagar', 'Malda', 'Murshidabad', 'Nadia', 'North 24 Parganas', 'Paschim Bardhaman', 'Paschim Medinipur', 'Purba Bardhaman', 'Purba Medinipur', 'Purulia', 'Raiganj', 'Rishra', 'Serampore', 'Shantipur', 'Siliguri', 'South 24 Parganas', 'Uluberia', 'Uttar Dinajpur'],
-  // Union Territories
-  'Andaman and Nicobar Islands': ['Car Nicobar', 'Diglipur', 'Mayabunder', 'Nicobar', 'North and Middle Andaman', 'Port Blair', 'Rangat', 'South Andaman'],
-  'Chandigarh': ['Chandigarh'],
-  'Dadra and Nagar Haveli and Daman and Diu': ['Amli', 'Dadra and Nagar Haveli', 'Daman', 'Diu', 'Silvassa'],
-  'Delhi': ['Delhi'],
-  'Jammu and Kashmir': ['Anantnag', 'Bandipora', 'Baramulla', 'Budgam', 'Doda', 'Ganderbal', 'Jammu', 'Kathua', 'Kishtwar', 'Kulgam', 'Kupwara', 'Poonch', 'Pulwama', 'Rajouri', 'Ramban', 'Reasi', 'Samba', 'Shopian', 'Sopore', 'Srinagar', 'Udhampur'],
-  'Ladakh': ['Changthang', 'Drass', 'Kargil', 'Leh', 'Nubra', 'Sham', 'Zanskar'],
-  'Lakshadweep': ['Agatti', 'Andrott', 'Kavaratti', 'Lakshadweep', 'Minicoy'],
-  'Puducherry': ['Karaikal', 'Mahe', 'Puducherry', 'Yanam'],
-};
-const INDIA_STATES = Object.keys(INDIA_STATE_CITIES).sort();
 
 const INITIAL_VALUES = {
   warehouseOwnerType: '', warehouseType: '', zone: '', address: '',
@@ -108,14 +63,21 @@ const INITIAL_VALUES = {
   totalFloors: '', liftAccess: false, passengerLiftCount: '',
   serviceLiftCount: '', liftLoadCapacity: '',
   status: '', lockInDate: '',
-  // Handover is either a precise date or a lead time; the mode drives which of the
-  // two below is sent. New rows default to Fixed, matching the pre-toggle behaviour.
-  handoverType: 'Fixed', handoverDate: '', handoverLeadValue: '', handoverLeadUnit: 'Months',
+  // The mode selects the displayed timing; both values are retained when switching.
+  // New rows default to Fixed, matching the pre-toggle behaviour.
+  handoverType: 'Fixed', handoverDate: '', handoverLeadValue: '', handoverLeadUnit: '',
   cam: '', chargeableArea: '',
   scoutNotes: '',
+  scoutVoiceNotes: [],
   // Derived server-side from the coordinates; displayed read-only and never submitted.
   micromarket: [],
 };
+
+const hydrateValues = raw => ({
+  ...hydrateMeasurements(raw),
+  contactNumber: phoneState(raw.contactNumber),
+  alt_phone_number: phoneState(raw.alt_phone_number),
+});
 
 /** Flatten initialData (including nested WarehouseData) into form shape */
 const toFormValues = (d) => {
@@ -211,11 +173,12 @@ const toFormValues = (d) => {
     handoverType: handoverTypeToLabel(d.handoverType),
     handoverDate: d.handoverDate ? String(d.handoverDate).slice(0, 10) : '',
     handoverLeadValue: d.handoverLeadValue ?? '',
-    handoverLeadUnit: handoverUnitToLabel(d.handoverLeadUnit) || 'Months',
+    handoverLeadUnit: handoverUnitToLabel(d.handoverLeadUnit),
     lockInDate: d.lockInDate ? String(d.lockInDate).slice(0, 10) : '',
     cam: d.cam || '',
     chargeableArea: d.chargeableArea ?? '',
     scoutNotes: d.scoutNotes || '',
+    scoutVoiceNotes: d.scoutVoiceNotes || [],
     micromarket: Array.isArray(d.micromarket) ? d.micromarket : (d.micromarket ? [d.micromarket] : []),
   };
 };
@@ -231,18 +194,7 @@ const labelStyle = (mobile) => ({
   textTransform: mobile ? 'uppercase' : 'none',
   letterSpacing: mobile ? 0.5 : 0,
 });
-const inputBase = (mobile) => ({
-  width: '100%',
-  minHeight: mobile ? 44 : 36,
-  padding: mobile ? '10px 14px' : '6px 11px',
-  fontSize: mobile ? 16 : 14,
-  background: 'var(--bg-primary, #141414)',
-  border: '1px solid var(--border-primary, #303030)',
-  borderRadius: 8,
-  color: 'var(--text-primary, #fff)',
-  outline: 'none',
-  boxSizing: 'border-box',
-});
+
 const errorStyle = { color: 'var(--text-danger, #ff4d4f)', fontSize: 13, marginTop: 4 };
 const sectionTitle = { color: 'var(--text-primary)', fontSize: 18, fontWeight: 700, margin: '24px 0 16px' };
 
@@ -287,7 +239,7 @@ const Field = ({ label, required, error, hint, children, style, mobile, tooltip 
   let controlIndex = 0;
   const connect = nodes => Children.map(nodes, child => {
     if (!isValidElement(child)) return child;
-    const isControl = ['input', 'textarea', 'select', TextInput, TextAreaInput, SelectInput, MultiSelectInput, ComboBox, DateInput, ToggleSwitch, Select, Switch].includes(child.type);
+    const isControl = ['input', 'textarea', 'select', TextInput, TextAreaInput, SelectInput, MultiSelectInput, ComboBox, DateInput, ToggleSwitch, OfferedAreaInput, Select, Switch].includes(child.type);
     if (isControl) {
       const index = controlIndex++;
       const name = label === 'Handover' ? `Handover ${child.props.placeholder === 'Mode' ? 'mode' : child.props.placeholder === 'Unit' ? 'unit' : child.type === DateInput ? 'date' : 'lead time'}` : undefined;
@@ -314,243 +266,6 @@ const Field = ({ label, required, error, hint, children, style, mobile, tooltip 
   </div>;
 };
 
-const TextInput = ({ value, onChange, mobile, placeholder, type = 'text', inputMode, maxLength, autoComplete, ...rest }) => (
-  <input
-    type={type}
-    inputMode={inputMode}
-    value={value ?? ''}
-    onChange={e => onChange(e.target.value)}
-    placeholder={placeholder}
-    maxLength={maxLength}
-    autoComplete={autoComplete || 'off'}
-    style={inputBase(mobile)}
-    {...rest}
-  />
-);
-
-const TextAreaInput = ({ value, onChange, mobile, placeholder, rows = 3, ...rest }) => (
-  <textarea
-    value={value ?? ''}
-    onChange={e => onChange(e.target.value)}
-    placeholder={placeholder}
-    rows={rows}
-    style={{ ...inputBase(mobile), resize: 'vertical', fontFamily: 'inherit' }}
-    {...rest}
-  />
-);
-
-const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest }) => {
-  // Preserve free-text values that don't match a predefined option, so an
-  // existing entry is shown (and not silently overwritten) in edit mode while
-  // the dropdown still lets the user switch to a standard option.
-  const hasCustomValue = value != null && value !== '' && !options.includes(value);
-  return (
-    <select
-      value={value ?? ''}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        ...inputBase(mobile),
-        appearance: 'auto',
-        cursor: 'pointer',
-      }}
-      {...rest}
-    >
-      <option value="" disabled>{placeholder}</option>
-      {hasCustomValue && <option value={value}>{value} (current)</option>}
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
-  );
-};
-
-/**
- * Dropdown multi-select rendering selected values as removable tags.
- *
- * antd's Select rather than a native <select multiple>: the native control
- * requires ctrl-click to pick more than one and gives no affordance saying so,
- * which people reliably read as "only one choice allowed".
- *
- * `value` is always an array; the caller stores exactly what the API expects.
- */
-const MultiSelectInput = ({ value, onChange, mobile, placeholder, options, ...rest }) => (
-  <Select
-    mode="multiple"
-    allowClear
-    value={Array.isArray(value) ? value : []}
-    onChange={onChange}
-    placeholder={placeholder}
-    options={options}
-    // Filter on the visible label, not the stored code — nobody is going to
-    // type TRANSSHIPMENT_COURIER.
-    optionFilterProp="label"
-    style={{ width: '100%', minHeight: mobile ? 44 : 36 }}
-    size={mobile ? 'large' : 'middle'}
-    {...rest}
-    maxTagCount="responsive"
-  />
-);
-
-const ComboBox = ({ value, onChange, options, placeholder, disabled, mobile, ...rest }) => {
-  const listId = useId();
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  const hasCustomValue = value != null && value !== '' && !options.includes(value);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const filtered = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
-
-  const availableOptions = hasCustomValue && !query ? [value, ...filtered] : filtered;
-
-  const select = (opt) => {
-    onChange(opt);
-    setOpen(false);
-    setQuery('');
-  };
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <input
-        role="combobox"
-        aria-autocomplete="list"
-        aria-expanded={open}
-        aria-controls={open ? listId : undefined}
-        aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
-        onKeyDown={e => {
-          if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); return; }
-          if (e.key === 'Tab') { setOpen(false); return; }
-          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault(); setOpen(true);
-            if (availableOptions.length) {
-              const next = activeIndex < 0 ? (e.key === 'ArrowDown' ? 0 : availableOptions.length - 1) : (activeIndex + (e.key === 'ArrowDown' ? 1 : availableOptions.length - 1)) % availableOptions.length;
-              setActiveIndex(next);
-              document.getElementById(`${listId}-${next}`)?.scrollIntoView({ block: 'nearest' });
-            }
-          }
-          if (e.key === 'Enter' && open && availableOptions[activeIndex]) { e.preventDefault(); select(availableOptions[activeIndex]); }
-        }}
-        value={open ? query : (value || '')}
-        placeholder={disabled ? 'Select state first' : placeholder}
-        disabled={!!disabled}
-        onFocus={() => { if (!disabled) { setOpen(true); setQuery(''); setActiveIndex(-1); } }}
-        onChange={e => { setQuery(e.target.value); setOpen(true); setActiveIndex(-1); }}
-        autoComplete="off"
-        style={{ ...inputBase(mobile), cursor: disabled ? 'not-allowed' : 'text' }}
-        {...rest}
-      />
-      {open && (
-        <ul id={listId} role="listbox" aria-label={placeholder} style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 200,
-          maxHeight: 220, overflowY: 'auto', margin: 0, padding: '4px 0', listStyle: 'none',
-          background: 'var(--bg-secondary, #1f1f1f)',
-          border: '1px solid var(--border-primary, #303030)',
-          borderRadius: 8,
-          boxShadow: 'var(--surface-shadow, 0 4px 16px rgba(0,0,0,0.35))',
-          scrollbarWidth: 'thin',
-        }}>
-          {hasCustomValue && !query && (
-            <li
-              id={`${listId}-0`}
-              role="option"
-              aria-selected={activeIndex === 0}
-              onMouseDown={e => { e.preventDefault(); select(value); }}
-              style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', color: 'var(--text-secondary, #888)', fontStyle: 'italic' }}
-            >
-              {value} (current)
-            </li>
-          )}
-          {filtered.length > 0 ? filtered.map((o, index) => (
-            <li
-              key={o}
-              id={`${listId}-${index + (hasCustomValue && !query ? 1 : 0)}`}
-              role="option"
-              aria-selected={activeIndex === index + (hasCustomValue && !query ? 1 : 0)}
-              onMouseDown={e => { e.preventDefault(); select(o); }}
-              style={{
-                padding: mobile ? '11px 14px' : '8px 12px',
-                fontSize: mobile ? 15 : 14,
-                cursor: 'pointer',
-                color: o === value ? 'var(--text-primary, #fff)' : 'var(--text-primary, #ddd)',
-                fontWeight: o === value ? 700 : 400,
-                background: o === value || activeIndex === index + (hasCustomValue && !query ? 1 : 0) ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover, rgba(255,255,255,0.06))'}
-              onMouseLeave={e => e.currentTarget.style.background = o === value ? 'var(--bg-hover, rgba(255,255,255,0.06))' : 'transparent'}
-            >
-              {o}
-            </li>
-          )) : (
-            <li style={{ padding: '8px 12px', fontSize: 13, color: 'var(--text-secondary, #888)' }}>
-              No matches{query ? ` for "${query}"` : ''}
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
-  );
-};
-
-const DateInput = ({ value, onChange, mobile, placeholder, ...rest }) => {
-  const [open, setOpen] = useState(false);
-  // Opening the calendar must not reset an in-progress typed date to the saved value.
-  const dateValue = useMemo(() => value ? dayjs(value, 'YYYY-MM-DD') : null, [value]);
-  return <DatePicker
-    value={dateValue}
-    onChange={(d) => onChange(d ? d.format('YYYY-MM-DD') : '')}
-    format="DD/MM/YYYY"
-    placeholder={placeholder || 'DD/MM/YYYY'}
-    size={mobile ? 'large' : 'middle'}
-    {...rest}
-    open={open}
-    onOpenChange={setOpen}
-    onBlur={event => {
-      // rc-picker otherwise restores the previous date after text is deleted.
-      if (value && event.target.value === '') onChange('');
-    }}
-    onKeyDown={event => {
-      // Confirm the selected day without also submitting the warehouse form.
-      if (event.key === 'Enter') event.preventDefault();
-      if (!open && ['Enter', 'ArrowDown'].includes(event.key)) {
-        event.preventDefault();
-        setOpen(true);
-      }
-      // The picker handles Escape; the containing modal must keep the draft open.
-      if (open && event.key === 'Escape') event.stopPropagation();
-    }}
-    // The modal follows the visual viewport when a mobile keyboard opens.
-    getPopupContainer={node => node.closest('.responsive-modal')?.firstElementChild || document.body}
-    // Flip where possible, then shift into view when neither side has enough room.
-    popupAlign={{ offset: [0, 0], overflow: { adjustX: true, adjustY: true, shiftX: true, shiftY: true } }}
-    className="wf-datepicker"
-    style={{
-      width: '100%',
-      minHeight: mobile ? 44 : 36,
-      background: 'var(--bg-primary, #141414)',
-      border: '1px solid var(--border-primary, #303030)',
-      borderRadius: 8,
-      fontSize: mobile ? 16 : 14,
-    }}
-    styles={{ popup: { root: { zIndex: 2000 } } }}
-    allowClear
-  />;
-};
-
-const ToggleSwitch = ({ checked, onChange, yesLabel = 'Yes', noLabel = 'No', ...rest }) => (
-  <Switch
-    checked={checked}
-    onChange={onChange}
-    {...rest}
-    checkedChildren={yesLabel}
-    unCheckedChildren={noLabel}
-  />
-);
 
 const Section = ({ title, children }) => (
   <div>
@@ -563,7 +278,8 @@ const Section = ({ title, children }) => (
 
 const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loading = false, reviewActions = null }) => {
   const { isMobile } = useViewport();
-  const [values, setValues] = useState(INITIAL_VALUES);
+  const { user } = useContext(AuthContext) || {};
+  const [values, setValues] = useState(() => hydrateValues(INITIAL_VALUES));
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -576,7 +292,9 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   const [zoneTouched, setZoneTouched] = useState(false);
   useEffect(() => {
     if (visible) {
-      setValues(toFormValues(initialData));
+      setValues(hydrateValues({ ...toFormValues(initialData),
+        uploadedBy: initialData ? initialData.uploadedBy || '' : user?.email || '',
+      }));
       setErrors({});
       setInitialSnapshot(initialData);
       availabilitySnapshot.current = initialData;
@@ -592,10 +310,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     if (visible && !contactTouched && initialData && initialSnapshot &&
       initialData.id === initialSnapshot.id &&
       initialData.contactNumber !== initialSnapshot.contactNumber) {
-      setValues(prev => ({ ...prev, contactNumber: initialData.contactNumber || prev.contactNumber }));
+      setValues(prev => ({ ...prev, contactNumber: initialData.contactNumber ? phoneState(initialData.contactNumber) : prev.contactNumber }));
       setInitialSnapshot(initialData);
     }
   }, [visible, initialData, initialSnapshot, contactTouched]);
+
+  const isEditing = Boolean(initialData);
+  const needsLocation = !isEditing || values.googleLocation.trim() !== (initialSnapshot?.googleLocation || '').trim();
+  const needsLandType = !isEditing || values.landType !== (initialSnapshot?.WarehouseData?.landType ?? initialSnapshot?.warehouseData?.landType ?? '');
 
   const set = (field) => (val) => {
     if (field === 'availabilityLastReviewedOn') reviewDateTouched.current = true;
@@ -624,7 +346,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
-  const validate = () => {
+  const validate = (silent = false) => {
     const e = {};
     if (!values.listing_type) e.listing_type = 'Listing type is required';
     if (!values.warehouseType?.trim()) e.warehouseType = 'Warehouse type is required';
@@ -632,11 +354,22 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     if (!values.city?.trim()) e.city = 'City is required';
     if (!values.state?.trim()) e.state = 'State is required';
     if (!values.contactPerson?.trim()) e.contactPerson = 'Contact person is required';
-    if (!values.contactNumber?.trim()) e.contactNumber = 'Contact number is required';
+    const contactError = phoneError(values.contactNumber, { required: true, allowLegacy: isEditing });
+    if (contactError) e.contactNumber = contactError;
+    const alternateError = phoneError(values.alt_phone_number, { allowLegacy: isEditing });
+    if (alternateError) e.alt_phone_number = alternateError;
+    for (const key of Object.keys(MEASUREMENTS)) {
+      const error = measurementError(values[key], key);
+      if (error) e[key] = error;
+    }
+    const countError = washroomError(values.washroom_count);
+    if (countError) e.washroom_count = countError;
+    if (needsLandType && !values.landType.trim()) e.landType = 'Land Type is required';
+    if (needsLocation && !values.googleLocation.trim()) e.googleLocation = 'Google Location URL is required';
     const spaces = (values.totalSpaceSqft || []).filter(v => v != null && v > 0);
     if (spaces.length === 0) e.totalSpaceSqft = 'At least one space value is required';
     if (!values.ratePerSqft && values.ratePerSqft !== 0) e.ratePerSqft = 'Rate per sq ft is required';
-    if (!values.uploadedBy?.trim()) e.uploadedBy = 'Uploaded by is required';
+    if (!isEditing && !values.uploadedBy?.trim()) e.uploadedBy = 'Sign in before creating a warehouse';
     if (!values.compliances) e.compliances = 'Compliance info is required';
 
     if (values.chargeableArea !== '' && values.chargeableArea != null) {
@@ -663,14 +396,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
     // Latitude and longitude validation removed to support high precision formats
 
-    setErrors(e);
+    if (!silent) setErrors(e);
 
     const missingKeys = Object.keys(e);
-    if (missingKeys.length > 0) {
+    if (missingKeys.length > 0 && !silent) {
       message.error(
         missingKeys.length === 1
-          ? `Please fill in the required field: ${e[missingKeys[0]]}`
-          : `Please fill in ${missingKeys.length} required fields`
+          ? e[missingKeys[0]]
+          : `Please check ${missingKeys.length} highlighted fields`
       );
       setTimeout(() => scrollFieldIntoView(missingKeys), 50);
     }
@@ -685,8 +418,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   // edits before approving/rejecting — otherwise unsaved edits never reach the
   // promoted warehouse or the submitter's WhatsApp notification.
   const buildPayload = () => {
+    const submissionValues = {
+      ...serializeMeasurements(values),
+      contactNumber: serializePhone(values.contactNumber, isEditing),
+      alt_phone_number: serializePhone(values.alt_phone_number, isEditing),
+    };
     // Build media from form state (the FileUpload now manages a media object)
-    const media = values.media || { images: [], videos: [], docs: [] };
+    const media = submissionValues.media || { images: [], videos: [], docs: [] };
     const hasMedia = (media.images?.length || 0) + (media.videos?.length || 0) + (media.docs?.length || 0) > 0;
 
     // Double-write: flatten media back to photos CSV for legacy column
@@ -694,109 +432,110 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     const photosValue = allUrls.length > 0 ? allUrls.join(',') : null;
 
     return {
-        warehouseOwnerType: values.warehouseOwnerType || null,
-        warehouseType: values.warehouseType,
-        address: values.address,
-        googleLocation: values.googleLocation || null,
-        city: values.city,
-        state: values.state,
-        postalCode: values.postalCode || null,
-        zone: values.zone,
-        contactPerson: values.contactPerson,
-        contactNumber: values.contactNumber,
-        totalSpaceSqft: (values.totalSpaceSqft || []).filter(v => v != null && v > 0),
-        numberOfDocks: values.numberOfDocks ? String(values.numberOfDocks) : null,
-        clearHeightFt: values.clearHeightFt ? String(values.clearHeightFt) : null,
-        compliances: values.compliances,
-        otherSpecifications: values.otherSpecifications || null,
-        ratePerSqft: values.ratePerSqft ? String(values.ratePerSqft) : null,
-        ...availabilityPayload(values, availabilitySnapshot.current),
-        uploadedBy: values.uploadedBy,
-        visibility: Boolean(values.visibility),
-        isBroker: values.isBroker || null,
+        warehouseOwnerType: submissionValues.warehouseOwnerType || null,
+        warehouseType: submissionValues.warehouseType,
+        address: submissionValues.address,
+        googleLocation: submissionValues.googleLocation || null,
+        city: submissionValues.city,
+        state: submissionValues.state,
+        postalCode: submissionValues.postalCode || null,
+        zone: submissionValues.zone,
+        contactPerson: submissionValues.contactPerson,
+        contactNumber: submissionValues.contactNumber,
+        totalSpaceSqft: (submissionValues.totalSpaceSqft || []).filter(v => v != null && v > 0),
+        numberOfDocks: submissionValues.numberOfDocks ? String(submissionValues.numberOfDocks) : null,
+        clearHeightFt: submissionValues.clearHeightFt ? String(submissionValues.clearHeightFt) : null,
+        compliances: submissionValues.compliances,
+        otherSpecifications: submissionValues.otherSpecifications || null,
+        ratePerSqft: submissionValues.ratePerSqft ? String(submissionValues.ratePerSqft) : null,
+        ...availabilityPayload(submissionValues, availabilitySnapshot.current),
+        ...(submissionValues.uploadedBy ? { uploadedBy: submissionValues.uploadedBy } : {}),
+        visibility: Boolean(submissionValues.visibility),
+        isBroker: submissionValues.isBroker || null,
         photos: photosValue,
         media: hasMedia ? media : null,
         // Newly added fields (all optional)
-        listing_type: values.listing_type || null,
-        alt_phone_number: values.alt_phone_number || null,
-        land_parcel_size: values.land_parcel_size || null,
-        builtup_area: values.builtup_area || null,
-        owner_warmnth: values.owner_warmnth || null,
-        distance_from_highway: values.distance_from_highway || null,
-        is_builder: typeof values.is_builder === 'boolean' ? values.is_builder : null,
-        owner_of_multiple_sites: values.owner_of_multiple_sites || null,
-        carpet_area: values.carpet_area || null,
-        nearest_transport: values.nearest_transport || null,
-        fire_exits: values.fire_exits || null,
-        fire_compliance_cert_type: values.fire_compliance_cert_type || null,
-        negotiated_rent: values.negotiated_rent || null,
-        washroom_count: values.washroom_count || null,
-        ownerCompanyName: values.ownerCompanyName || null,
-        ownerAltPoc: values.ownerAltPoc || null,
-        gateSizeFt: values.gateSizeFt || null,
-        dockApronLengthFt: values.dockApronLengthFt || null,
-        setbackArea: values.setbackArea || null,
-        ccRoads: typeof values.ccRoads === 'boolean'
-          ? (values.ccRoads ? 'true' : 'false')
-          : (values.ccRoads || null),
-        wallAndSecurityRoom: values.wallAndSecurityRoom || null,
-        plinthHeightFt: values.plinthHeightFt || null,
-        dockDimension: values.dockDimension || null,
-        canopyType: values.canopyType || null,
-        dockPlatformType: values.dockPlatformType || null,
-        otherDockingSpecs: values.otherDockingSpecs || null,
-        flooringType: values.flooringType || null,
-        floorStrengthPerSqm: values.floorStrengthPerSqm || null,
-        ventilationType: values.ventilationType || null,
-        ventilationAirChangesPerDay: values.ventilationAirChangesPerDay || null,
-        insulationPresent: typeof values.insulationPresent === 'boolean'
-          ? (values.insulationPresent ? 'true' : 'false')
-          : (values.insulationPresent || null),
-        insulationType: values.insulationType || null,
-        lightingDetails: values.lightingDetails || null,
-        waterSupply: waterSupplyToEnum(values.waterSupply),
+        listing_type: submissionValues.listing_type || null,
+        alt_phone_number: submissionValues.alt_phone_number || null,
+        land_parcel_size: submissionValues.land_parcel_size || null,
+        builtup_area: submissionValues.builtup_area || null,
+        owner_warmnth: submissionValues.owner_warmnth || null,
+        distance_from_highway: submissionValues.distance_from_highway || null,
+        is_builder: typeof submissionValues.is_builder === 'boolean' ? submissionValues.is_builder : null,
+        owner_of_multiple_sites: submissionValues.owner_of_multiple_sites || null,
+        carpet_area: submissionValues.carpet_area || null,
+        nearest_transport: submissionValues.nearest_transport || null,
+        fire_exits: submissionValues.fire_exits || null,
+        fire_compliance_cert_type: submissionValues.fire_compliance_cert_type || null,
+        negotiated_rent: submissionValues.negotiated_rent || null,
+        washroom_count: submissionValues.washroom_count || null,
+        ownerCompanyName: submissionValues.ownerCompanyName || null,
+        ownerAltPoc: submissionValues.ownerAltPoc || null,
+        gateSizeFt: submissionValues.gateSizeFt || null,
+        dockApronLengthFt: submissionValues.dockApronLengthFt || null,
+        setbackArea: submissionValues.setbackArea || null,
+        ccRoads: typeof submissionValues.ccRoads === 'boolean'
+          ? (submissionValues.ccRoads ? 'true' : 'false')
+          : (submissionValues.ccRoads || null),
+        wallAndSecurityRoom: submissionValues.wallAndSecurityRoom || null,
+        plinthHeightFt: submissionValues.plinthHeightFt || null,
+        dockDimension: submissionValues.dockDimension || null,
+        canopyType: submissionValues.canopyType || null,
+        dockPlatformType: submissionValues.dockPlatformType || null,
+        otherDockingSpecs: submissionValues.otherDockingSpecs || null,
+        flooringType: submissionValues.flooringType || null,
+        floorStrengthPerSqm: submissionValues.floorStrengthPerSqm || null,
+        ventilationType: submissionValues.ventilationType || null,
+        ventilationAirChangesPerDay: submissionValues.ventilationAirChangesPerDay || null,
+        insulationPresent: typeof submissionValues.insulationPresent === 'boolean'
+          ? (submissionValues.insulationPresent ? 'true' : 'false')
+          : (submissionValues.insulationPresent || null),
+        insulationType: submissionValues.insulationType || null,
+        lightingDetails: submissionValues.lightingDetails || null,
+        waterSupply: waterSupplyToEnum(submissionValues.waterSupply),
         // Sent as an array, never null: the column defaults to [] and the API
         // treats an empty array as "no tags" rather than as unset.
-        suitableFor: Array.isArray(values.suitableFor) ? values.suitableFor : [],
-        wogVerified: typeof values.wogVerified === 'boolean' ? values.wogVerified : null,
-        centreHeight: values.centreHeight || null,
+        suitableFor: Array.isArray(submissionValues.suitableFor) ? submissionValues.suitableFor : [],
+        wogVerified: typeof submissionValues.wogVerified === 'boolean' ? submissionValues.wogVerified : null,
+        centreHeight: submissionValues.centreHeight || null,
         // RCC-only fields. Sent regardless of the current warehouseType so that
         // switching type away from RCC hides the inputs without wiping the data.
-        totalFloors: values.totalFloors || null,
-        liftAccess: typeof values.liftAccess === 'boolean' ? values.liftAccess : null,
-        passengerLiftCount: values.passengerLiftCount || null,
-        serviceLiftCount: values.serviceLiftCount || null,
-        liftLoadCapacity: values.liftLoadCapacity || null,
-        status: values.status || null,
+        totalFloors: submissionValues.totalFloors || null,
+        liftAccess: typeof submissionValues.liftAccess === 'boolean' ? submissionValues.liftAccess : null,
+        passengerLiftCount: submissionValues.passengerLiftCount || null,
+        serviceLiftCount: submissionValues.serviceLiftCount || null,
+        liftLoadCapacity: submissionValues.liftLoadCapacity || null,
+        status: submissionValues.status || null,
         // Both sides are sent regardless of the selected mode, so switching Fixed <->
         // Variable hides the other input without wiping its value — same as the RCC
         // fields above. handoverType alone decides which one is displayed.
-        handoverType: handoverTypeToEnum(values.handoverType),
-        handoverDate: values.handoverDate || null,
-        handoverLeadValue: values.handoverLeadValue === '' || values.handoverLeadValue == null
+        handoverType: handoverTypeToEnum(submissionValues.handoverType),
+        handoverDate: submissionValues.handoverDate || null,
+        handoverLeadValue: submissionValues.handoverLeadValue === '' || submissionValues.handoverLeadValue == null
           ? null
-          : Number(values.handoverLeadValue),
-        handoverLeadUnit: handoverUnitToEnum(values.handoverLeadUnit),
-        lockInDate: values.lockInDate || null,
-        cam: values.cam || null,
-        chargeableArea: values.chargeableArea === '' || values.chargeableArea == null
+          : Number(submissionValues.handoverLeadValue),
+        handoverLeadUnit: handoverUnitToEnum(submissionValues.handoverLeadUnit),
+        lockInDate: submissionValues.lockInDate || null,
+        cam: submissionValues.cam || null,
+        chargeableArea: submissionValues.chargeableArea === '' || submissionValues.chargeableArea == null
           ? null
-          : Number(values.chargeableArea),
-        scoutNotes: values.scoutNotes?.trim() || null,
+          : Number(submissionValues.chargeableArea),
+        scoutNotes: submissionValues.scoutNotes?.trim() || null,
+        scoutVoiceNotes: (submissionValues.scoutVoiceNotes || []).map(note => ({ id: note.id })),
         warehouseData: {
-          latitude: values.latitude || null,
-          longitude: values.longitude || null,
-          fireNocAvailable: Boolean(values.fireNocAvailable),
-          fireSafetyMeasures: values.fireSafetyMeasures || null,
-          landType: values.landType || null,
-          approachRoadWidth: values.approachRoadWidth ? String(values.approachRoadWidth) : null,
-          dimensions: values.dimensions || null,
-          parkingDockingSpace: values.parkingDockingSpace || null,
-          pollutionZone: values.pollutionZone || null,
-          powerKva: values.powerKva ? String(values.powerKva) : null,
-          vaastuCompliance: typeof values.vaastuCompliance === 'boolean'
-            ? (values.vaastuCompliance ? 'true' : 'false')
-            : (values.vaastuCompliance || null),
+          latitude: submissionValues.latitude === '' ? null : submissionValues.latitude,
+          longitude: submissionValues.longitude === '' ? null : submissionValues.longitude,
+          fireNocAvailable: Boolean(submissionValues.fireNocAvailable),
+          fireSafetyMeasures: submissionValues.fireSafetyMeasures || null,
+          landType: submissionValues.landType || null,
+          approachRoadWidth: submissionValues.approachRoadWidth ? String(submissionValues.approachRoadWidth) : null,
+          dimensions: submissionValues.dimensions || null,
+          parkingDockingSpace: submissionValues.parkingDockingSpace || null,
+          pollutionZone: submissionValues.pollutionZone || null,
+          powerKva: submissionValues.powerKva ? String(submissionValues.powerKva) : null,
+          vaastuCompliance: typeof submissionValues.vaastuCompliance === 'boolean'
+            ? (submissionValues.vaastuCompliance ? 'true' : 'false')
+            : (submissionValues.vaastuCompliance || null),
         },
       };
   };
@@ -808,7 +547,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     setSubmitting(true);
     try {
       await onSubmit(buildPayload());
-      setValues(INITIAL_VALUES);
+      setValues(hydrateValues(INITIAL_VALUES));
     } catch (err) {
       if (import.meta.env.DEV) console.error('Form submission error:', err);
     } finally {
@@ -817,21 +556,11 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   };
 
   const handleCancel = useCallback(() => {
-    setValues(INITIAL_VALUES);
+    setValues(hydrateValues(INITIAL_VALUES));
     setErrors({});
     clearErrors();
     onCancel();
   }, [onCancel]);
-
-  // ── totalSpaceSqft list helpers ─────────────────────────────────────────────
-
-  const addSpace = () => set('totalSpaceSqft')([...(values.totalSpaceSqft || []), '']);
-  const removeSpace = (i) => set('totalSpaceSqft')(values.totalSpaceSqft.filter((_, idx) => idx !== i));
-  const setSpace = (i, v) => {
-    const next = [...values.totalSpaceSqft];
-    next[i] = v === '' ? '' : Number(v);
-    set('totalSpaceSqft')(next);
-  };
 
   // ── Layout helpers ──────────────────────────────────────────────────────────
 
@@ -844,7 +573,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     </div>
   );
   const col = (children, half = false) => (
-    <div style={{ width: (half && !m) ? 'calc(50% - 8px)' : '100%' }}>
+    <div style={{ minWidth: 0, width: (half && !m) ? 'calc(50% - 8px)' : '100%' }}>
       {children}
     </div>
   );
@@ -867,7 +596,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         </div>}
         size={m ? 'large' : 'default'}
       >
-        <form onSubmit={handleSubmit} style={{ color: 'var(--text-primary)' }}>
+        <form noValidate onSubmit={handleSubmit} style={{ color: 'var(--text-primary)' }}>
 
           <div className="warehouse-form-fields">
 
@@ -876,7 +605,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Listing Type" required error={errors.listing_type}>
-                  <SelectInput mobile={m} value={values.listing_type} onChange={set('listing_type')} placeholder="Select listing type" options={['Rent', 'Sale']} data-field="listing_type" />
+                  <SelectInput mobile={m} value={values.listing_type} onChange={set('listing_type')} placeholder="Select listing type" options={LISTING_TYPES} data-field="listing_type" />
                 </Field>,
                 true)}
               {col(
@@ -901,17 +630,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
               {col(
-                <Field label="Contact Number" required error={errors.contactNumber}>
-                  <TextInput mobile={m} value={values.contactNumber} onChange={set('contactNumber')} placeholder="10-digit phone number" type="tel" inputMode="tel" maxLength={15} autoComplete="tel" data-field="contactNumber" />
-                </Field>,
+                <PhoneField field="contactNumber" label="Contact Number" value={values.contactNumber} onChange={set('contactNumber')} error={errors.contactNumber} required />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Alternate Phone Number">
-                  <TextInput mobile={m} value={values.alt_phone_number} onChange={set('alt_phone_number')} placeholder="Alternate phone" type="tel" inputMode="tel" maxLength={15} />
-                </Field>,
+                <PhoneField field="alt_phone_number" label="Alternate Phone Number" value={values.alt_phone_number} onChange={set('alt_phone_number')} error={errors.alt_phone_number} />,
                 true)}
               {col(
                 <Field label="Owner Alternate POC">
@@ -941,15 +666,15 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)}
               {col(
                 <Field label="Owner of Multiple Sites">
-                  <SelectInput mobile={m} value={values.owner_of_multiple_sites} onChange={set('owner_of_multiple_sites')} placeholder="Select Yes / No" options={['Yes', 'No']} />
+                  <SelectInput mobile={m} value={values.owner_of_multiple_sites} onChange={set('owner_of_multiple_sites')} placeholder="Select Yes / No" options={YES_NO} />
                 </Field>,
                 true)}
             </>)}
 
             {row(
               col(
-                <Field label="Uploaded By" required error={errors.uploadedBy} tooltip="Mention your name.">
-                  <TextInput mobile={m} value={values.uploadedBy} onChange={set('uploadedBy')} placeholder="Uploader name" data-field="uploadedBy" />
+                <Field label="Uploaded By" error={errors.uploadedBy} hint="Recorded from the account that submitted this warehouse.">
+                  <TextInput mobile={m} value={values.uploadedBy} onChange={() => {}} readOnly placeholder="Original uploader not recorded" data-field="uploadedBy" />
                 </Field>,
                 true)
             )}
@@ -960,7 +685,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Availability" tooltip="If the space can be booked (now/in future) within the next 6 months, then Y, else N.">
-                  <SelectInput mobile={m} value={values.availability} onChange={set('availability')} placeholder="Select availability" options={['Yes', 'No']} />
+                  <SelectInput mobile={m} value={values.availability} onChange={set('availability')} placeholder="Select availability" options={YES_NO} />
                 </Field>,
                 true)}
               {col(
@@ -984,46 +709,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 <Field
                   label="Handover"
                   error={errors.handoverLeadValue}
-                  tooltip="When the warehouse can realistically be given. Pick Fixed for a known date, or Variable for a lead time from today (e.g. 2 months)."
+                  tooltip="Pick Fixed for a confirmed handover date, or Variable for a lead time after the letter of intent (LOI), including its unit."
+                  hint='PPTs and Last Mile Excel show "Unconfirmed" unless a handover date or complete lead time is recorded. Availability alone does not confirm handover.'
                 >
-                  <div style={{ display: 'flex', flexDirection: m ? 'column' : 'row', gap: 8 }}>
-                    <div style={{ width: m ? '100%' : 120, flexShrink: 0 }}>
-                      <SelectInput
-                        mobile={m}
-                        value={values.handoverType}
-                        onChange={set('handoverType')}
-                        options={HANDOVER_TYPE_OPTIONS}
-                        placeholder="Mode"
-                      />
-                    </div>
-                    {values.handoverType === 'Variable' ? (
-                      <div style={{ display: 'flex', gap: 8, flex: 1 }}>
-                        <div style={{ width: m ? '40%' : 90, flexShrink: 0 }}>
-                          <TextInput
-                            mobile={m}
-                            inputMode="numeric"
-                            value={values.handoverLeadValue}
-                            onChange={set('handoverLeadValue')}
-                            placeholder="2"
-                            data-field="handoverLeadValue"
-                          />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <SelectInput
-                            mobile={m}
-                            value={values.handoverLeadUnit}
-                            onChange={set('handoverLeadUnit')}
-                            options={HANDOVER_UNIT_OPTIONS}
-                            placeholder="Unit"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ flex: 1 }}>
-                        <DateInput mobile={m} value={values.handoverDate} onChange={set('handoverDate')} />
-                      </div>
-                    )}
-                  </div>
+                  <HandoverInput mobile={m} value={values} onChange={(key, value) => set(key)(value)} />
                 </Field>,
                 true)}
               {col(
@@ -1084,8 +773,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               />
             </Field>
 
-            <Field label="Google Location URL">
-              <TextInput mobile={m} value={values.googleLocation} onChange={set('googleLocation')} placeholder="Google Maps URL" type="url" />
+            <Field label="Google Location URL" required={needsLocation} error={errors.googleLocation}>
+              <TextInput mobile={m} value={values.googleLocation} onChange={set('googleLocation')} placeholder="Google Maps URL" type="url" data-field="googleLocation" />
             </Field>
 
             {/* Read-only fallback, rebuilt live from the coordinate fields below. */}
@@ -1127,26 +816,17 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Nearest Bus Transport" tooltip="Please mention the nearest bus stop and its distance.">
-                  <TextInput mobile={m} value={values.nearest_transport} onChange={set('nearest_transport')} placeholder="Nearest bus stand / depot" />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Distance from Highway">
-                  <TextInput mobile={m} value={values.distance_from_highway} onChange={set('distance_from_highway')} placeholder="e.g. 2 km" />
-                </Field>,
+                <MeasurementField field="distance_from_highway" value={values.distance_from_highway} onChange={set('distance_from_highway')} error={errors.distance_from_highway} />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Approach Road Width (ft)">
-                  <TextInput mobile={m} value={values.approachRoadWidth} onChange={set('approachRoadWidth')} placeholder="Road width" />
-                </Field>,
+                <MeasurementField field="approachRoadWidth" value={values.approachRoadWidth} onChange={set('approachRoadWidth')} error={errors.approachRoadWidth} />,
                 true)}
               {col(
-                <Field label="Land Type">
-                  <SelectInput mobile={m} value={values.landType} onChange={set('landType')} placeholder="Select land type" options={LAND_TYPES} />
+                <Field label="Land Type" required={needsLandType} error={errors.landType}>
+                  <SelectInput mobile={m} value={values.landType} onChange={set('landType')} placeholder="Select land type" options={LAND_TYPES} data-field="landType" />
                 </Field>,
                 true)}
             </>)}
@@ -1215,30 +895,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               {col(
                 /* NOTE: 'totalSpaceSqft' from the schema is displayed as "Offered Area" here per user request */
                 <Field label={values.warehouseType === 'RCC' ? 'Offered Area per Floor (sq ft)' : 'Offered Area (sq ft)'} required error={errors.totalSpaceSqft} tooltip="Please mention all kinds of areas offered, including partition possibilities.">
-                  {(values.totalSpaceSqft || []).map((v, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={v ?? ''}
-                        onChange={e => setSpace(i, e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="Enter space"
-                        style={{ ...inputBase(m), flex: 1 }}
-                        data-field="totalSpaceSqft"
-                      />
-                      {values.totalSpaceSqft.length > 1 && (
-                        <button type="button" onClick={() => removeSpace(i)}
-                          style={{ background: 'none', border: 'none', color: 'var(--text-danger, #ff4d4f)', cursor: 'pointer', fontSize: m ? 20 : 16, padding: 8 }}>
-                          <MinusCircleOutlined />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button type="button" onClick={addSpace}
-                    style={{ ...inputBase(m), cursor: 'pointer', textAlign: 'center', borderStyle: 'dashed', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <PlusOutlined /> Add Space Value
-                  </button>
+                  <OfferedAreaInput mobile={m} value={values.totalSpaceSqft}
+                    onChange={set('totalSpaceSqft')} label={values.warehouseType === 'RCC' ? 'Offered Area per Floor (sq ft)' : 'Offered Area (sq ft)'} />
                 </Field>,
                 true)}
               {col(
@@ -1250,48 +908,32 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Land Parcel Size" tooltip="Please mention the entire parcel size.">
-                  <TextInput mobile={m} value={values.land_parcel_size} onChange={set('land_parcel_size')} placeholder="e.g. 5 acres" />
-                </Field>,
+                <MeasurementField field="land_parcel_size" value={values.land_parcel_size} onChange={set('land_parcel_size')} error={errors.land_parcel_size} />,
                 true)}
               {col(
-                <Field label="Built-up Area" tooltip="Please mention the entire compound's built-up area.">
-                  <TextInput mobile={m} value={values.builtup_area} onChange={set('builtup_area')} placeholder="Built-up area" />
-                </Field>,
+                <MeasurementField field="builtup_area" value={values.builtup_area} onChange={set('builtup_area')} error={errors.builtup_area} />,
+                true)}
+            </>)}
+
+            {row(col(
+              <MeasurementField field="carpet_area" value={values.carpet_area} onChange={set('carpet_area')} error={errors.carpet_area} />,
+              true
+            ))}
+
+            {row(col(<MeasurementField field="dimensions" value={values.dimensions} onChange={set('dimensions')} error={errors.dimensions} />))}
+
+            {row(<>
+              {col(
+                <MeasurementField field="clearHeightFt" value={values.clearHeightFt} onChange={set('clearHeightFt')} error={errors.clearHeightFt} />,
+                true)}
+              {col(
+                <MeasurementField field="centreHeight" value={values.centreHeight} onChange={set('centreHeight')} error={errors.centreHeight} />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Carpet Area" tooltip="Please mention the entire carpet area.">
-                  <TextInput mobile={m} value={values.carpet_area} onChange={set('carpet_area')} placeholder="Carpet area" />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Dimensions">
-                  <TextInput mobile={m} value={values.dimensions} onChange={set('dimensions')} placeholder="Warehouse dimensions" />
-                </Field>,
-                true)}
-            </>)}
-
-            {row(<>
-              {col(
-                <Field label="Clear Height (ft)" tooltip="Please mention the side height here.">
-                  <TextInput mobile={m} value={values.clearHeightFt} onChange={set('clearHeightFt')} placeholder="Clear Height / Side Height" />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Centre Height">
-                  <TextInput mobile={m} value={values.centreHeight} onChange={set('centreHeight')} placeholder="Centre height" />
-                </Field>,
-                true)}
-            </>)}
-
-            {row(<>
-              {col(
-                <Field label="Plinth Height (ft)">
-                  <TextInput mobile={m} value={values.plinthHeightFt} onChange={set('plinthHeightFt')} placeholder="Plinth height / Dock Height" />
-                </Field>,
+                <MeasurementField field="plinthHeightFt" value={values.plinthHeightFt} onChange={set('plinthHeightFt')} error={errors.plinthHeightFt} />,
                 true)}
               {col(
                 <Field label="Number of Docks">
@@ -1302,35 +944,29 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Dock Dimension (ft)">
-                  <TextInput mobile={m} value={values.dockDimension} onChange={set('dockDimension')} placeholder="e.g. 8x10 ft" />
-                </Field>,
+                <MeasurementField field="dockDimension" value={values.dockDimension} onChange={set('dockDimension')} error={errors.dockDimension} />,
                 true)}
               {col(
                 <Field label="Canopy Type">
-                  <TextInput mobile={m} value={values.canopyType} onChange={set('canopyType')} placeholder="Running/Shutter/None" />
+                  <SelectInput mobile={m} value={values.canopyType} onChange={set('canopyType')} options={CANOPY_TYPES} placeholder="Select an option" allowClear />
                 </Field>,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Dock Apron Length (ft)" tooltip="Please mention the distance from the wall to the dock platform for truck movement.">
-                  <TextInput mobile={m} value={values.dockApronLengthFt} onChange={set('dockApronLengthFt')} placeholder="Distance from Dock to Wall in ft" />
-                </Field>,
+                <MeasurementField field="dockApronLengthFt" value={values.dockApronLengthFt} onChange={set('dockApronLengthFt')} error={errors.dockApronLengthFt} />,
                 true)}
               {col(
                 <Field label="Dock Platform Type">
-                  <TextInput mobile={m} value={values.dockPlatformType} onChange={set('dockPlatformType')} placeholder="None/Extended Platform/Running Platform/Cross Dock" />
+                  <SelectInput mobile={m} value={values.dockPlatformType} onChange={set('dockPlatformType')} options={DOCK_PLATFORM_TYPES} placeholder="Select an option" allowClear />
                 </Field>,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Compound Gate Width (ft)">
-                  <TextInput mobile={m} value={values.gateSizeFt} onChange={set('gateSizeFt')} placeholder="Gate Width" />
-                </Field>,
+                <MeasurementField field="gateSizeFt" value={values.gateSizeFt} onChange={set('gateSizeFt')} error={errors.gateSizeFt} />,
                 true)}
               {col(
                 <Field label="Setback Area" tooltip="Setback area around the box.">
@@ -1345,7 +981,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(
               col(
-                <Field label="CC Roads" tooltip="Are there concrete roads around the warehouse?">
+                <Field label="Paved Roads inside Warehouse?">
                   <ToggleSwitch checked={values.ccRoads === true || values.ccRoads === 'true' || values.ccRoads === 'Yes'} onChange={(v) => set('ccRoads')(v)} />
                 </Field>,
                 true)
@@ -1354,21 +990,17 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Flooring Type">
-                  <TextInput mobile={m} value={values.flooringType} onChange={set('flooringType')} placeholder="VDF/FM2" />
+                  <SelectInput mobile={m} value={values.flooringType} onChange={set('flooringType')} options={FLOORING_TYPES} placeholder="Select an option" allowClear />
                 </Field>,
                 true)}
               {col(
-                <Field label="Floor Strength (per sqm)">
-                  <TextInput mobile={m} value={values.floorStrengthPerSqm} onChange={set('floorStrengthPerSqm')} placeholder="e.g. 5 T/sqm" />
-                </Field>,
+                <MeasurementField field="floorStrengthPerSqm" value={values.floorStrengthPerSqm} onChange={set('floorStrengthPerSqm')} error={errors.floorStrengthPerSqm} />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Ventilation Type" tooltip="Ridge / Turbo / Side Louvers / Windows. Fill what is relevant.">
-                  <TextInput mobile={m} value={values.ventilationType} onChange={set('ventilationType')} placeholder="Ridge/Turbo" />
-                </Field>,
+                <VentilationField value={values.ventilationType} onChange={set('ventilationType')} />,
                 true)}
               {col(
                 <Field label="Ventilation Air Changes/Day">
@@ -1392,14 +1024,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Lighting Details" tooltip="Please mention LUX level, else the type of lighting provided.">
-                  <TextInput mobile={m} value={values.lightingDetails} onChange={set('lightingDetails')} placeholder="Lux Level" />
-                </Field>,
+                <MeasurementField field="lightingDetails" value={values.lightingDetails} onChange={set('lightingDetails')} error={errors.lightingDetails} />,
                 true)}
               {col(
-                <Field label="Power (KVA)">
-                  <TextInput mobile={m} value={values.powerKva} onChange={set('powerKva')} placeholder="Power in KVA" />
-                </Field>,
+                <MeasurementField field="powerKva" value={values.powerKva} onChange={set('powerKva')} error={errors.powerKva} />,
                 true)}
             </>)}
 
@@ -1430,9 +1058,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Washroom Count">
-                  <TextInput mobile={m} value={values.washroom_count} onChange={set('washroom_count')} placeholder="Number of washrooms" />
-                </Field>,
+                <WashroomField value={values.washroom_count} onChange={set('washroom_count')} error={errors.washroom_count} />,
                 true)}
               {col(
                 <Field label="Security Features">
@@ -1523,6 +1149,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
           {/* ── Metadata ────────────────────────────────────────── */}
           <Section title="Metadata">
+            {initialData && row(
+              col(
+                <Field label="Last edited by">
+                  <TextInput mobile={m} value={initialData.lastEditedBy || ''} onChange={() => {}} readOnly placeholder="Not recorded" />
+                </Field>,
+                true)
+            )}
             {row(
               col(
                 <Field label="Visibility">
@@ -1538,6 +1171,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
           {/* ── Scout Notes ─────────────────────────────────────── */}
           <Section title="Scout Notes">
+            <VoiceNotesList key={String(initialData?.id)} recordId={initialData?.id}
+              notes={values.scoutVoiceNotes} onChange={set('scoutVoiceNotes')} disabled={submitting || loading} />
             <Field label="Notes">
               <TextAreaInput
                 mobile={m}
@@ -1604,7 +1239,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {reviewActions && (
               <div className="warehouse-form-review-actions" style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto', order: m ? 3 : 0 }}>
                 {typeof reviewActions === 'function'
-                  ? reviewActions({ getPayload: buildPayload })
+                  ? reviewActions({ getPayload: buildPayload, validate })
                   : reviewActions}
               </div>
             )}
@@ -1619,7 +1254,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               type="primary"
               htmlType="submit"
               size="large"
-              icon={submitting ? null : <SaveOutlined />}
+              icon={submitting ? null : <SaveOutlined aria-hidden="true" />}
               loading={submitting}
               disabled={loading}
               style={{ minWidth: 120, minHeight: m ? 44 : 'auto', order: m ? 1 : 2, flex: m ? '1' : 'none' }}

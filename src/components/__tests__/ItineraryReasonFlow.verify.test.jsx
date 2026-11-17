@@ -18,7 +18,7 @@ vi.mock('../../services/warehouseService', () => ({
 
 vi.mock('../../hooks', () => ({ useViewport: () => ({ isMobile: false }) }));
 vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { name: 'Test User', email: 't@wareongo.com' }, logout: vi.fn() }),
+  useAuth: () => ({ user: { name: 'Test User', email: 't@wareongo.com', capabilities: { DASHBOARD: true, WAREHOUSE_VIEW_OWN: true } }, logout: vi.fn() }),
 }));
 vi.mock('../../services/pptService', () => ({
   generateDetailedPpt: vi.fn(), generatePptV2: vi.fn(),

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders } from '../../test/testUtils';
 import WarehouseDetailsModal from '../WarehouseDetailsModal';
 
 // The modal reads the cache during render and fetches on a miss; stub both.
@@ -21,8 +22,9 @@ const warehouse = {
   media: { images: IMAGES, videos: [], docs: [] },
 };
 
-const open = (w = warehouse) => render(
-  <WarehouseDetailsModal visible warehouse={w} onClose={() => {}} />
+const open = (w = warehouse) => renderWithProviders(
+  <WarehouseDetailsModal visible warehouse={w} onClose={() => {}} />,
+  { auth: { user: { email: 'viewer@example.test' } } },
 );
 
 const imageCount = () => document.querySelectorAll('.ant-image img').length;

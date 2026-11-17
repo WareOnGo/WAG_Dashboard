@@ -1,3 +1,4 @@
+import { withDefaultUnit } from '../utils/measurementDisplay';
 import React, { useState } from 'react';
 import { Card, Button, Tag } from 'antd';
 import { 
@@ -12,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useViewport } from '../hooks/useViewport';
 import { useAuth } from '../contexts/AuthContext';
+import { canEditWarehouse } from '../utils/warehousePermissions';
 import RedactedPhone from './RedactedPhone';
 import ImageWithFallback from './ImageWithFallback';
 import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
@@ -32,6 +34,7 @@ const WarehouseCard = ({
   const { isMobile } = useViewport();
   const { user } = useAuth();
   const isAdmin = !!user?.isAdmin;
+  const editable = canEditWarehouse(user, warehouse);
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);
   const offeredAreas = Array.isArray(warehouse.totalSpaceSqft) ? warehouse.totalSpaceSqft : [];
@@ -76,7 +79,7 @@ const WarehouseCard = ({
     event.stopPropagation();
     switch (action) {
       case 'edit':
-        onEdit?.(warehouse);
+        if (editable) onEdit?.(warehouse);
         break;
       case 'delete':
         onDelete?.(warehouse);
@@ -230,7 +233,7 @@ const WarehouseCard = ({
               <div className="warehouse-card__detail-section">
                 <h5>Space Information</h5>
                 {offeredAreas.length > 0 && <p>Offered Area: {offeredAreas.map(value => Number(value).toLocaleString()).join(' / ')} sq ft</p>}
-                {warehouse.clearHeightFt && <p>Clear Height: {warehouse.clearHeightFt} ft</p>}
+                {warehouse.clearHeightFt && <p>Clear Height: {withDefaultUnit(warehouse.clearHeightFt, 'ft')}</p>}
               </div>
             )}
 
@@ -244,7 +247,7 @@ const WarehouseCard = ({
                   <p>Land Type: {warehouse.WarehouseData?.landType || warehouse.warehouseData?.landType}</p>
                 )}
                 {(warehouse.WarehouseData?.powerKva || warehouse.warehouseData?.powerKva) && (
-                  <p>Power: {warehouse.WarehouseData?.powerKva || warehouse.warehouseData?.powerKva} KVA</p>
+                  <p>Power: {withDefaultUnit(warehouse.WarehouseData?.powerKva || warehouse.warehouseData?.powerKva, 'kVA')}</p>
                 )}
               </div>
             )}
@@ -270,6 +273,7 @@ const WarehouseCard = ({
           {isMobile ? '' : 'View'}
         </Button>
         
+        {editable && onEdit && (
         <Button
           type="text"
           icon={<EditOutlined />}
@@ -278,6 +282,7 @@ const WarehouseCard = ({
         >
           {isMobile ? '' : 'Edit'}
         </Button>
+        )}
         
         {isAdmin && (
           <Button

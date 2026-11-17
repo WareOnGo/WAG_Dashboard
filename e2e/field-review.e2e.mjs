@@ -1,0 +1,416 @@
+import { randomUUID } from 'node:crypto';
+import { test, expect } from '@playwright/test';
+import { startFieldReviewServer } from './field-review-server.mjs';
+let server;
+test.beforeAll(async () => {
+  test.setTimeout(120000);
+  server = await startFieldReviewServer();
+});
+test.afterAll(async () => {
+  await server?.close();
+});
+test.beforeEach(async ({
+  page
+}) => {
+  await server.seed();
+  await page.route('**/*', route => new URL(route.request().url()).origin === server.url ? route.continue() : route.abort());
+  page.reviewErrors = [];
+  page.on('pageerror', error => page.reviewErrors.push(error.message));
+});
+test.afterEach(async ({
+  page
+}) => expect(page.reviewErrors).toEqual([]));
+const flag = (page, label) => page.getByRole('article', {
+  name: label,
+  exact: true
+});
+async function modalAboveNavigation(page) {
+  const modal=page.locator('.responsive-modal[role="dialog"]');
+  const heading=modal.getByRole('heading').first();
+  await expect(heading).toBeVisible();
+  await expect.poll(()=>heading.evaluate(element=>{
+    const box=element.getBoundingClientRect();
+    const top=document.elementFromPoint(box.left+Math.min(box.width/2,80),box.top+box.height/2);
+    return !!top&&!!top.closest('.responsive-modal');
+  })).toBe(true);
+}
+async function noOverflow(page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  for (const body of await page.locator('.responsive-modal__body').all()) expect(await body.evaluate(e => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+}
+for (const width of [1280, 390]) test.describe('field review at ' + width + 'px', () => {
+  test.use({
+    viewport: {
+      width,
+      height: 900
+    },
+    isMobile: width < 768,
+    hasTouch: width < 768
+  });
+  test('create in current view, respond, verify conflict and no-change, then reopen', async ({
+    page
+  }) => {
+    await page.goto(server.url + '/dashboard?role=admin');
+    await page.getByRole('button', {
+      name: /View$/
+    }).click();
+    await modalAboveNavigation(page);
+    await page.getByRole('button', {
+      name: 'Flag for review (beta)',
+      exact: true
+    }).click();
+    await page.getByRole('checkbox', {
+      name: 'Flag Offered Area (sq ft)',
+      exact: true
+    }).check();
+    await page.getByRole('textbox', {
+      name: 'Review comment for Offered Area (sq ft)',
+      exact: true
+    }).fill('Confirm usable area against the latest layout.');
+    await page.getByRole('checkbox', {
+      name: 'Flag Number of Docks',
+      exact: true
+    }).check();
+    await page.getByRole('textbox', {
+      name: 'Review comment for Number of Docks',
+      exact: true
+    }).fill('Confirm all six docks are operational.');
+    await noOverflow(page);
+    await page.getByRole('button', {
+      name: 'Review flags',
+      exact: true
+    }).click();
+    await expect(page.getByLabel('Assign review to')).toHaveValue('2');
+    await page.screenshot({
+      path: test.info().outputPath('admin-confirm-' + width + '.png'),
+      fullPage: false,
+      animations: 'disabled'
+    });
+    await page.getByRole('button', {
+      name: 'Confirm & flag for review',
+      exact: true
+    }).click();
+    await expect(page.getByRole('button', {
+      name: 'Flag for review (beta)',
+      exact: true
+    })).toBeVisible();
+    await expect(page.getByRole('dialog', {
+      name: 'Confirm flags for warehouse #4821',
+      exact: true
+    })).not.toBeVisible();
+    await page.locator('.warehouse-details-modal').getByRole('button', {
+      name: 'Close',
+      exact: true
+    }).click();
+    await expect(page.getByRole('link', {
+      name: 'Flagged for review · 2 fields',
+      exact: true
+    })).toBeVisible();
+    const records = await server.db.warehouseFieldReview.findMany();
+    expect(records).toHaveLength(1);
+    const reviewId = records[0].id;
+    expect(records[0].assigneeId).toBe(2);
+    await page.goto(server.url + '/dashboard?role=employee');
+    if (width < 768) {
+      await page.getByRole('button', { name: 'Toggle navigation menu', exact: true }).click();
+      await page.getByRole('menuitem', { name: /Flagged for review \(beta\)$/ }).click();
+    } else {
+      await page.getByRole('link', { name: /Flagged for review \(beta\)$/ }).click();
+    }
+    await page.getByRole('button', {
+      name: 'Review fields',
+      exact: true
+    }).click();
+    const area = flag(page, 'Offered Area (sq ft)'),
+      docks = flag(page, 'Number of Docks');
+    await expect(page.getByRole('button', {
+      name: /^(Accept|Approve|Reject)/i
+    })).toHaveCount(0);
+    await area.getByLabel('Proposed Offered Area (sq ft)', {
+      exact: true
+    }).fill('48000');
+    await area.getByLabel('Verification note *', {
+      exact: true
+    }).fill('Owner confirmed 48000 usable square feet.');
+    await page.getByRole('tab', {
+      name: 'All details',
+      exact: true
+    }).click();
+    await expect(page.locator('.warehouse-details-modal')).toBeVisible();
+    await modalAboveNavigation(page);
+    await expect(page.getByText('Owner Details', {
+      exact: true
+    })).toBeVisible();
+    await expect(page.getByText('50000', {
+      exact: true
+    })).toBeVisible();
+    await page.screenshot({
+      path: test.info().outputPath('normal-all-details-' + width + '.png'),
+      fullPage: false,
+      animations: 'disabled'
+    });
+    await page.getByRole('tab', {
+      name: /Flagged fields/
+    }).click();
+    await expect(area.getByLabel('Proposed Offered Area (sq ft)', {
+      exact: true
+    })).toHaveValue('48000');
+    await area.getByRole('button', {
+      name: 'Submit for verification',
+      exact: true
+    }).click();
+    await expect(area.getByText('Awaiting admin', {
+      exact: true
+    })).toBeVisible();
+    expect((await server.db.warehouse.findUnique({
+      where: {
+        id: 4821
+      }
+    })).totalSpaceSqft).toEqual([50000]);
+    await docks.getByRole('button', {
+      name: 'No change needed',
+      exact: true
+    }).click();
+    await docks.getByRole('button', {
+      name: 'Submit for verification',
+      exact: true
+    }).click();
+    await expect(docks.getByRole('alert')).toContainText('Explain what you checked');
+    await docks.getByLabel('How did you verify this? *', {
+      exact: true
+    }).fill('Inspected all six operational docks.');
+    await docks.getByRole('button', {
+      name: 'Submit for verification',
+      exact: true
+    }).click();
+    await expect(docks.getByText('Awaiting admin', {
+      exact: true
+    })).toBeVisible();
+    await noOverflow(page);
+    await page.locator('.fr-modal .responsive-modal__body').evaluate(e=>e.scrollTo({top:0,behavior:'instant'}));
+    await page.screenshot({
+      path: test.info().outputPath('employee-awaiting-' + width + '.png'),
+      fullPage: false,
+      animations: 'disabled'
+    });
+    await server.db.$transaction(async tx => {
+      await tx.$queryRawUnsafe("SELECT set_config('wareongo.actor_email','editor@wareongo.com',true)");
+      await tx.warehouse.update({
+        where: {
+          id: 4821
+        },
+        data: {
+          totalSpaceSqft: [52000]
+        }
+      });
+    });
+    await page.goto(server.url + '/field-reviews?role=admin&review=' + reviewId);
+    await expect(area.getByText('Baseline', {
+      exact: true
+    })).toBeVisible();
+    await expect(area.getByRole('radio', {
+      name: /Keep current/
+    })).not.toBeChecked();
+    await area.getByText('Edit history', {
+      exact: true
+    }).click();
+    await expect(area.getByText(/editor@wareongo.com/)).toBeVisible();
+    await noOverflow(page);
+    await page.screenshot({
+      path: test.info().outputPath('admin-conflict-' + width + '.png'),
+      fullPage: false,
+      animations: 'disabled'
+    });
+    await area.getByRole('radio', {
+      name: /Apply proposed/
+    }).check();
+    await area.getByLabel('Why replace the current value? *', {
+      exact: true
+    }).fill('Confirmed the owner correction after reviewing the later edit.');
+    await area.getByRole('button', {
+      name: 'Review replacement',
+      exact: true
+    }).click();
+    await page.getByRole('button', {
+      name: 'Confirm replacement & close',
+      exact: true
+    }).click();
+    await expect(area.getByText('Verified & closed', {
+      exact: true
+    })).toBeVisible();
+    expect((await server.db.warehouse.findUnique({
+      where: {
+        id: 4821
+      }
+    })).totalSpaceSqft).toEqual([48000]);
+    await docks.getByRole('button', {
+      name: 'Verify & close',
+      exact: true
+    }).click();
+    await expect(docks.getByText('Verified & closed', {
+      exact: true
+    })).toBeVisible();
+    const complete = await server.db.warehouseFieldReview.findUnique({
+      where: {
+        id: reviewId
+      }
+    });
+    expect(complete.closedAt).not.toBeNull();
+    await page.getByRole('button', {
+      name: 'Back to queue',
+      exact: true
+    }).click();
+    await page.getByText('Previously flagged (1)', {
+      exact: true
+    }).click();
+    await expect(page.getByRole('button', {
+      name: 'View history',
+      exact: true
+    })).toBeVisible();
+    await page.getByRole('button', {
+      name: 'View history',
+      exact: true
+    }).click();
+    await area.getByRole('button', {
+      name: 'Reopen flag',
+      exact: true
+    }).click();
+    await page.getByRole('dialog', {
+      name: 'Reopen this field?'
+    }).getByRole('button', {
+      name: 'Reopen flag',
+      exact: true
+    }).click();
+    await expect(area.getByText('Needs response', {
+      exact: true
+    })).toBeVisible();
+    expect((await server.db.warehouse.findUnique({
+      where: {
+        id: 4821
+      }
+    })).totalSpaceSqft).toEqual([48000]);
+  });
+  test('uses the current form controls and stages only the proposed values', async ({ page }) => {
+    const keys = ['handover', 'state', 'city', 'totalSpaceSqft', 'clearHeightFt', 'warehouseData.dimensions'];
+    const review = await server.service.create({ requestId: randomUUID(), warehouseId: 4821,
+      fields: keys.map(key => ({ key, comment: 'Confirm this value with the owner.' })),
+    }, { email: 'admin@wareongo.com' });
+    await page.goto(server.url + '/field-reviews?role=employee&review=' + review.id);
+    await modalAboveNavigation(page);
+    const state = flag(page, 'State'), city = flag(page, 'City');
+    await state.getByRole('combobox', { name: 'Proposed State' }).fill('Karnataka');
+    await state.getByRole('option', { name: 'Karnataka', exact: true }).click();
+    await city.getByRole('combobox', { name: 'Proposed City' }).fill('Bangalore');
+    await city.getByRole('option', { name: 'Bangalore', exact: true }).click();
+    const handover = flag(page, 'Handover');
+    await handover.getByLabel('Proposed handover mode').selectOption('Variable');
+    await expect(handover.getByLabel('Proposed handover unit')).toHaveValue('');
+    await handover.getByLabel('Proposed handover lead time').fill('3');
+    await handover.getByLabel('Proposed handover unit').selectOption('Weeks');
+    await noOverflow(page);
+    await handover.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: test.info().outputPath('synced-handover-' + width + '.png'), animations: 'disabled' });
+    const area = flag(page, 'Offered Area (sq ft)');
+    await area.getByRole('button', { name: 'Add Space Value' }).click();
+    await area.getByLabel('Proposed Offered Area (sq ft) · Space 2').fill('24000');
+    const height = flag(page, 'Clear Height');
+    await height.getByLabel('Clear Height value').fill('50x');
+    await expect(height.getByRole('alert')).toHaveText('Use digits and at most one decimal point (e.g. 50.5).');
+    await height.getByLabel('Clear Height value').fill('50.5');
+    await height.getByLabel('Clear Height unit').selectOption('metres');
+    const dimensions = flag(page, 'Dimensions');
+    for (const [part, value] of [['length', '240'], ['width', '200'], ['height', '32']]) {
+      await dimensions.getByLabel('Dimensions ' + part).fill(value);
+    }
+    await dimensions.getByLabel('Dimensions unit').selectOption('feet');
+    await dimensions.scrollIntoViewIfNeeded();
+    await noOverflow(page);
+    await page.screenshot({ path: test.info().outputPath('synced-measurements-' + width + '.png'), animations: 'disabled' });
+    await page.getByRole('tab', { name: 'All details', exact: true }).click();
+    await expect(page.locator('.warehouse-details-modal')).toBeVisible();
+    await expect(page.getByText('Bhiwandi', { exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: /Flagged fields/ }).click();
+    await expect(height.getByLabel('Clear Height value')).toHaveValue('50.5');
+    await expect(area.getByLabel('Proposed Offered Area (sq ft) · Space 2')).toHaveValue('24000');
+    for (const item of [handover, state, city, area, height, dimensions]) {
+      await item.getByLabel('Verification note *', { exact: true }).fill('Checked the updated details with the owner.');
+      await item.getByRole('button', { name: 'Submit for verification', exact: true }).click();
+      await expect(item.getByText('Awaiting admin', { exact: true })).toBeVisible();
+    }
+    const pending = await server.service.detail(review.id, { email: 'admin@wareongo.com' });
+    const proposals = Object.fromEntries(pending.flags.map(item => [item.fieldKey, item.proposedValue]));
+    expect(proposals).toMatchObject({ state: 'Karnataka', city: 'Bangalore', totalSpaceSqft: [50000, 24000],
+      clearHeightFt: '50.5 metres', 'warehouseData.dimensions': '240 x 200 x 32 feet',
+      handover: { handoverType: 'VARIABLE', handoverLeadValue: 3, handoverLeadUnit: 'WEEKS' },
+    });
+    expect(await server.db.warehouse.findUnique({ where: { id: 4821 } })).toMatchObject({ state: 'Maharashtra', city: 'Bhiwandi', totalSpaceSqft: [50000] });
+  });
+  test('reviews availability and its date together and invalidates a second edit during confirmation', async ({ page }) => {
+    await page.goto(server.url + '/dashboard?role=admin');
+    await page.getByRole('button', { name: /View$/ }).click();
+    await page.getByRole('button', { name: 'Flag for review (beta)', exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Flag Availability & last reviewed', exact: true }).check();
+    await expect(page.getByRole('checkbox', { name: 'Flag Availability last reviewed', exact: true })).toHaveCount(0);
+    await page.getByLabel('Review comment for Availability & last reviewed').fill('Confirm availability and when the owner checked it.');
+    await page.getByRole('button', { name: 'Review flags', exact: true }).click();
+    const summary = page.getByRole('dialog', { name: 'Confirm flags for warehouse #4821' });
+    await expect(summary).toContainText('Availability: Yes');
+    await expect(summary).toContainText('Last reviewed: Not recorded');
+    await summary.getByRole('button', { name: 'Confirm & flag for review' }).click();
+    await expect(summary).not.toBeVisible();
+    const created = await server.db.warehouseFieldReview.findFirst({ where: { warehouseId: 4821, closedAt: null }, include: { flags: true } });
+    expect(created.flags).toHaveLength(1);
+    expect(created.flags[0].fieldKey).toBe('availabilityReview');
+
+    await page.goto(server.url + '/field-reviews?role=employee&review=' + created.id);
+    const pair = flag(page, 'Availability & last reviewed');
+    const date = pair.getByLabel('Proposed availability last reviewed', { exact: true });
+    await expect(pair.getByLabel('Proposed availability', { exact: true })).toHaveValue('Yes');
+    await date.fill('16/11/2026');
+    await date.press('Enter');
+    await date.press('Tab');
+    await pair.getByLabel('Verification note *', { exact: true }).fill('The owner confirmed availability on 16 November.');
+    await noOverflow(page);
+    await page.locator('.fr-modal .responsive-modal__body').evaluate(el => el.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: test.info().outputPath('employee-availability-pair-' + width + '.png'), animations: 'disabled' });
+    await page.getByRole('tab', { name: 'All details', exact: true }).click();
+    const liveDate = page.locator('.warehouse-details-modal .fr-flag-field').filter({ has: page.getByText('Availability last reviewed', { exact: true }) });
+    await expect(liveDate).toContainText('Not recorded');
+    await page.getByRole('tab', { name: /Flagged fields/ }).click();
+    await expect(date).toHaveValue('16/11/2026');
+    await pair.getByRole('button', { name: 'Submit for verification', exact: true }).click();
+    await expect(pair.getByText('Awaiting admin', { exact: true })).toBeVisible();
+    expect((await server.db.warehouse.findUnique({ where: { id: 4821 } })).availabilityLastReviewedOn).toBeNull();
+
+    const edit = data => server.db.$transaction(async tx => {
+      await tx.$queryRawUnsafe("SELECT set_config('wareongo.actor_email','editor@wareongo.com',true),set_config('wareongo.edit_source','Warehouse edit',true)");
+      return tx.warehouse.update({ where: { id: 4821 }, data });
+    });
+    await edit({ availability: 'No' });
+    await page.goto(server.url + '/field-reviews?role=admin&review=' + created.id);
+    await expect(pair.getByText('The value changed while verification was pending.', { exact: true })).toBeVisible();
+    await expect(pair.getByRole('radio', { name: /Keep current.*Availability: No.*Last reviewed: Not recorded/s })).not.toBeChecked();
+    await expect(pair.getByRole('radio', { name: /Restore baseline.*Availability: Yes.*Last reviewed: Not recorded/s })).not.toBeChecked();
+    await pair.getByText('Edit history', { exact: true }).click();
+    await expect(pair.locator('.fr-history-entry')).toContainText('editor@wareongo.com');
+    await noOverflow(page);
+    await page.locator('.fr-modal .responsive-modal__body').evaluate(el => el.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.screenshot({ path: test.info().outputPath('admin-availability-conflict-' + width + '.png'), animations: 'disabled' });
+    await pair.getByRole('radio', { name: /Apply proposed.*Last reviewed: 16 Nov 2026/s }).check();
+    await pair.getByLabel('Why replace the current value? *', { exact: true }).fill('Owner reconfirmed both values.');
+    await pair.getByRole('button', { name: 'Review replacement', exact: true }).click();
+    await edit({ availabilityLastReviewedOn: new Date('2026-11-15') });
+    await page.getByRole('button', { name: 'Confirm replacement & close', exact: true }).click();
+    await expect(page.getByText('The current value changed again. Review the refreshed comparison and confirm a new decision.', { exact: true })).toBeVisible();
+    await expect(pair.getByRole('radio', { name: /Apply proposed/ })).not.toBeChecked();
+    await expect(pair.getByRole('radio', { name: /Keep current.*Last reviewed: 15 Nov 2026/s })).not.toBeChecked();
+    expect(await server.db.warehouse.findUnique({ where: { id: 4821 } })).toMatchObject({ availability: 'No', availabilityLastReviewedOn: new Date('2026-11-15') });
+    await pair.getByRole('radio', { name: /Apply proposed/ }).check();
+    await pair.getByLabel('Why replace the current value? *', { exact: true }).fill('Checked the later edit and reconfirmed the answer and date.');
+    await pair.getByRole('button', { name: 'Review replacement', exact: true }).click();
+    await page.getByRole('button', { name: 'Confirm replacement & close', exact: true }).click();
+    await expect(pair.getByText('Verified & closed', { exact: true })).toBeVisible();
+    expect(await server.db.warehouse.findUnique({ where: { id: 4821 } })).toMatchObject({ availability: 'Yes', availabilityLastReviewedOn: new Date('2026-11-16') });
+    expect((await server.db.warehouseFieldReview.findUnique({ where: { id: created.id } })).closedAt).not.toBeNull();
+  });
+});

@@ -704,3 +704,17 @@
   width: fit-content;
   max-width: 100%;
 }
+.simple-warehouse-card__review-marker {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 10px;
+  color: #f4b75a;
+  background: rgba(244, 183, 90, 0.08);
+  border: 1px solid rgba(244, 183, 90, 0.35);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.simple-warehouse-card__review-marker a { color: inherit; }
+.simple-warehouse-card__review-marker a:hover { text-decoration: underline; }
