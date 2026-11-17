@@ -7,6 +7,11 @@ import { useMemo, useState } from 'react';
  * so the returned `filtered` reference is stable until inputs change). Used by
  * both the dashboard and the review queue so the filter behaviour is single-source.
  *
+ * `searchText` is state only: both screens send it to the server, which matches
+ * and ranks it (the dashboard via `queryParams`, the review queue via
+ * `/api/staging?search=`). `filtered` applies the other filters and keeps the
+ * order the rows arrived in.
+ *
  * @param {Array} items - Warehouse-shaped rows to filter
  * @returns {Object} { filtered, ...filterValues, ...setters, clearFilters }
  */
@@ -70,17 +75,6 @@ export function useWarehouseFilters(items = []) {
 
   const filtered = useMemo(() => {
     let result = [...(items || [])];
-
-    if (searchText) {
-      result = result.filter(warehouse =>
-        warehouse.id?.toString().includes(searchText) ||
-        warehouse.warehouseType?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.address?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.city?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.contactPerson?.toLowerCase().includes(searchText.toLowerCase()) ||
-        warehouse.warehouseOwnerType?.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
 
     if (selectedOwnerType) {
       result = result.filter(warehouse =>
@@ -209,7 +203,7 @@ export function useWarehouseFilters(items = []) {
 
     return result;
   }, [
-    items, searchText, selectedOwnerType, selectedType, selectedCity, selectedState,
+    items, selectedOwnerType, selectedType, selectedCity, selectedState,
     selectedZone, selectedAvailability, selectedBroker, fireNocFilter, selectedLandType,
     selectedOwnerName,
     selectedListingType,

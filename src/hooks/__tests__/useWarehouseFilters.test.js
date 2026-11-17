@@ -62,4 +62,11 @@ describe('shared warehouse filters', () => {
     expect(result.current.budgetRange).toEqual([0, null]);
     expect(result.current.queryParams).toEqual({});
   });
+
+  it('leaves search to the server: filtered ignores it and keeps the arriving order', () => {
+    const { result } = renderHook(() => useWarehouseFilters(rows));
+    act(() => result.current.setSearchText('Other'));
+    expect(result.current.filtered).toEqual(rows);
+    expect(result.current.queryParams).toEqual({ search: 'Other' });
+  });
 });

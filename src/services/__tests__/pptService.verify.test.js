@@ -113,8 +113,8 @@ describe('PPT generation requests', () => {
     expect(global.URL.createObjectURL).not.toHaveBeenCalled();
   });
 
-  it.each(['generateDetailedPpt', 'generatePptV2', 'generatePptV3', 'generateGodamwalePpt', 'generateTciPpt', 'generateLastMileExcel'])
-  ('%s cancels the download if permission scope changes while the response is being read', async fn => {
+  it.each(['generateDetailedPpt', 'generatePptV2', 'generatePptV3', 'generateGodamwalePpt', 'generateTciPpt', 'generateLastMileExcel'])(
+  '%s cancels the download if permission scope changes while the response is being read', async fn => {
     const controller = new AbortController();
     let complete;
     const blob = vi.fn(() => new Promise(resolve => { complete = resolve; }));

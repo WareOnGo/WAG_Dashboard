@@ -39,12 +39,15 @@ beforeEach(() => {
 });
 
 describe('Explicit handover timing', () => {
+  const handoverField = label => within(
+    screen.getByText('Availability', { selector: 'div', exact: true }).parentElement,
+  ).getByLabelText(label);
   const incomplete = { ...record, availability: 'Yes', handoverType: 'VARIABLE',
     handoverDate: null, handoverLeadValue: 2, handoverLeadUnit: null };
 
   it('preserves a missing unit during an unrelated edit', async () => {
     const { props } = open({ initialData: incomplete });
-    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+    expect(handoverField('Handover unit')).toHaveValue('');
     expect(screen.getByText(/PPTs and Last Mile Excel show .Unconfirmed./)).toBeInTheDocument();
     change('Address', 'An unrelated address edit');
     await submit();
@@ -55,7 +58,7 @@ describe('Explicit handover timing', () => {
 
   it('saves the unit that the user explicitly selects', async () => {
     const { props } = open({ initialData: incomplete });
-    fireEvent.change(screen.getByLabelText('Handover unit'), { target: { value: 'Weeks' } });
+    fireEvent.change(handoverField('Handover unit'), { target: { value: 'Weeks' } });
     await submit();
     expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       handoverType: 'VARIABLE', handoverLeadValue: 2, handoverLeadUnit: 'WEEKS',
@@ -73,13 +76,13 @@ describe('Explicit handover timing', () => {
 
   it('does not invent a unit for a new variable handover', () => {
     open();
-    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
-    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+    fireEvent.change(handoverField('Handover mode'), { target: { value: 'Variable' } });
+    expect(handoverField('Handover unit')).toHaveValue('');
   });
 
   it('does not turn an impossible typed date into confirmed handover', async () => {
     const { props } = open({ initialData: { ...record, handoverType: 'FIXED', handoverDate: null } });
-    const input = screen.getByLabelText('Handover date');
+    const input = handoverField('Handover date');
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: '30/02/2027' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });

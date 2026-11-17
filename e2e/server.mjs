@@ -44,6 +44,8 @@ export async function startServer({ port = 0, corsOrigins = [], existingSchema }
   const { verifyScoutToken, clearScoutCache } = backend('./src/middleware/scoutMiddleware');
   const createAuditMiddleware = backend('./src/middleware/auditMiddleware');
   const { resolveFormLocation, validateNewWarehouseForm, validateDashboardForm } = backend('./src/middleware/warehouseFormValidation');
+  const { CAPS } = backend('./src/utils/access');
+  const capabilities = Object.fromEntries(Object.values(CAPS).map(capability => [capability, true]));
   const settings = new SettingsService(new AppSettingModel(prisma));
   const warehouseService = new WarehouseService(new WarehouseModel(prisma));
   const stagingService = new StagingService(new StagedWarehouseModel(prisma), warehouseService, settings);
@@ -87,6 +89,7 @@ export async function startServer({ port = 0, corsOrigins = [], existingSchema }
         role text DEFAULT 'EMPLOYEE', "adminAccess" boolean DEFAULT false,
         "analystAccess" boolean DEFAULT false, "callDashboardAccess" boolean DEFAULT false,
         "dashboardAccess" boolean DEFAULT false, "reviewerAccess" boolean DEFAULT false)`);
+      await backend('./scripts/migrateWarehousePermissions').migrate(prisma, true);
       await prisma.$executeRawUnsafe(`CREATE TABLE app_setting (
         application text, key text, value jsonb NOT NULL, "updatedBy" text,
         "updatedAt" timestamp NOT NULL DEFAULT now(), PRIMARY KEY(application, key))`);
@@ -113,7 +116,7 @@ export async function startServer({ port = 0, corsOrigins = [], existingSchema }
     app.post('/api/warehouses/scout', verifyScoutToken, validateNewWarehouseForm, Validation.validateWarehouseCreate, warehouses.createScoutWarehouse);
     // The reviewer is a fixture identity; Google sign-in and role assignment are outside this suite.
     app.use('/api/staging', (req, _res, next) => {
-      req.user = { email: 'reviewer@example.test', name: 'E2E reviewer', isAdmin: true };
+      req.user = { email: 'reviewer@example.test', name: 'E2E reviewer', isAdmin: true, capabilities };
       next();
     });
     app.get('/api/staging/settings/auto-approve', staging.getAutoApprove);
@@ -125,7 +128,7 @@ export async function startServer({ port = 0, corsOrigins = [], existingSchema }
     app.post('/api/staging/:id/reject', Validation.validateBody(StagingValidator.rejectSchema), staging.rejectSubmission);
     app.post('/api/staging/:id/approve', staging.approveSubmission);
     app.use('/api/warehouses', (req, _res, next) => {
-      req.user = { email: 'dashboard@example.test', name: 'E2E dashboard', isAdmin: true }; next();
+      req.user = { email: 'dashboard@example.test', name: 'E2E dashboard', isAdmin: true, capabilities }; next();
     });
     app.post('/api/warehouses/resolve-location', resolveFormLocation);
     app.post('/api/warehouses', validateDashboardForm, Validation.validateWarehouseCreate, warehouses.createWarehouse);

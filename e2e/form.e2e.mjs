@@ -4,6 +4,8 @@ let server;
 const field = (page, label) => page.getByLabel(new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:\\s*\\*)?$'));
 const data = (page, key) => page.locator(`[data-field="${key}"]`);
 const press = (page, target) => page.formTouch ? target.tap() : target.click();
+const reviewButton = (page, owner) => page.locator('.simple-warehouse-card')
+  .filter({ has: page.getByText(owner, { exact: true }) }).getByRole('button', { name: /(?:^| )Review$/ });
 test.beforeAll(async () => { test.setTimeout(120_000); server = await startServer(); });
 test.afterAll(async () => { await server?.close(); });
 test.beforeEach(async ({ page, hasTouch }) => {
@@ -22,7 +24,7 @@ async function create(page, address) {
   await field(page, 'Address').fill(address);
   await field(page, 'State').fill('Delhi');
   await page.locator('li').filter({ hasText: /^Delhi$/ }).click();
-  await field(page, 'Contact Person').fill('Form QA owner');
+  await field(page, 'Contact Person').fill(`${address} owner`);
   await data(page, 'contactNumber').fill('9876543210');
   await field(page, 'Compliances').fill('CLU and Fire NOC checked');
   await field(page, 'Rate per sq ft').fill('25');
@@ -37,6 +39,29 @@ async function noOverflow(page) {
 async function receipt(page) {
   return JSON.parse(await page.getByTestId('receipt').textContent());
 }
+async function searchSubmissions(page, text) {
+  const response = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return url.pathname === '/api/staging' && url.searchParams.get('search') === text
+      && response.request().method() === 'GET';
+  });
+  await field(page, 'Search submissions').fill(text);
+  expect((await response).ok()).toBe(true);
+  // Search ranks related matches too; select the intended record by its owner.
+}
+
+test('an older open dashboard can submit without newly required fields during rollout', async ({ request }) => {
+  const response = await request.post(`${server.url}/api/warehouses`, { data: {
+    listing_type: 'Rent', warehouseType: 'PEB', address: 'Older dashboard client', city: 'New Delhi', state: 'Delhi',
+    contactPerson: 'QA owner', contactNumber: '9876543210', totalSpaceSqft: [10000], compliances: 'CLU', ratePerSqft: '25',
+    warehouseData: { landType: null }, googleLocation: null,
+  } });
+  expect(response.status()).toBe(201);
+  const result = await response.json();
+  const stored = await server.prisma.stagedWarehouse.findUnique({ where: { id: result.submissionId } });
+  expect(stored).toMatchObject({ googleLocation: null, landType: null, uploadedBy: 'dashboard@example.test' });
+});
+
 for (const width of [320, 390, 1280]) {
   test.describe(`dashboard at ${width}px`, () => {
     test.use({ viewport: { width, height: 850 }, isMobile: width < 768, hasTouch: width < 768 });
@@ -113,8 +138,9 @@ for (const width of [320, 390, 1280]) {
       };
       expect(staged).toMatchObject(expected);
       await page.goto(`${server.url}/?review`);
-      await field(page, 'Search submissions').fill(address);
-      await page.getByRole('button', { name: /(?:^| )Review$/ }).click();
+      await searchSubmissions(page, address);
+      await reviewButton(page, `${address} owner`).click();
+      await expect(field(page, 'Address')).toHaveValue(address);
       await expect(data(page, 'clearHeightFt')).toHaveValue('50.5');
       await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
       await expect(field(page, 'Uploaded By')).toHaveValue('dashboard@example.test');
@@ -176,14 +202,14 @@ test('legacy review can save unrelated edits and reject an incomplete draft', as
     nearest_transport: 'Old stop', setbackArea: '5m on all sides', ventilationType: 'Old description',
   } });
   await page.goto(`${server.url}/?review`);
-  await field(page, 'Search submissions').fill('Legacy form QA');
-  await page.getByRole('button', { name: /(?:^| )Review$/ }).click();
+  await searchSubmissions(page, 'Legacy form QA');
+  await reviewButton(page, 'Legacy owner').click();
   await expect(page.getByText('20–25 feet', { exact: true })).toBeVisible();
   await expect(field(page, 'Uploaded By')).toHaveValue('original@example.test');
   await field(page, 'Address').fill('Legacy form QA edited');
   await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
   await expect.poll(async () => (await server.prisma.stagedWarehouse.findUnique({ where: { id: legacy.id } })).address).toBe('Legacy form QA edited');
-  await page.getByRole('button', { name: /(?:^| )Review$/ }).click();
+  await reviewButton(page, 'Legacy owner').click();
   await data(page, 'dimensions').fill('10');
   await page.getByRole('button', { name: /(?:^| )Accept$/ }).click();
   await expect(data(page, 'dimensions')).toHaveAttribute('aria-invalid', 'true');
