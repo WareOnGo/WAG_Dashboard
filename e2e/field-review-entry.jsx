@@ -12,10 +12,12 @@ import MobileNavigation from '../src/components/MobileNavigation';
 import {MobileToolsProvider} from '../src/contexts/MobileToolsContext';
 import WarehouseDetailsModal from '../src/components/WarehouseDetailsModal';
 import FieldReviewQueue from '../src/components/FieldReviewQueue';
+import DashboardReference from '../src/components/Dashboard';
 import { apiClient } from '../src/services/apiClient';
 import { setStoredToken } from '../src/utils/tokenStorage';
 import '../src/index.css';
 import '../src/App.css';
+import '../src/styles/dashboard-mobile.css';
 function Dashboard() {
   const [rows, setRows] = useState([]),
     [selected, setSelected] = useState(null);
@@ -47,7 +49,7 @@ function Fixture() {
   <MobileNavigation visible={menuOpen} onClose={()=>setMenuOpen(false)}/>
   <main style={{
             padding: 24
-          }}><Routes><Route path="/field-reviews" element={<FieldReviewQueue />} /><Route path="*" element={<Dashboard />} /></Routes></main>
+          }}><Routes><Route path="/field-reviews" element={<FieldReviewQueue />} /><Route path="/dashboard-reference" element={<DashboardReference />} /><Route path="*" element={<Dashboard />} /></Routes></main>
  </App></ProductTheme></MobileToolsProvider></BrowserRouter></AuthContext.Provider>;
 }
 createRoot(document.getElementById('root')).render(<Fixture />);

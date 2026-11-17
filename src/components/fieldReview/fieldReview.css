@@ -5,7 +5,8 @@
 .fr-queue {
   padding: 24px;
 }
-.fr-queue-panel {
+/* Keep the dashboard surface above the generic Ant Design Card theme. */
+.ant-card.fr-queue-panel {
   background: var(--bg-secondary);
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: var(--surface-backdrop, blur(20px));
@@ -421,7 +422,7 @@
   .fr-queue {
     padding: 8px;
   }
-  .fr-queue-panel {
+  .ant-card.fr-queue-panel {
     border: 0;
     backdrop-filter: none;
   }
