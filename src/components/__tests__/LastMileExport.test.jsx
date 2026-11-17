@@ -17,7 +17,7 @@ const { getByIds, listPocs, viewport } = vi.hoisted(() => ({
 }));
 vi.mock('../../hooks', () => ({ useViewport: () => viewport }));
 vi.mock('../../contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { email: 'test@wareongo.com', name: 'Test' }, logout: vi.fn() }),
+  useAuth: () => ({ user: { email: 'test@wareongo.com', name: 'Test', capabilities: { DASHBOARD: true, WAREHOUSE_VIEW_OWN: true } }, logout: vi.fn() }),
 }));
 vi.mock('../../services/verifiedNumberService', () => ({ verifiedNumberService: { list: listPocs } }));
 vi.mock('../../services/warehouseService', () => ({ warehouseService: { getByIds } }));

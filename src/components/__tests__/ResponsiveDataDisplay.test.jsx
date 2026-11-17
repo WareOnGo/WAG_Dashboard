@@ -16,7 +16,7 @@ describe('responsive data display behavior', () => {
     useViewport.mockReturnValue({ isMobile: true });
     const warehouses = Array.from({ length: 8 }, (_, i) => ({ ...mockWarehouse, id: i + 1, photos: '', media: null }));
     renderWithProviders(<CardView warehouses={warehouses} paginated={false} />, { auth });
-    expect(screen.getAllByRole('button', { name: /Edit/ })).toHaveLength(8);
+    expect(screen.getAllByRole('button', { name: /Copy warehouse ID/ })).toHaveLength(8);
     expect(screen.queryByTitle('Next Page')).not.toBeInTheDocument();
   });
 

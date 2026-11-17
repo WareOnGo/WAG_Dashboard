@@ -13,7 +13,7 @@ const employee = {
   viewOwnWarehouseEntries: true, editOwnWarehouseEntries: true,
   viewAllWarehouseEntries: true, editAllWarehouseEntries: true,
 }
-const toggle = label => screen.getByRole('switch', { name: `${label} for Colleague` })
+const toggle = label => screen.getByLabelText(`${label} for Colleague`)
 beforeEach(() => { vi.clearAllMocks(); state.mobile = false; verifiedNumberService.adminList.mockResolvedValue([employee]) })
 
 it.each([false, true])('nests the four switches under Dashboard on mobile=%s and displays server cascades', async mobile => {
