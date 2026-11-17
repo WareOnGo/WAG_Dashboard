@@ -59,7 +59,7 @@ describe('structured dashboard fields', () => {
     change('Male washrooms', '2'); change('Female washrooms', '0');
     change('Contact Number country code', 'GB'); change('Contact Number', '2079460018');
     change('Alternate Phone Number country code', 'DK'); change('Alternate Phone Number', '32123456');
-    change('Canopy Type', 'Shutter'); change('Dock Platform Type', 'Angled/Cross'); change('Flooring Type', 'FM2');
+    change('Canopy Type', 'Shutter'); change('Dock Platform Type', 'Angled/Cross'); change('Flooring Type', 'VDF');
     fireEvent.click(field('Ventilation Type options'));
     fireEvent.click(field('Ridge')); fireEvent.click(field('Turbo'));
     change('Ventilation Air Changes/Day', '4');
@@ -71,7 +71,7 @@ describe('structured dashboard fields', () => {
       distance_from_highway: '2.5 km', land_parcel_size: '2 hectares', builtup_area: '25000 sq ft', carpet_area: '2300 sq ft',
       clearHeightFt: '10 metres', centreHeight: '12 metres', plinthHeightFt: '0 feet', dockDimension: '8 x 10 feet',
       dockApronLengthFt: '15 metres', gateSizeFt: '20 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
-      washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'FM2',
+      washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'VDF',
       ventilationType: 'Ridge, Turbo', ventilationAirChangesPerDay: '4',
       warehouseData: expect.objectContaining({ approachRoadWidth: '50 feet', dimensions: '100 x 60 x 30 feet', powerKva: '100 HP' }),
     }));

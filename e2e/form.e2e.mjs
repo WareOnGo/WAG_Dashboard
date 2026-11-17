@@ -102,7 +102,7 @@ for (const width of [320, 390, 1280]) {
         ['Male washrooms', '2'], ['Female washrooms', '0']]) await field(page, label).fill(value);
       await field(page, 'Canopy Type').selectOption('Shutter');
       await field(page, 'Dock Platform Type').selectOption('Angled/Cross');
-      await field(page, 'Flooring Type').selectOption('FM2');
+      await field(page, 'Flooring Type').selectOption('VDF');
       await page.getByLabel('Ventilation Type options').click();
       await field(page, 'Ridge').check(); await field(page, 'Turbo').check();
       await field(page, 'Ventilation Air Changes/Day').fill('4');
@@ -122,7 +122,7 @@ for (const width of [320, 390, 1280]) {
         builtup_area: '50.5 sq ft', carpet_area: '50.5 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
         plinthHeightFt: '50.5 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: '50.5 HP',
         dimensions: '100 x 60 x 30 feet', dockDimension: '8 x 10 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
-        washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'FM2',
+        washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'VDF',
         ventilationType: 'Ridge, Turbo', ventilationAirChangesPerDay: '4', setbackArea: '5m on all sides', latitude: null, longitude: null,
       };
       expect(staged).toMatchObject(expected);
