@@ -45,7 +45,6 @@ export default function ReviewField({
   onAction,
   busy,
   disabled = false,
-  onKeep,
   locationState
 }) {
   const [localError, setLocalError] = useState('');
@@ -182,7 +181,6 @@ export default function ReviewField({
           })} placeholder="Explain what you checked and with whom…" />
    </div></div>
    <div className="fr-actions"><p>The admin verifies before this flag closes.</p><div className="fr-row">
-    <Button disabled={disabled || busy} onClick={onKeep}>Keep for later</Button>
     <Button type="primary" loading={busy} disabled={disabled || staleDraft} onClick={submit}>Submit for verification</Button></div></div>
   </>}
   {awaiting && !review.canVerify && <>

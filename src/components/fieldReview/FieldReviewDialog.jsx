@@ -225,10 +225,6 @@ export default function FieldReviewDialog({
       if (target.current === scope) setEventsLoading(false);
     }
   };
-  const keep = () => {
-    message.info('Draft kept until this page is reloaded. This field still needs a response.');
-    onClose();
-  };
   const active = review?.flags.filter(f => f.status !== 'VERIFIED').length || 0;
   const stateFlag = review?.flags.find(flag => flag.fieldKey === 'state' && flag.status !== 'VERIFIED');
   const stateDraft = stateFlag && drafts[stateFlag.id]?.version === stateFlag.version ? drafts[stateFlag.id] : null;
@@ -246,7 +242,7 @@ export default function FieldReviewDialog({
     {!review.deleted && !review.closedAt && review.assigneeCanRespond === false && <Alert type="warning" message="The assigned employee can no longer edit this warehouse. An admin must restore their access or reassign the review." />}
     <p className="fr-summary-count">Assigned to {review.assignee?.name || 'Employee unavailable'} · {active} active · {review.flags.length - active} closed</p>
     <div className={review.canVerify ? 'fr-layout' : ''}><div className="fr-fields">
-     {review.flags.map(flag => <ReviewField key={flag.id} review={review} flag={flag} locationState={locationState} draft={draftFor(flag, drafts[flag.id])} onDraft={patch => setDraft(flag, patch)} onAction={action} busy={busy === flag.id} disabled={review.deleted || !!busy} onKeep={keep} />)}
+     {review.flags.map(flag => <ReviewField key={flag.id} review={review} flag={flag} locationState={locationState} draft={draftFor(flag, drafts[flag.id])} onDraft={patch => setDraft(flag, patch)} onAction={action} busy={busy === flag.id} disabled={review.deleted || !!busy} />)}
     </div>{review.canVerify && <aside className="fr-aside"><h3>Review ownership</h3>
      <label className="fr-label" htmlFor="fr-detail-assignee">Assigned employee</label>
      <select id="fr-detail-assignee" className="fr-input" value={assignee} disabled={!!busy || review.deleted || !!review.closedAt} onChange={e => setAssignee(e.target.value)}>
