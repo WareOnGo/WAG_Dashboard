@@ -120,11 +120,11 @@
 }
 .fr-selection .ant-checkbox-wrapper {
   position: absolute;
-  right: 0;
+  left: 0;
   top: 0;
 }
-.fr-flag-field:has(.fr-selection)>label {
-  padding-right: 28px;
+.fr-flag-field:has(.fr-selection) {
+  padding-left: 26px;
 }
 .fr-active-field {
   font-size: 11px;
