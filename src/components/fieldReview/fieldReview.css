@@ -42,6 +42,7 @@
 }
 .fr-queue-results {
   margin-top: 12px;
+  padding: 16px;
 }
 .fr-page-heading {
   display: flex;
@@ -419,15 +420,8 @@
   margin: 10px 0 16px;
 }
 @media(max-width:767px) {
-  .fr-queue {
-    padding: 8px;
-  }
   .ant-card.fr-queue-panel {
-    border: 0;
     backdrop-filter: none;
-  }
-  .fr-queue-panel > .ant-card-body {
-    padding: 12px;
   }
   .fr-queue-toolbar {
     gap: 10px;

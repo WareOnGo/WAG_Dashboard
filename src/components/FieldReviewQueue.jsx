@@ -124,20 +124,20 @@ function ReviewQueueContent({ user }) {
     setPageSize(nextSize);
     if (isMobile) resultsRef.current?.scrollIntoView({ block: 'start' });
   };
-  return <div className="fr-page fr-queue"><div className="fr-page-heading"><div><h1>{user?.isAdmin ? 'Flag Review Queue' : 'Flagged for review'}</h1>
+  return <div className="fr-page fr-queue dashboard-page"><div className="fr-page-heading"><div><h1>{user?.isAdmin ? 'Flag Review Queue' : 'Flagged for review'}</h1>
   <p>{user?.isAdmin ? 'Verify employee responses and manage field reviews.' : 'Warehouse fields assigned to you for review.'}</p></div><Tag icon={<FlagOutlined />}>{user?.isAdmin ? 'Admin view' : 'Assigned to me'}</Tag></div>
-  <Card className="fr-queue-panel"><div className="fr-segments"><Segmented block={isMobile && !user?.isAdmin} value={view} options={labels.map(([value, label]) => ({
+  <Card className="fr-queue-panel dashboard-panel"><div className="fr-segments"><Segmented block={isMobile && !user?.isAdmin} value={view} options={labels.map(([value, label]) => ({
           value,
           label: (isMobile && !user?.isAdmin ? value === 'current' ? 'Current' : 'Previous' : label) + ' (' + (result.counts[value] ?? 0) + ')'
         }))} onChange={setView} /></div>
-   <div className="fr-queue-toolbar">
-    <div className="fr-queue-search">
+   <div className="fr-queue-toolbar dashboard-toolbar">
+    <div className="fr-queue-search dashboard-search-row">
      <Input aria-label="Search field reviews" prefix={<SearchOutlined />} placeholder="Search name, place, ID or phone, or paste IDs" allowClear value={searchText}
        onChange={e => setSearchText(e.target.value)} onPaste={e => pasteAsOneLine(e, searchText, setSearchText)} />
      {!isMobile && filterButton}
      {!isMobile && <span className="fr-queue-count" role="status">{loading ? 'Loading results…' : `${rows.length} of ${total} results`}</span>}
     </div>
-    <div className="fr-queue-actions">
+    <div className="fr-queue-actions dashboard-actions-row">
      {isMobile && filterButton}
      {user?.isAdmin && <Select className="fr-queue-assignee" aria-label="Filter by assignee" placeholder="All assignees" allowClear
        value={assignee || undefined} onChange={value => setAssignee(value || '')}
@@ -152,7 +152,7 @@ function ReviewQueueContent({ user }) {
    </div>
    {error && <Alert role="alert" type="error" showIcon message={error} action={<Button onClick={refresh}>Retry</Button>} />}
    <p className="fr-help">{view === 'previous' ? 'Completed reviews retain comments, responses and admin decisions.' : 'Pending responses remain here until admin verification. Live warehouse values are unchanged until approval.'}</p>
-   <div className="fr-queue-results" ref={resultsRef}>
+   <div className="fr-queue-results dashboard-card-results" ref={resultsRef}>
     {!error && (!loading && !rows.length ? <Empty description={Object.keys(queryParams).length ? 'No reviews match these filters.' : view === 'previous' ? 'No completed reviews yet.' : 'No warehouses in this review queue.'} /> : <CardView warehouses={rows} loading={loading} paginated={false} getCardProps={cardProps} />)}
     {(total > pageSize || (!isMobile && pageSize !== 20 && total > 0)) && <ListingPagination current={page} pageSize={pageSize} total={total} onChange={changePage} pageSizeOptions={[10, 20, 50, 100]} disabled={loading} />}
    </div>
