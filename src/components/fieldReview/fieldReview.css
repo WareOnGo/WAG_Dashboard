@@ -40,11 +40,7 @@
   width: 200px;
 }
 .fr-queue-results {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 8px;
-  padding: 16px;
-  overflow: hidden;
+  margin-top: 12px;
 }
 .fr-page-heading {
   display: flex;
@@ -456,9 +452,6 @@
     margin-bottom: 12px;
   }
   .fr-queue-results {
-    border: 0;
-    border-radius: 0;
-    padding: 4px;
     scroll-margin-top: 80px;
   }
   .fr-layout,.fr-editor,.fr-values,.fr-values.fr-two-values,.fr-linked-inputs {
