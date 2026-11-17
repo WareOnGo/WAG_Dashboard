@@ -1,3 +1,4 @@
+import { withDefaultUnit } from '../utils/measurementDisplay';
 import React, { useState } from 'react';
 import { Card, Button, Tag } from 'antd';
 import { 
@@ -230,7 +231,7 @@ const WarehouseCard = ({
               <div className="warehouse-card__detail-section">
                 <h5>Space Information</h5>
                 {offeredAreas.length > 0 && <p>Offered Area: {offeredAreas.map(value => Number(value).toLocaleString()).join(' / ')} sq ft</p>}
-                {warehouse.clearHeightFt && <p>Clear Height: {warehouse.clearHeightFt} ft</p>}
+                {warehouse.clearHeightFt && <p>Clear Height: {withDefaultUnit(warehouse.clearHeightFt, 'ft')}</p>}
               </div>
             )}
 
@@ -244,7 +245,7 @@ const WarehouseCard = ({
                   <p>Land Type: {warehouse.WarehouseData?.landType || warehouse.warehouseData?.landType}</p>
                 )}
                 {(warehouse.WarehouseData?.powerKva || warehouse.warehouseData?.powerKva) && (
-                  <p>Power: {warehouse.WarehouseData?.powerKva || warehouse.warehouseData?.powerKva} KVA</p>
+                  <p>Power: {withDefaultUnit(warehouse.WarehouseData?.powerKva || warehouse.warehouseData?.powerKva, 'kVA')}</p>
                 )}
               </div>
             )}

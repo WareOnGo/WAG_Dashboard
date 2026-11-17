@@ -1,3 +1,4 @@
+import { withDefaultUnit } from '../utils/measurementDisplay';
 import ImageWithFallback from './ImageWithFallback';
 import { imageVariant } from '../utils/mediaUtils';
 import { useState, useEffect } from 'react';
@@ -484,7 +485,7 @@ const WarehouseDetailsModal = ({
           </>)}
 
           {row(<>
-            {col(<Field label="Approach Road Width (ft)" mobile={m}><TextValue mobile={m} value={wd.approachRoadWidth} /></Field>, true)}
+            {col(<Field label="Approach Road Width" mobile={m}><TextValue mobile={m} value={withDefaultUnit(wd.approachRoadWidth, 'ft')} /></Field>, true)}
             {col(<Field label="Land Type" mobile={m}><TextValue mobile={m} value={wd.landType} /></Field>, true)}
           </>)}
 
@@ -539,12 +540,12 @@ const WarehouseDetailsModal = ({
           </>)}
 
           {row(<>
-            {col(<Field label="Clear Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.clearHeightFt} /></Field>, true)}
+            {col(<Field label="Clear Height" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.clearHeightFt, 'ft')} /></Field>, true)}
             {col(<Field label="Centre Height" mobile={m}><TextValue mobile={m} value={warehouse.centreHeight} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field label="Plinth Height (ft)" mobile={m}><TextValue mobile={m} value={warehouse.plinthHeightFt} /></Field>, true)}
+            {col(<Field label="Plinth Height" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.plinthHeightFt, 'ft')} /></Field>, true)}
             {col(<Field label="Number of Docks" mobile={m}><TextValue mobile={m} value={warehouse.numberOfDocks} /></Field>, true)}
           </>)}
 
@@ -553,12 +554,12 @@ const WarehouseDetailsModal = ({
           </>)}
 
           {row(<>
-            {col(<Field label="Dock Apron Length (ft)" mobile={m}><TextValue mobile={m} value={warehouse.dockApronLengthFt} /></Field>, true)}
+            {col(<Field label="Dock Apron Length" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.dockApronLengthFt, 'ft')} /></Field>, true)}
           </>)}
 
           {row(<>
             {col(<Field label="Dock Platform Type" mobile={m}><TextValue mobile={m} value={warehouse.dockPlatformType} /></Field>, true)}
-            {col(<Field label="Gate Size (ft)" mobile={m}><TextValue mobile={m} value={warehouse.gateSizeFt} /></Field>, true)}
+            {col(<Field label="Gate Size" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.gateSizeFt, 'ft')} /></Field>, true)}
           </>)}
 
           {row(<>
@@ -600,7 +601,7 @@ const WarehouseDetailsModal = ({
           </Field>
 
           {row(<>
-            {col(<Field label="Power (KVA)" mobile={m}><TextValue mobile={m} value={wd.powerKva} /></Field>, true)}
+            {col(<Field label="Power" mobile={m}><TextValue mobile={m} value={withDefaultUnit(wd.powerKva, 'kVA')} /></Field>, true)}
             {col(<Field label="Water Supply" mobile={m}><TextValue mobile={m} value={waterSupplyToLabel(warehouse.waterSupply) || '-'} /></Field>, true)}
           </>)}
 

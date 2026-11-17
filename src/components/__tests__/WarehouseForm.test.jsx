@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { screen, within, waitFor, fireEvent, act } from '@testing-library/react';
 import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouse } from '../../test/mockData';
 import WarehouseForm from '../WarehouseForm';
@@ -15,9 +15,9 @@ const record = {
   WarehouseProximity: [],
 };
 const field = label => {
-  const node = screen.getByText((_, element) => element.tagName === 'LABEL'
+  const node = screen.getByText((_, element) => ['LABEL', 'LEGEND'].includes(element.tagName)
     && element.textContent.replace(/\s*\*\s*$/, '').trim() === label);
-  return node.parentElement.querySelector('input, textarea, select, [role="switch"]');
+  return node.parentElement.querySelector('input[data-field]') || node.parentElement.querySelector('input, textarea, select, [role="switch"]');
 };
 const change = (label, value) => fireEvent.change(field(label), { target: { value } });
 const chooseLocation = (label, value) => {
@@ -27,24 +27,27 @@ const chooseLocation = (label, value) => {
 };
 const open = (overrides = {}) => {
   const props = { visible: true, onSubmit: vi.fn().mockResolvedValue({}), onCancel: vi.fn(), ...overrides };
-  return { props, ...renderWithProviders(<WarehouseForm {...props} />) };
+  return { props, ...renderWithProviders(<WarehouseForm {...props} />, { auth: { user: { email: 'reviewer@example.test' } } }) };
 };
 const submit = () => act(async () => {
   fireEvent.click(screen.getByText(/^(Create|Update) Warehouse$/).closest('button'));
 });
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
   localStorage.clear();
 });
 
 describe('Explicit handover timing', () => {
+  const handoverField = label => within(
+    screen.getByText('Availability', { selector: 'div', exact: true }).parentElement,
+  ).getByLabelText(label);
   const incomplete = { ...record, availability: 'Yes', handoverType: 'VARIABLE',
     handoverDate: null, handoverLeadValue: 2, handoverLeadUnit: null };
 
   it('preserves a missing unit during an unrelated edit', async () => {
     const { props } = open({ initialData: incomplete });
-    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+    expect(handoverField('Handover unit')).toHaveValue('');
     expect(screen.getByText(/PPTs and Last Mile Excel show .Unconfirmed./)).toBeInTheDocument();
     change('Address', 'An unrelated address edit');
     await submit();
@@ -55,7 +58,7 @@ describe('Explicit handover timing', () => {
 
   it('saves the unit that the user explicitly selects', async () => {
     const { props } = open({ initialData: incomplete });
-    fireEvent.change(screen.getByLabelText('Handover unit'), { target: { value: 'Weeks' } });
+    fireEvent.change(handoverField('Handover unit'), { target: { value: 'Weeks' } });
     await submit();
     expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       handoverType: 'VARIABLE', handoverLeadValue: 2, handoverLeadUnit: 'WEEKS',
@@ -73,13 +76,13 @@ describe('Explicit handover timing', () => {
 
   it('does not invent a unit for a new variable handover', () => {
     open();
-    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
-    expect(screen.getByLabelText('Handover unit')).toHaveValue('');
+    fireEvent.change(handoverField('Handover mode'), { target: { value: 'Variable' } });
+    expect(handoverField('Handover unit')).toHaveValue('');
   });
 
   it('does not turn an impossible typed date into confirmed handover', async () => {
     const { props } = open({ initialData: { ...record, handoverType: 'FIXED', handoverDate: null } });
-    const input = screen.getByLabelText('Handover date');
+    const input = handoverField('Handover date');
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: '30/02/2027' } });
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
@@ -90,10 +93,11 @@ describe('Explicit handover timing', () => {
 
   it('preserves both timing values when the user switches modes', async () => {
     const { props } = open({ initialData: { ...incomplete, handoverDate: '2027-03-15', handoverLeadUnit: 'WEEKS' } });
-    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Fixed' } });
-    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
-    expect(screen.getByLabelText('Handover lead time')).toHaveValue('2');
-    expect(screen.getByLabelText('Handover unit')).toHaveValue('Weeks');
+    const availability = within(screen.getByText('Availability', { selector: 'div', exact: true }).parentElement);
+    fireEvent.change(availability.getByLabelText('Handover mode'), { target: { value: 'Fixed' } });
+    fireEvent.change(availability.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
+    expect(availability.getByLabelText('Handover lead time')).toHaveValue('2');
+    expect(availability.getByLabelText('Handover unit')).toHaveValue('Weeks');
     await submit();
     expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       handoverType: 'VARIABLE', handoverDate: '2027-03-15', handoverLeadValue: 2, handoverLeadUnit: 'WEEKS',
@@ -249,14 +253,18 @@ describe('WarehouseForm current fields and payload', () => {
     change('Contact Person', 'Test Owner');
     change('Contact Number', '9876543210');
     change('Rate per sq ft', '25');
-    change('Uploaded By', 'Test Employee');
+    expect(field('Uploaded By')).toHaveValue('reviewer@example.test');
+    expect(field('Uploaded By')).toHaveAttribute('readonly');
+    change('Land Type', 'Warehouse CLU');
+    change('Google Location URL', 'https://www.google.com/maps?q=12.9,77.6');
     change('Compliances', 'Fire Safety');
     await submit();
     await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(1));
     expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       listing_type: 'Rent', warehouseType: 'PEB', city: 'Bangalore', state: 'Karnataka', zone: 'SOUTH',
-      contactNumber: '9876543210', totalSpaceSqft: [1000], ratePerSqft: '25',
-      suitableFor: [], warehouseData: expect.objectContaining({ latitude: null, longitude: null }),
+      contactNumber: '+919876543210', totalSpaceSqft: [1000], ratePerSqft: '25',
+      suitableFor: [], googleLocation: 'https://www.google.com/maps?q=12.9,77.6',
+      warehouseData: expect.objectContaining({ latitude: null, longitude: null }),
     }));
   });
 

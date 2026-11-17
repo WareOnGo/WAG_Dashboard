@@ -1,5 +1,9 @@
+import AuthContext from '../contexts/AuthContext';
+import { MeasurementField, PhoneField, WashroomField, VentilationField } from './StructuredFields';
+import { MEASUREMENTS, LAND_TYPES, CANOPY_TYPES, DOCK_PLATFORM_TYPES, FLOORING_TYPES, hydrateMeasurements, serializeMeasurements, measurementError, washroomError } from '../utils/formFields';
+import { phoneState, phoneError, serializePhone } from '../utils/phone';
 import { WAREHOUSE_TYPES } from '../utils/warehouseOptions';
-import { useState, useEffect, useCallback, useMemo, useRef, useId, Children, isValidElement, cloneElement } from 'react';
+import { useState, useContext, useEffect, useCallback, useMemo, useRef, useId, Children, isValidElement, cloneElement } from 'react';
 import { Button, Switch, Spin, Tooltip, message, DatePicker, Select } from 'antd';
 import dayjs from 'dayjs';
 import { availabilityPayload, reviewDateValue, suggestedReviewDate, todayInIndia } from '../utils/availabilityReview';
@@ -27,7 +31,6 @@ import { SUITABLE_FOR_OPTIONS } from '../utils/suitableFor';
 // Canonical zone values, matching what deriveZone (and the backend) produce, so
 // an autofilled zone lines up cleanly with a dropdown option.
 const ZONES = ['NORTH', 'SOUTH', 'EAST', 'WEST', 'CENTRAL'];
-const LAND_TYPES = ['Commercial', 'Industrial', 'Others'];
 const POLLUTION_ZONES = ['Green', 'Yellow', 'Red'];
 const BROKER_OPTIONS = ['Yes', 'No'];
 const STATUS_OPTIONS = ['Under construction', 'Build to suit', 'Ready to move'];
@@ -116,6 +119,12 @@ const INITIAL_VALUES = {
   // Derived server-side from the coordinates; displayed read-only and never submitted.
   micromarket: [],
 };
+
+const hydrateValues = raw => ({
+  ...hydrateMeasurements(raw),
+  contactNumber: phoneState(raw.contactNumber),
+  alt_phone_number: phoneState(raw.alt_phone_number),
+});
 
 /** Flatten initialData (including nested WarehouseData) into form shape */
 const toFormValues = (d) => {
@@ -339,7 +348,7 @@ const TextAreaInput = ({ value, onChange, mobile, placeholder, rows = 3, ...rest
   />
 );
 
-const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest }) => {
+const SelectInput = ({ value, onChange, mobile, placeholder, options, allowClear = false, ...rest }) => {
   // Preserve free-text values that don't match a predefined option, so an
   // existing entry is shown (and not silently overwritten) in edit mode while
   // the dropdown still lets the user switch to a standard option.
@@ -355,7 +364,7 @@ const SelectInput = ({ value, onChange, mobile, placeholder, options, ...rest })
       }}
       {...rest}
     >
-      <option value="" disabled>{placeholder}</option>
+      <option value="" disabled={!allowClear}>{placeholder}</option>
       {hasCustomValue && <option value={value}>{value} (current)</option>}
       {options.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
@@ -563,7 +572,8 @@ const Section = ({ title, children }) => (
 
 const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loading = false, reviewActions = null }) => {
   const { isMobile } = useViewport();
-  const [values, setValues] = useState(INITIAL_VALUES);
+  const { user } = useContext(AuthContext) || {};
+  const [values, setValues] = useState(() => hydrateValues(INITIAL_VALUES));
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -576,7 +586,9 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   const [zoneTouched, setZoneTouched] = useState(false);
   useEffect(() => {
     if (visible) {
-      setValues(toFormValues(initialData));
+      setValues(hydrateValues({ ...toFormValues(initialData),
+        uploadedBy: initialData ? initialData.uploadedBy || '' : user?.email || '',
+      }));
       setErrors({});
       setInitialSnapshot(initialData);
       availabilitySnapshot.current = initialData;
@@ -592,10 +604,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     if (visible && !contactTouched && initialData && initialSnapshot &&
       initialData.id === initialSnapshot.id &&
       initialData.contactNumber !== initialSnapshot.contactNumber) {
-      setValues(prev => ({ ...prev, contactNumber: initialData.contactNumber || prev.contactNumber }));
+      setValues(prev => ({ ...prev, contactNumber: initialData.contactNumber ? phoneState(initialData.contactNumber) : prev.contactNumber }));
       setInitialSnapshot(initialData);
     }
   }, [visible, initialData, initialSnapshot, contactTouched]);
+
+  const isEditing = Boolean(initialData);
+  const needsLocation = !isEditing || values.googleLocation.trim() !== (initialSnapshot?.googleLocation || '').trim();
+  const needsLandType = !isEditing || values.landType !== (initialSnapshot?.WarehouseData?.landType ?? initialSnapshot?.warehouseData?.landType ?? '');
 
   const set = (field) => (val) => {
     if (field === 'availabilityLastReviewedOn') reviewDateTouched.current = true;
@@ -624,7 +640,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
   // ── Validation ──────────────────────────────────────────────────────────────
 
-  const validate = () => {
+  const validate = (silent = false) => {
     const e = {};
     if (!values.listing_type) e.listing_type = 'Listing type is required';
     if (!values.warehouseType?.trim()) e.warehouseType = 'Warehouse type is required';
@@ -632,11 +648,22 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     if (!values.city?.trim()) e.city = 'City is required';
     if (!values.state?.trim()) e.state = 'State is required';
     if (!values.contactPerson?.trim()) e.contactPerson = 'Contact person is required';
-    if (!values.contactNumber?.trim()) e.contactNumber = 'Contact number is required';
+    const contactError = phoneError(values.contactNumber, { required: true, allowLegacy: isEditing });
+    if (contactError) e.contactNumber = contactError;
+    const alternateError = phoneError(values.alt_phone_number, { allowLegacy: isEditing });
+    if (alternateError) e.alt_phone_number = alternateError;
+    for (const key of Object.keys(MEASUREMENTS)) {
+      const error = measurementError(values[key], key);
+      if (error) e[key] = error;
+    }
+    const countError = washroomError(values.washroom_count);
+    if (countError) e.washroom_count = countError;
+    if (needsLandType && !values.landType.trim()) e.landType = 'Land Type is required';
+    if (needsLocation && !values.googleLocation.trim()) e.googleLocation = 'Google Location URL is required';
     const spaces = (values.totalSpaceSqft || []).filter(v => v != null && v > 0);
     if (spaces.length === 0) e.totalSpaceSqft = 'At least one space value is required';
     if (!values.ratePerSqft && values.ratePerSqft !== 0) e.ratePerSqft = 'Rate per sq ft is required';
-    if (!values.uploadedBy?.trim()) e.uploadedBy = 'Uploaded by is required';
+    if (!isEditing && !values.uploadedBy?.trim()) e.uploadedBy = 'Sign in before creating a warehouse';
     if (!values.compliances) e.compliances = 'Compliance info is required';
 
     if (values.chargeableArea !== '' && values.chargeableArea != null) {
@@ -663,14 +690,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
     // Latitude and longitude validation removed to support high precision formats
 
-    setErrors(e);
+    if (!silent) setErrors(e);
 
     const missingKeys = Object.keys(e);
-    if (missingKeys.length > 0) {
+    if (missingKeys.length > 0 && !silent) {
       message.error(
         missingKeys.length === 1
-          ? `Please fill in the required field: ${e[missingKeys[0]]}`
-          : `Please fill in ${missingKeys.length} required fields`
+          ? e[missingKeys[0]]
+          : `Please check ${missingKeys.length} highlighted fields`
       );
       setTimeout(() => scrollFieldIntoView(missingKeys), 50);
     }
@@ -685,8 +712,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   // edits before approving/rejecting — otherwise unsaved edits never reach the
   // promoted warehouse or the submitter's WhatsApp notification.
   const buildPayload = () => {
+    const submissionValues = {
+      ...serializeMeasurements(values),
+      contactNumber: serializePhone(values.contactNumber, isEditing),
+      alt_phone_number: serializePhone(values.alt_phone_number, isEditing),
+    };
     // Build media from form state (the FileUpload now manages a media object)
-    const media = values.media || { images: [], videos: [], docs: [] };
+    const media = submissionValues.media || { images: [], videos: [], docs: [] };
     const hasMedia = (media.images?.length || 0) + (media.videos?.length || 0) + (media.docs?.length || 0) > 0;
 
     // Double-write: flatten media back to photos CSV for legacy column
@@ -694,109 +726,109 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     const photosValue = allUrls.length > 0 ? allUrls.join(',') : null;
 
     return {
-        warehouseOwnerType: values.warehouseOwnerType || null,
-        warehouseType: values.warehouseType,
-        address: values.address,
-        googleLocation: values.googleLocation || null,
-        city: values.city,
-        state: values.state,
-        postalCode: values.postalCode || null,
-        zone: values.zone,
-        contactPerson: values.contactPerson,
-        contactNumber: values.contactNumber,
-        totalSpaceSqft: (values.totalSpaceSqft || []).filter(v => v != null && v > 0),
-        numberOfDocks: values.numberOfDocks ? String(values.numberOfDocks) : null,
-        clearHeightFt: values.clearHeightFt ? String(values.clearHeightFt) : null,
-        compliances: values.compliances,
-        otherSpecifications: values.otherSpecifications || null,
-        ratePerSqft: values.ratePerSqft ? String(values.ratePerSqft) : null,
-        ...availabilityPayload(values, availabilitySnapshot.current),
-        uploadedBy: values.uploadedBy,
-        visibility: Boolean(values.visibility),
-        isBroker: values.isBroker || null,
+        warehouseOwnerType: submissionValues.warehouseOwnerType || null,
+        warehouseType: submissionValues.warehouseType,
+        address: submissionValues.address,
+        googleLocation: submissionValues.googleLocation || null,
+        city: submissionValues.city,
+        state: submissionValues.state,
+        postalCode: submissionValues.postalCode || null,
+        zone: submissionValues.zone,
+        contactPerson: submissionValues.contactPerson,
+        contactNumber: submissionValues.contactNumber,
+        totalSpaceSqft: (submissionValues.totalSpaceSqft || []).filter(v => v != null && v > 0),
+        numberOfDocks: submissionValues.numberOfDocks ? String(submissionValues.numberOfDocks) : null,
+        clearHeightFt: submissionValues.clearHeightFt ? String(submissionValues.clearHeightFt) : null,
+        compliances: submissionValues.compliances,
+        otherSpecifications: submissionValues.otherSpecifications || null,
+        ratePerSqft: submissionValues.ratePerSqft ? String(submissionValues.ratePerSqft) : null,
+        ...availabilityPayload(submissionValues, availabilitySnapshot.current),
+        ...(submissionValues.uploadedBy ? { uploadedBy: submissionValues.uploadedBy } : {}),
+        visibility: Boolean(submissionValues.visibility),
+        isBroker: submissionValues.isBroker || null,
         photos: photosValue,
         media: hasMedia ? media : null,
         // Newly added fields (all optional)
-        listing_type: values.listing_type || null,
-        alt_phone_number: values.alt_phone_number || null,
-        land_parcel_size: values.land_parcel_size || null,
-        builtup_area: values.builtup_area || null,
-        owner_warmnth: values.owner_warmnth || null,
-        distance_from_highway: values.distance_from_highway || null,
-        is_builder: typeof values.is_builder === 'boolean' ? values.is_builder : null,
-        owner_of_multiple_sites: values.owner_of_multiple_sites || null,
-        carpet_area: values.carpet_area || null,
-        nearest_transport: values.nearest_transport || null,
-        fire_exits: values.fire_exits || null,
-        fire_compliance_cert_type: values.fire_compliance_cert_type || null,
-        negotiated_rent: values.negotiated_rent || null,
-        washroom_count: values.washroom_count || null,
-        ownerCompanyName: values.ownerCompanyName || null,
-        ownerAltPoc: values.ownerAltPoc || null,
-        gateSizeFt: values.gateSizeFt || null,
-        dockApronLengthFt: values.dockApronLengthFt || null,
-        setbackArea: values.setbackArea || null,
-        ccRoads: typeof values.ccRoads === 'boolean'
-          ? (values.ccRoads ? 'true' : 'false')
-          : (values.ccRoads || null),
-        wallAndSecurityRoom: values.wallAndSecurityRoom || null,
-        plinthHeightFt: values.plinthHeightFt || null,
-        dockDimension: values.dockDimension || null,
-        canopyType: values.canopyType || null,
-        dockPlatformType: values.dockPlatformType || null,
-        otherDockingSpecs: values.otherDockingSpecs || null,
-        flooringType: values.flooringType || null,
-        floorStrengthPerSqm: values.floorStrengthPerSqm || null,
-        ventilationType: values.ventilationType || null,
-        ventilationAirChangesPerDay: values.ventilationAirChangesPerDay || null,
-        insulationPresent: typeof values.insulationPresent === 'boolean'
-          ? (values.insulationPresent ? 'true' : 'false')
-          : (values.insulationPresent || null),
-        insulationType: values.insulationType || null,
-        lightingDetails: values.lightingDetails || null,
-        waterSupply: waterSupplyToEnum(values.waterSupply),
+        listing_type: submissionValues.listing_type || null,
+        alt_phone_number: submissionValues.alt_phone_number || null,
+        land_parcel_size: submissionValues.land_parcel_size || null,
+        builtup_area: submissionValues.builtup_area || null,
+        owner_warmnth: submissionValues.owner_warmnth || null,
+        distance_from_highway: submissionValues.distance_from_highway || null,
+        is_builder: typeof submissionValues.is_builder === 'boolean' ? submissionValues.is_builder : null,
+        owner_of_multiple_sites: submissionValues.owner_of_multiple_sites || null,
+        carpet_area: submissionValues.carpet_area || null,
+        nearest_transport: submissionValues.nearest_transport || null,
+        fire_exits: submissionValues.fire_exits || null,
+        fire_compliance_cert_type: submissionValues.fire_compliance_cert_type || null,
+        negotiated_rent: submissionValues.negotiated_rent || null,
+        washroom_count: submissionValues.washroom_count || null,
+        ownerCompanyName: submissionValues.ownerCompanyName || null,
+        ownerAltPoc: submissionValues.ownerAltPoc || null,
+        gateSizeFt: submissionValues.gateSizeFt || null,
+        dockApronLengthFt: submissionValues.dockApronLengthFt || null,
+        setbackArea: submissionValues.setbackArea || null,
+        ccRoads: typeof submissionValues.ccRoads === 'boolean'
+          ? (submissionValues.ccRoads ? 'true' : 'false')
+          : (submissionValues.ccRoads || null),
+        wallAndSecurityRoom: submissionValues.wallAndSecurityRoom || null,
+        plinthHeightFt: submissionValues.plinthHeightFt || null,
+        dockDimension: submissionValues.dockDimension || null,
+        canopyType: submissionValues.canopyType || null,
+        dockPlatformType: submissionValues.dockPlatformType || null,
+        otherDockingSpecs: submissionValues.otherDockingSpecs || null,
+        flooringType: submissionValues.flooringType || null,
+        floorStrengthPerSqm: submissionValues.floorStrengthPerSqm || null,
+        ventilationType: submissionValues.ventilationType || null,
+        ventilationAirChangesPerDay: submissionValues.ventilationAirChangesPerDay || null,
+        insulationPresent: typeof submissionValues.insulationPresent === 'boolean'
+          ? (submissionValues.insulationPresent ? 'true' : 'false')
+          : (submissionValues.insulationPresent || null),
+        insulationType: submissionValues.insulationType || null,
+        lightingDetails: submissionValues.lightingDetails || null,
+        waterSupply: waterSupplyToEnum(submissionValues.waterSupply),
         // Sent as an array, never null: the column defaults to [] and the API
         // treats an empty array as "no tags" rather than as unset.
-        suitableFor: Array.isArray(values.suitableFor) ? values.suitableFor : [],
-        wogVerified: typeof values.wogVerified === 'boolean' ? values.wogVerified : null,
-        centreHeight: values.centreHeight || null,
+        suitableFor: Array.isArray(submissionValues.suitableFor) ? submissionValues.suitableFor : [],
+        wogVerified: typeof submissionValues.wogVerified === 'boolean' ? submissionValues.wogVerified : null,
+        centreHeight: submissionValues.centreHeight || null,
         // RCC-only fields. Sent regardless of the current warehouseType so that
         // switching type away from RCC hides the inputs without wiping the data.
-        totalFloors: values.totalFloors || null,
-        liftAccess: typeof values.liftAccess === 'boolean' ? values.liftAccess : null,
-        passengerLiftCount: values.passengerLiftCount || null,
-        serviceLiftCount: values.serviceLiftCount || null,
-        liftLoadCapacity: values.liftLoadCapacity || null,
-        status: values.status || null,
+        totalFloors: submissionValues.totalFloors || null,
+        liftAccess: typeof submissionValues.liftAccess === 'boolean' ? submissionValues.liftAccess : null,
+        passengerLiftCount: submissionValues.passengerLiftCount || null,
+        serviceLiftCount: submissionValues.serviceLiftCount || null,
+        liftLoadCapacity: submissionValues.liftLoadCapacity || null,
+        status: submissionValues.status || null,
         // Both sides are sent regardless of the selected mode, so switching Fixed <->
         // Variable hides the other input without wiping its value — same as the RCC
         // fields above. handoverType alone decides which one is displayed.
-        handoverType: handoverTypeToEnum(values.handoverType),
-        handoverDate: values.handoverDate || null,
-        handoverLeadValue: values.handoverLeadValue === '' || values.handoverLeadValue == null
+        handoverType: handoverTypeToEnum(submissionValues.handoverType),
+        handoverDate: submissionValues.handoverDate || null,
+        handoverLeadValue: submissionValues.handoverLeadValue === '' || submissionValues.handoverLeadValue == null
           ? null
-          : Number(values.handoverLeadValue),
-        handoverLeadUnit: handoverUnitToEnum(values.handoverLeadUnit),
-        lockInDate: values.lockInDate || null,
-        cam: values.cam || null,
-        chargeableArea: values.chargeableArea === '' || values.chargeableArea == null
+          : Number(submissionValues.handoverLeadValue),
+        handoverLeadUnit: handoverUnitToEnum(submissionValues.handoverLeadUnit),
+        lockInDate: submissionValues.lockInDate || null,
+        cam: submissionValues.cam || null,
+        chargeableArea: submissionValues.chargeableArea === '' || submissionValues.chargeableArea == null
           ? null
-          : Number(values.chargeableArea),
-        scoutNotes: values.scoutNotes?.trim() || null,
+          : Number(submissionValues.chargeableArea),
+        scoutNotes: submissionValues.scoutNotes?.trim() || null,
         warehouseData: {
-          latitude: values.latitude || null,
-          longitude: values.longitude || null,
-          fireNocAvailable: Boolean(values.fireNocAvailable),
-          fireSafetyMeasures: values.fireSafetyMeasures || null,
-          landType: values.landType || null,
-          approachRoadWidth: values.approachRoadWidth ? String(values.approachRoadWidth) : null,
-          dimensions: values.dimensions || null,
-          parkingDockingSpace: values.parkingDockingSpace || null,
-          pollutionZone: values.pollutionZone || null,
-          powerKva: values.powerKva ? String(values.powerKva) : null,
-          vaastuCompliance: typeof values.vaastuCompliance === 'boolean'
-            ? (values.vaastuCompliance ? 'true' : 'false')
-            : (values.vaastuCompliance || null),
+          latitude: submissionValues.latitude === '' ? null : submissionValues.latitude,
+          longitude: submissionValues.longitude === '' ? null : submissionValues.longitude,
+          fireNocAvailable: Boolean(submissionValues.fireNocAvailable),
+          fireSafetyMeasures: submissionValues.fireSafetyMeasures || null,
+          landType: submissionValues.landType || null,
+          approachRoadWidth: submissionValues.approachRoadWidth ? String(submissionValues.approachRoadWidth) : null,
+          dimensions: submissionValues.dimensions || null,
+          parkingDockingSpace: submissionValues.parkingDockingSpace || null,
+          pollutionZone: submissionValues.pollutionZone || null,
+          powerKva: submissionValues.powerKva ? String(submissionValues.powerKva) : null,
+          vaastuCompliance: typeof submissionValues.vaastuCompliance === 'boolean'
+            ? (submissionValues.vaastuCompliance ? 'true' : 'false')
+            : (submissionValues.vaastuCompliance || null),
         },
       };
   };
@@ -808,7 +840,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     setSubmitting(true);
     try {
       await onSubmit(buildPayload());
-      setValues(INITIAL_VALUES);
+      setValues(hydrateValues(INITIAL_VALUES));
     } catch (err) {
       if (import.meta.env.DEV) console.error('Form submission error:', err);
     } finally {
@@ -817,7 +849,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   };
 
   const handleCancel = useCallback(() => {
-    setValues(INITIAL_VALUES);
+    setValues(hydrateValues(INITIAL_VALUES));
     setErrors({});
     clearErrors();
     onCancel();
@@ -844,7 +876,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     </div>
   );
   const col = (children, half = false) => (
-    <div style={{ width: (half && !m) ? 'calc(50% - 8px)' : '100%' }}>
+    <div style={{ minWidth: 0, width: (half && !m) ? 'calc(50% - 8px)' : '100%' }}>
       {children}
     </div>
   );
@@ -867,7 +899,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         </div>}
         size={m ? 'large' : 'default'}
       >
-        <form onSubmit={handleSubmit} style={{ color: 'var(--text-primary)' }}>
+        <form noValidate onSubmit={handleSubmit} style={{ color: 'var(--text-primary)' }}>
 
           <div className="warehouse-form-fields">
 
@@ -901,17 +933,13 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
               {col(
-                <Field label="Contact Number" required error={errors.contactNumber}>
-                  <TextInput mobile={m} value={values.contactNumber} onChange={set('contactNumber')} placeholder="10-digit phone number" type="tel" inputMode="tel" maxLength={15} autoComplete="tel" data-field="contactNumber" />
-                </Field>,
+                <PhoneField field="contactNumber" label="Contact Number" value={values.contactNumber} onChange={set('contactNumber')} error={errors.contactNumber} required />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Alternate Phone Number">
-                  <TextInput mobile={m} value={values.alt_phone_number} onChange={set('alt_phone_number')} placeholder="Alternate phone" type="tel" inputMode="tel" maxLength={15} />
-                </Field>,
+                <PhoneField field="alt_phone_number" label="Alternate Phone Number" value={values.alt_phone_number} onChange={set('alt_phone_number')} error={errors.alt_phone_number} />,
                 true)}
               {col(
                 <Field label="Owner Alternate POC">
@@ -948,8 +976,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(
               col(
-                <Field label="Uploaded By" required error={errors.uploadedBy} tooltip="Mention your name.">
-                  <TextInput mobile={m} value={values.uploadedBy} onChange={set('uploadedBy')} placeholder="Uploader name" data-field="uploadedBy" />
+                <Field label="Uploaded By" error={errors.uploadedBy} hint="Recorded from the account that submitted this warehouse.">
+                  <TextInput mobile={m} value={values.uploadedBy} onChange={() => {}} readOnly placeholder="Original uploader not recorded" data-field="uploadedBy" />
                 </Field>,
                 true)
             )}
@@ -1085,8 +1113,8 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               />
             </Field>
 
-            <Field label="Google Location URL">
-              <TextInput mobile={m} value={values.googleLocation} onChange={set('googleLocation')} placeholder="Google Maps URL" type="url" />
+            <Field label="Google Location URL" required={needsLocation} error={errors.googleLocation}>
+              <TextInput mobile={m} value={values.googleLocation} onChange={set('googleLocation')} placeholder="Google Maps URL" type="url" data-field="googleLocation" />
             </Field>
 
             {/* Read-only fallback, rebuilt live from the coordinate fields below. */}
@@ -1128,26 +1156,17 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Nearest Bus Transport" tooltip="Please mention the nearest bus stop and its distance.">
-                  <TextInput mobile={m} value={values.nearest_transport} onChange={set('nearest_transport')} placeholder="Nearest bus stand / depot" />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Distance from Highway">
-                  <TextInput mobile={m} value={values.distance_from_highway} onChange={set('distance_from_highway')} placeholder="e.g. 2 km" />
-                </Field>,
+                <MeasurementField field="distance_from_highway" value={values.distance_from_highway} onChange={set('distance_from_highway')} error={errors.distance_from_highway} />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Approach Road Width (ft)">
-                  <TextInput mobile={m} value={values.approachRoadWidth} onChange={set('approachRoadWidth')} placeholder="Road width" />
-                </Field>,
+                <MeasurementField field="approachRoadWidth" value={values.approachRoadWidth} onChange={set('approachRoadWidth')} error={errors.approachRoadWidth} />,
                 true)}
               {col(
-                <Field label="Land Type">
-                  <SelectInput mobile={m} value={values.landType} onChange={set('landType')} placeholder="Select land type" options={LAND_TYPES} />
+                <Field label="Land Type" required={needsLandType} error={errors.landType}>
+                  <SelectInput mobile={m} value={values.landType} onChange={set('landType')} placeholder="Select land type" options={LAND_TYPES} data-field="landType" />
                 </Field>,
                 true)}
             </>)}
@@ -1251,48 +1270,32 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Land Parcel Size" tooltip="Please mention the entire parcel size.">
-                  <TextInput mobile={m} value={values.land_parcel_size} onChange={set('land_parcel_size')} placeholder="e.g. 5 acres" />
-                </Field>,
+                <MeasurementField field="land_parcel_size" value={values.land_parcel_size} onChange={set('land_parcel_size')} error={errors.land_parcel_size} />,
                 true)}
               {col(
-                <Field label="Built-up Area" tooltip="Please mention the entire compound's built-up area.">
-                  <TextInput mobile={m} value={values.builtup_area} onChange={set('builtup_area')} placeholder="Built-up area" />
-                </Field>,
+                <MeasurementField field="builtup_area" value={values.builtup_area} onChange={set('builtup_area')} error={errors.builtup_area} />,
+                true)}
+            </>)}
+
+            {row(col(
+              <MeasurementField field="carpet_area" value={values.carpet_area} onChange={set('carpet_area')} error={errors.carpet_area} />,
+              true
+            ))}
+
+            {row(col(<MeasurementField field="dimensions" value={values.dimensions} onChange={set('dimensions')} error={errors.dimensions} />))}
+
+            {row(<>
+              {col(
+                <MeasurementField field="clearHeightFt" value={values.clearHeightFt} onChange={set('clearHeightFt')} error={errors.clearHeightFt} />,
+                true)}
+              {col(
+                <MeasurementField field="centreHeight" value={values.centreHeight} onChange={set('centreHeight')} error={errors.centreHeight} />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Carpet Area" tooltip="Please mention the entire carpet area.">
-                  <TextInput mobile={m} value={values.carpet_area} onChange={set('carpet_area')} placeholder="Carpet area" />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Dimensions">
-                  <TextInput mobile={m} value={values.dimensions} onChange={set('dimensions')} placeholder="Warehouse dimensions" />
-                </Field>,
-                true)}
-            </>)}
-
-            {row(<>
-              {col(
-                <Field label="Clear Height (ft)" tooltip="Please mention the side height here.">
-                  <TextInput mobile={m} value={values.clearHeightFt} onChange={set('clearHeightFt')} placeholder="Clear Height / Side Height" />
-                </Field>,
-                true)}
-              {col(
-                <Field label="Centre Height">
-                  <TextInput mobile={m} value={values.centreHeight} onChange={set('centreHeight')} placeholder="Centre height" />
-                </Field>,
-                true)}
-            </>)}
-
-            {row(<>
-              {col(
-                <Field label="Plinth Height (ft)">
-                  <TextInput mobile={m} value={values.plinthHeightFt} onChange={set('plinthHeightFt')} placeholder="Plinth height / Dock Height" />
-                </Field>,
+                <MeasurementField field="plinthHeightFt" value={values.plinthHeightFt} onChange={set('plinthHeightFt')} error={errors.plinthHeightFt} />,
                 true)}
               {col(
                 <Field label="Number of Docks">
@@ -1303,35 +1306,29 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Dock Dimension (ft)">
-                  <TextInput mobile={m} value={values.dockDimension} onChange={set('dockDimension')} placeholder="e.g. 8x10 ft" />
-                </Field>,
+                <MeasurementField field="dockDimension" value={values.dockDimension} onChange={set('dockDimension')} error={errors.dockDimension} />,
                 true)}
               {col(
                 <Field label="Canopy Type">
-                  <TextInput mobile={m} value={values.canopyType} onChange={set('canopyType')} placeholder="Running/Shutter/None" />
+                  <SelectInput mobile={m} value={values.canopyType} onChange={set('canopyType')} options={CANOPY_TYPES} placeholder="Select an option" allowClear />
                 </Field>,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Dock Apron Length (ft)" tooltip="Please mention the distance from the wall to the dock platform for truck movement.">
-                  <TextInput mobile={m} value={values.dockApronLengthFt} onChange={set('dockApronLengthFt')} placeholder="Distance from Dock to Wall in ft" />
-                </Field>,
+                <MeasurementField field="dockApronLengthFt" value={values.dockApronLengthFt} onChange={set('dockApronLengthFt')} error={errors.dockApronLengthFt} />,
                 true)}
               {col(
                 <Field label="Dock Platform Type">
-                  <TextInput mobile={m} value={values.dockPlatformType} onChange={set('dockPlatformType')} placeholder="None/Extended Platform/Running Platform/Cross Dock" />
+                  <SelectInput mobile={m} value={values.dockPlatformType} onChange={set('dockPlatformType')} options={DOCK_PLATFORM_TYPES} placeholder="Select an option" allowClear />
                 </Field>,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Compound Gate Width (ft)">
-                  <TextInput mobile={m} value={values.gateSizeFt} onChange={set('gateSizeFt')} placeholder="Gate Width" />
-                </Field>,
+                <MeasurementField field="gateSizeFt" value={values.gateSizeFt} onChange={set('gateSizeFt')} error={errors.gateSizeFt} />,
                 true)}
               {col(
                 <Field label="Setback Area" tooltip="Setback area around the box.">
@@ -1346,7 +1343,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(
               col(
-                <Field label="CC Roads" tooltip="Are there concrete roads around the warehouse?">
+                <Field label="Paved Roads inside Warehouse?">
                   <ToggleSwitch checked={values.ccRoads === true || values.ccRoads === 'true' || values.ccRoads === 'Yes'} onChange={(v) => set('ccRoads')(v)} />
                 </Field>,
                 true)
@@ -1355,21 +1352,17 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {row(<>
               {col(
                 <Field label="Flooring Type">
-                  <TextInput mobile={m} value={values.flooringType} onChange={set('flooringType')} placeholder="VDF/FM2" />
+                  <SelectInput mobile={m} value={values.flooringType} onChange={set('flooringType')} options={FLOORING_TYPES} placeholder="Select an option" allowClear />
                 </Field>,
                 true)}
               {col(
-                <Field label="Floor Strength (per sqm)">
-                  <TextInput mobile={m} value={values.floorStrengthPerSqm} onChange={set('floorStrengthPerSqm')} placeholder="e.g. 5 T/sqm" />
-                </Field>,
+                <MeasurementField field="floorStrengthPerSqm" value={values.floorStrengthPerSqm} onChange={set('floorStrengthPerSqm')} error={errors.floorStrengthPerSqm} />,
                 true)}
             </>)}
 
             {row(<>
               {col(
-                <Field label="Ventilation Type" tooltip="Ridge / Turbo / Side Louvers / Windows. Fill what is relevant.">
-                  <TextInput mobile={m} value={values.ventilationType} onChange={set('ventilationType')} placeholder="Ridge/Turbo" />
-                </Field>,
+                <VentilationField value={values.ventilationType} onChange={set('ventilationType')} />,
                 true)}
               {col(
                 <Field label="Ventilation Air Changes/Day">
@@ -1393,14 +1386,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Lighting Details" tooltip="Please mention LUX level, else the type of lighting provided.">
-                  <TextInput mobile={m} value={values.lightingDetails} onChange={set('lightingDetails')} placeholder="Lux Level" />
-                </Field>,
+                <MeasurementField field="lightingDetails" value={values.lightingDetails} onChange={set('lightingDetails')} error={errors.lightingDetails} />,
                 true)}
               {col(
-                <Field label="Power (KVA)">
-                  <TextInput mobile={m} value={values.powerKva} onChange={set('powerKva')} placeholder="Power in KVA" />
-                </Field>,
+                <MeasurementField field="powerKva" value={values.powerKva} onChange={set('powerKva')} error={errors.powerKva} />,
                 true)}
             </>)}
 
@@ -1431,9 +1420,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
             {row(<>
               {col(
-                <Field label="Washroom Count">
-                  <TextInput mobile={m} value={values.washroom_count} onChange={set('washroom_count')} placeholder="Number of washrooms" />
-                </Field>,
+                <WashroomField value={values.washroom_count} onChange={set('washroom_count')} error={errors.washroom_count} />,
                 true)}
               {col(
                 <Field label="Security Features">
@@ -1605,7 +1592,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             {reviewActions && (
               <div className="warehouse-form-review-actions" style={{ display: 'flex', gap: 12, marginRight: m ? 0 : 'auto', order: m ? 3 : 0 }}>
                 {typeof reviewActions === 'function'
-                  ? reviewActions({ getPayload: buildPayload })
+                  ? reviewActions({ getPayload: buildPayload, validate })
                   : reviewActions}
               </div>
             )}
@@ -1620,7 +1607,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               type="primary"
               htmlType="submit"
               size="large"
-              icon={submitting ? null : <SaveOutlined />}
+              icon={submitting ? null : <SaveOutlined aria-hidden="true" />}
               loading={submitting}
               disabled={loading}
               style={{ minWidth: 120, minHeight: m ? 44 : 'auto', order: m ? 1 : 2, flex: m ? '1' : 'none' }}

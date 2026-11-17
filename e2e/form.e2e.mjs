@@ -1,0 +1,202 @@
+import { test, expect } from '@playwright/test';
+import { startServer } from './server.mjs';
+let server;
+const field = (page, label) => page.getByLabel(new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:\\s*\\*)?$'));
+const data = (page, key) => page.locator(`[data-field="${key}"]`);
+const press = (page, target) => page.formTouch ? target.tap() : target.click();
+const reviewButton = (page, owner) => page.locator('.simple-warehouse-card')
+  .filter({ has: page.getByText(owner, { exact: true }) }).getByRole('button', { name: /(?:^| )Review$/ });
+test.beforeAll(async () => { test.setTimeout(120_000); server = await startServer(); });
+test.afterAll(async () => { await server?.close(); });
+test.beforeEach(async ({ page, hasTouch }) => {
+  page.formTouch = hasTouch;
+  await server.settings.setAutoApprove(false);
+  await page.route('**/*', route => new URL(route.request().url()).origin === server.url ? route.continue() : route.abort());
+  page.formErrors = [];
+  page.on('pageerror', error => page.formErrors.push(error.message));
+  page.on('request', request => { if (request.url().includes('/resolve-location')) page.formErrors.push('Unexpected Maps verification request'); });
+});
+test.afterEach(async ({ page }) => { expect(page.formErrors).toEqual([]); });
+async function create(page, address) {
+  await page.goto(server.url);
+  await data(page, 'listing_type').selectOption('Rent');
+  await data(page, 'warehouseType').selectOption('PEB');
+  await field(page, 'Address').fill(address);
+  await field(page, 'State').fill('Delhi');
+  await page.locator('li').filter({ hasText: /^Delhi$/ }).click();
+  await field(page, 'Contact Person').fill(`${address} owner`);
+  await data(page, 'contactNumber').fill('9876543210');
+  await field(page, 'Compliances').fill('CLU and Fire NOC checked');
+  await field(page, 'Rate per sq ft').fill('25');
+  await data(page, 'landType').selectOption('Warehouse CLU');
+  await data(page, 'googleLocation').fill('https://maps.app.goo.gl/ttMpsPTNwLcrdHas5');
+}
+async function noOverflow(page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  const scroller = page.locator('.warehouse-form-fields');
+  expect(await scroller.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+}
+async function receipt(page) {
+  return JSON.parse(await page.getByTestId('receipt').textContent());
+}
+async function searchSubmissions(page, text) {
+  const response = page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return url.pathname === '/api/staging' && url.searchParams.get('search') === text
+      && response.request().method() === 'GET';
+  });
+  await field(page, 'Search submissions').fill(text);
+  expect((await response).ok()).toBe(true);
+  // Search ranks related matches too; select the intended record by its owner.
+}
+
+test('an older open dashboard can submit without newly required fields during rollout', async ({ request }) => {
+  const response = await request.post(`${server.url}/api/warehouses`, { data: {
+    listing_type: 'Rent', warehouseType: 'PEB', address: 'Older dashboard client', city: 'New Delhi', state: 'Delhi',
+    contactPerson: 'QA owner', contactNumber: '9876543210', totalSpaceSqft: [10000], compliances: 'CLU', ratePerSqft: '25',
+    warehouseData: { landType: null }, googleLocation: null,
+  } });
+  expect(response.status()).toBe(201);
+  const result = await response.json();
+  const stored = await server.prisma.stagedWarehouse.findUnique({ where: { id: result.submissionId } });
+  expect(stored).toMatchObject({ googleLocation: null, landType: null, uploadedBy: 'dashboard@example.test' });
+});
+
+for (const width of [320, 390, 1280]) {
+  test.describe(`dashboard at ${width}px`, () => {
+    test.use({ viewport: { width, height: 850 }, isMobile: width < 768, hasTouch: width < 768 });
+    test('create, review, approve and reopen all structured fields through the real API', async ({ page }) => {
+      const address = `Dashboard unit QA ${width}`;
+      await create(page, address);
+      await expect(field(page, 'Uploaded By')).toHaveValue('dashboard@example.test');
+      await expect(field(page, 'Uploaded By')).toHaveAttribute('readonly', '');
+      await field(page, 'Contact Number country code').selectOption('DK');
+      await data(page, 'contactNumber').fill('32123456');
+      await field(page, 'Alternate Phone Number country code').selectOption('GB');
+      await data(page, 'alt_phone_number').fill('02079460018');
+      const heightInput = data(page, 'clearHeightFt');
+      await heightInput.pressSequentially('50x');
+      await expect(heightInput).toBeFocused();
+      await expect(heightInput).toHaveAttribute('aria-invalid', 'true');
+      await expect(page.getByRole('alert')).toHaveText('Use digits and at most one decimal point (e.g. 50.5).');
+      await page.screenshot({ path: test.info().outputPath(`measurement-warning-${width}.png`) });
+      await heightInput.press('Backspace');
+      await expect(heightInput).toHaveValue('50');
+      await expect(heightInput).toHaveAttribute('aria-invalid', 'false');
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      for (const [key, label, unit] of [
+        ['distance_from_highway', 'Distance from Highway', 'metres'], ['approachRoadWidth', 'Approach Road Width', 'feet'],
+        ['land_parcel_size', 'Land Parcel Size', 'hectares'], ['builtup_area', 'Built-up Area', 'sq m'],
+        ['carpet_area', 'Carpet Area', 'sq ft'], ['clearHeightFt', 'Clear Height', 'metres'],
+        ['centreHeight', 'Centre Height', 'feet'], ['plinthHeightFt', 'Plinth Height', 'feet'],
+        ['dockApronLengthFt', 'Dock Apron Length', 'metres'], ['gateSizeFt', 'Compound Gate Width', 'feet'], ['powerKva', 'Power', 'HP'],
+      ]) {
+        await data(page, key).fill('50.5'); await field(page, `${label} unit`).selectOption(unit);
+        expect((await data(page, key).boundingBox()).height).toBeGreaterThanOrEqual(width < 768 ? 44 : 36);
+      }
+      for (const [label, value] of [['Dimensions length', '100'], ['Dimensions width', '60'], ['Dimensions height', '30'],
+        ['Dock Dimension width', '8'], ['Dock Dimension height', '10'], ['Floor Strength value', '5'], ['Lighting value', '0'],
+        ['Male washrooms', '2'], ['Female washrooms', '0']]) await field(page, label).fill(value);
+      await field(page, 'Canopy Type').selectOption('Shutter');
+      await field(page, 'Dock Platform Type').selectOption('Angled/Cross');
+      await field(page, 'Flooring Type').selectOption('FM2');
+      await page.getByLabel('Ventilation Type options').click();
+      await field(page, 'Ridge').check(); await field(page, 'Turbo').check();
+      await field(page, 'Ventilation Air Changes/Day').fill('4');
+      await field(page, 'Setback Area').fill('5m on all sides');
+      await noOverflow(page);
+      await data(page, 'dimensions').scrollIntoViewIfNeeded();
+      await page.screenshot({ path: test.info().outputPath(`dashboard-measurements-${width}.png`) });
+      await press(page, page.getByRole('button', { name: 'Create Warehouse', exact: true }));
+      await expect(page.getByTestId('receipt')).toBeVisible();
+      const created = await receipt(page);
+      expect(created.autoApproved).toBe(false);
+      const stagedId = created.submissionId;
+      const staged = await server.prisma.stagedWarehouse.findUnique({ where: { id: stagedId } });
+      const expected = {
+        uploadedBy: 'dashboard@example.test', contactNumber: '+4532123456', alt_phone_number: '+442079460018',
+        distance_from_highway: '50.5 metres', approachRoadWidth: '50.5 feet', land_parcel_size: '50.5 hectares',
+        builtup_area: '50.5 sq m', carpet_area: '50.5 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
+        plinthHeightFt: '50.5 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: '50.5 HP',
+        dimensions: '100 x 60 x 30 feet', dockDimension: '8 x 10 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
+        washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'FM2',
+        ventilationType: 'Ridge, Turbo', ventilationAirChangesPerDay: '4', setbackArea: '5m on all sides', latitude: null, longitude: null,
+      };
+      expect(staged).toMatchObject(expected);
+      await page.goto(`${server.url}/?review`);
+      await searchSubmissions(page, address);
+      await reviewButton(page, `${address} owner`).click();
+      await expect(field(page, 'Address')).toHaveValue(address);
+      await expect(data(page, 'clearHeightFt')).toHaveValue('50.5');
+      await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
+      await expect(field(page, 'Uploaded By')).toHaveValue('dashboard@example.test');
+      await data(page, 'clearHeightFt').fill('51');
+      await data(page, 'googleLocation').fill('https://maps.app.goo.gl/changed-preview-link');
+      await noOverflow(page);
+      await page.getByRole('button', { name: /(?:^| )Accept$/ }).click();
+      await page.getByRole('button', { name: 'Approve', exact: true }).click();
+      await expect.poll(async () => (await server.prisma.stagedWarehouse.findUnique({ where: { id: stagedId } })).reviewStatus).toBe('APPROVED');
+      const published = await server.prisma.stagedWarehouse.findUnique({ where: { id: stagedId } });
+      const stored = await server.prisma.warehouse.findUnique({ where: { id: published.warehouseId }, include: { WarehouseData: true } });
+      expect({ ...stored, ...stored.WarehouseData }).toMatchObject({ ...expected, clearHeightFt: '51 metres', latitude: null });
+      await page.goto(`${server.url}/?id=${stored.id}`);
+      await expect(data(page, 'clearHeightFt')).toHaveValue('51');
+      await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
+      await expect(field(page, 'Female washrooms')).toHaveValue('0');
+      await expect(field(page, 'Power unit')).toHaveValue('HP');
+      await field(page, 'Address').fill(`${address} edited`);
+      await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
+      await expect(page.getByTestId('receipt')).toBeVisible();
+      const edited = await server.prisma.warehouse.findUnique({ where: { id: stored.id }, include: { WarehouseData: true } });
+      expect({ ...edited, ...edited.WarehouseData }).toMatchObject({ ...expected, clearHeightFt: '51 metres', latitude: null, address: `${address} edited` });
+    });
+  });
+}
+
+test('new required fields, invalid numbers and partial dimensions block saving', async ({ page }) => {
+  await page.goto(server.url);
+  await page.getByRole('button', { name: 'Create Warehouse', exact: true }).click();
+  await expect(page.getByText('Google Location URL is required', { exact: true })).toBeVisible();
+  await expect(page.getByText('Land Type is required', { exact: true })).toBeAttached();
+  const before = await server.prisma.stagedWarehouse.count();
+  await create(page, 'Invalid form QA');
+  await data(page, 'googleLocation').fill('https://www.google.com/maps/@12,77,16z');
+  await data(page, 'dimensions').fill('100'); await field(page, 'Male washrooms').fill('-1');
+  await data(page, 'contactNumber').fill('12');
+  await page.getByRole('button', { name: 'Create Warehouse', exact: true }).click();
+  await expect(data(page, 'dimensions')).toHaveAttribute('aria-invalid', 'true');
+  await expect(data(page, 'contactNumber')).toHaveAttribute('aria-invalid', 'true');
+  expect(await server.prisma.stagedWarehouse.count()).toBe(before);
+});
+
+test('legacy review can save unrelated edits and reject an incomplete draft', async ({ page }) => {
+  const legacy = await server.prisma.stagedWarehouse.create({ data: {
+    address: 'Legacy form QA', city: 'New Delhi', state: 'Delhi', warehouseType: 'PEB', listing_type: 'Rent',
+    contactPerson: 'Legacy owner', contactNumber: '9876543210', totalSpaceSqft: [1000], ratePerSqft: '25', compliances: 'Legacy',
+    uploadedBy: 'original@example.test', submittedBy: 'original@example.test', source: 'PARTNER_API', reviewStatus: 'PENDING',
+    clearHeightFt: '20–25 feet', washroom_count: '5 total', builtup_area: '10000', landType: null, googleLocation: null,
+    nearest_transport: 'Old stop', setbackArea: '5m on all sides', ventilationType: 'Old description',
+  } });
+  await page.goto(`${server.url}/?review`);
+  await searchSubmissions(page, 'Legacy form QA');
+  await reviewButton(page, 'Legacy owner').click();
+  await expect(page.getByText('20–25 feet', { exact: true })).toBeVisible();
+  await expect(field(page, 'Uploaded By')).toHaveValue('original@example.test');
+  await field(page, 'Address').fill('Legacy form QA edited');
+  await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
+  await expect.poll(async () => (await server.prisma.stagedWarehouse.findUnique({ where: { id: legacy.id } })).address).toBe('Legacy form QA edited');
+  await reviewButton(page, 'Legacy owner').click();
+  await data(page, 'dimensions').fill('10');
+  await page.getByRole('button', { name: /(?:^| )Accept$/ }).click();
+  await expect(data(page, 'dimensions')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByRole('button', { name: 'Approve', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /(?:^| )Reject$/ }).click();
+  await expect(page.getByText(/Rejection will discard unsaved edits/)).toBeVisible();
+  await field(page, 'Reason for rejection').fill('Incomplete site details');
+  await page.getByRole('dialog').filter({ hasText: 'Reject this submission?' }).getByRole('button', { name: /(?:^| )Reject$/ }).click();
+  await expect.poll(async () => (await server.prisma.stagedWarehouse.findUnique({ where: { id: legacy.id } })).reviewStatus).toBe('REJECTED');
+  expect(await server.prisma.stagedWarehouse.findUnique({ where: { id: legacy.id } })).toMatchObject({
+    uploadedBy: 'original@example.test', dimensions: null, landType: null, googleLocation: null,
+    clearHeightFt: '20–25 feet', washroom_count: '5 total', builtup_area: '10000', nearest_transport: 'Old stop', setbackArea: '5m on all sides',
+  });
+});

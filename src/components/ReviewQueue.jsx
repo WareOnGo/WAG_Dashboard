@@ -198,8 +198,8 @@ const ReviewQueue = () => {
     });
   };
 
-  const reject = (row, getPayload) => {
-    setRejection({ row, getPayload });
+  const reject = (row, getPayload, discardUnsaved = false) => {
+    setRejection({ row, getPayload, discardUnsaved });
     setRejectionReason('');
     setRejectionError(null);
   };
@@ -396,12 +396,15 @@ const ReviewQueue = () => {
   const btnStyle = { minWidth: isMobile ? 0 : 120, minHeight: isMobile ? 44 : 'auto', height: 'auto', whiteSpace: 'normal', paddingInline: isMobile ? 8 : undefined };
 
   // Edit modal (PENDING): Accept (primary) + destructive Reject / Delete (outlined danger).
-  const editFooterActions = editingRow ? ({ getPayload } = {}) => (
+  const editFooterActions = editingRow ? ({ getPayload, validate } = {}) => (
     <>
       <Button size="large" type="primary" icon={<CheckOutlined />} loading={acting}
-        onClick={() => approve(editingRow, getPayload)} style={btnStyle}>Accept</Button>
+        onClick={() => { if (!validate || validate()) approve(editingRow, getPayload); }} style={btnStyle}>Accept</Button>
       <Button size="large" danger icon={<CloseOutlined />} loading={acting}
-        onClick={() => reject(editingRow, getPayload)} style={btnStyle}>Reject</Button>
+        onClick={() => {
+          const canSave = !validate || validate(true);
+          reject(editingRow, canSave ? getPayload : undefined, !canSave);
+        }} style={btnStyle}>Reject</Button>
       {/* Delete is admin-only; reviewers can approve/reject but not delete. */}
       {isAdmin && (
         <Button size="large" danger icon={<DeleteOutlined />} loading={acting}
@@ -543,6 +546,8 @@ const ReviewQueue = () => {
         onCancel={() => { if (!acting) setRejection(null); }}
         onOk={submitRejection}
       >
+        {rejection?.discardUnsaved && <Alert type="warning" showIcon
+          message="The form has invalid or incomplete fields. Rejection will discard unsaved edits; the saved submission will stay unchanged." />}
         <Input.TextArea
           rows={3}
           aria-label="Reason for rejection"

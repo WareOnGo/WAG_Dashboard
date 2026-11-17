@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage']),
+  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -25,6 +25,11 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
+  },
+  {
+    // Browser fixture entry points mount their own React root.
+    files: ['e2e/*-entry.jsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
     files: ['**/*.test.{js,jsx}', '**/test/**/*.{js,jsx}', 'vitest.config.js'],
