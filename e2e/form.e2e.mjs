@@ -97,6 +97,17 @@ for (const width of [320, 390, 1280]) {
         } else await field(page, `${label} unit`).selectOption(unit);
         expect((await data(page, key).boundingBox()).height).toBeGreaterThanOrEqual(width < 768 ? 44 : 36);
       }
+      const powerOption = field(page, 'As per requirement');
+      await powerOption.check();
+      await expect(data(page, 'powerKva')).toBeDisabled();
+      await expect(field(page, 'Power unit')).toBeDisabled();
+      await powerOption.uncheck();
+      await expect(data(page, 'powerKva')).toHaveValue('50.5');
+      await expect(field(page, 'Power unit')).toHaveValue('HP');
+      await powerOption.check();
+      await powerOption.scrollIntoViewIfNeeded();
+      expect((await powerOption.locator('..').boundingBox()).height).toBeGreaterThanOrEqual(44);
+      await page.screenshot({ path: test.info().outputPath(`power-requirement-${width}.png`) });
       for (const [label, value] of [['Dimensions length', '100'], ['Dimensions width', '60'], ['Dimensions height', '30'],
         ['Dock Dimension width', '8'], ['Dock Dimension height', '10'], ['Floor Strength value', '5'], ['Lighting value', '0'],
         ['Male washrooms', '2'], ['Female washrooms', '0']]) await field(page, label).fill(value);
@@ -120,7 +131,7 @@ for (const width of [320, 390, 1280]) {
         uploadedBy: 'dashboard@example.test', contactNumber: '+4532123456', alt_phone_number: '+442079460018',
         distance_from_highway: '50.5 metres', approachRoadWidth: '50.5 feet', land_parcel_size: '50.5 hectares',
         builtup_area: '50.5 sq ft', carpet_area: '50.5 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
-        plinthHeightFt: '50.5 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: '50.5 HP',
+        plinthHeightFt: '50.5 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: 'As per requirement',
         dimensions: '100 x 60 x 30 feet', dockDimension: '8 x 10 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
         washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'VDF',
         ventilationType: 'Ridge, Turbo', ventilationAirChangesPerDay: '4', setbackArea: '5m on all sides', latitude: null, longitude: null,
@@ -133,6 +144,10 @@ for (const width of [320, 390, 1280]) {
       await expect(data(page, 'clearHeightFt')).toHaveValue('50.5');
       await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
       await expect(field(page, 'Uploaded By')).toHaveValue('dashboard@example.test');
+      await expect(powerOption).toBeChecked();
+      await powerOption.uncheck();
+      await data(page, 'powerKva').fill('75');
+      await field(page, 'Power unit').selectOption('HP');
       await data(page, 'clearHeightFt').fill('51');
       await data(page, 'googleLocation').fill('https://maps.app.goo.gl/changed-preview-link');
       await noOverflow(page);
@@ -141,17 +156,23 @@ for (const width of [320, 390, 1280]) {
       await expect.poll(async () => (await server.prisma.stagedWarehouse.findUnique({ where: { id: stagedId } })).reviewStatus).toBe('APPROVED');
       const published = await server.prisma.stagedWarehouse.findUnique({ where: { id: stagedId } });
       const stored = await server.prisma.warehouse.findUnique({ where: { id: published.warehouseId }, include: { WarehouseData: true } });
-      expect({ ...stored, ...stored.WarehouseData }).toMatchObject({ ...expected, clearHeightFt: '51 metres', latitude: null });
+      expect({ ...stored, ...stored.WarehouseData }).toMatchObject({ ...expected, powerKva: '75 HP', clearHeightFt: '51 metres', latitude: null });
       await page.goto(`${server.url}/?id=${stored.id}`);
       await expect(data(page, 'clearHeightFt')).toHaveValue('51');
       await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
       await expect(field(page, 'Female washrooms')).toHaveValue('0');
       await expect(field(page, 'Power unit')).toHaveValue('HP');
+      await expect(powerOption).not.toBeChecked();
+      await expect(data(page, 'powerKva')).toHaveValue('75');
+      await powerOption.check();
       await field(page, 'Address').fill(`${address} edited`);
       await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
       await expect(page.getByTestId('receipt')).toBeVisible();
       const edited = await server.prisma.warehouse.findUnique({ where: { id: stored.id }, include: { WarehouseData: true } });
       expect({ ...edited, ...edited.WarehouseData }).toMatchObject({ ...expected, clearHeightFt: '51 metres', latitude: null, address: `${address} edited` });
+      await page.goto(`${server.url}/?id=${stored.id}`);
+      await expect(powerOption).toBeChecked();
+      await expect(data(page, 'powerKva')).toBeDisabled();
     });
   });
 }

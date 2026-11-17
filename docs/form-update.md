@@ -4,6 +4,7 @@ Scout and dashboard forms capture magnitudes separately from units, then save th
 
 - Lengths use feet/metres; highway distance uses metres/km. Land parcels support acres/hectares/sq ft; built-up and carpet areas use sq ft. Square metres are deferred. Existing square-metre records and saved drafts retain their values until explicitly replaced, with no conversion or relabelling.
 - Dimensions use three values and one unit; dock dimensions use two. Floor strength uses tonnes/sq m, lighting uses lux and power supports kVA/HP.
+- Power also offers “As per requirement”. Checking it disables the number/unit controls and saves that text in `powerKva`; unticking restores the current entry. The option survives Scout drafts and reopens checked on saved records. No schema change is required.
 - Only these measurement inputs warn about invalid characters while typing or pasting. Warnings preserve the input and clear as soon as it is corrected.
 - Land Type, Canopy, Dock Platform and Flooring use the agreed dropdown options. Ventilation is a collapsed multi-select dropdown; None and Not Known are exclusive.
 - International primary/alternate phones use country selectors. Male/female washroom counts serialize into the existing string field.

@@ -77,6 +77,30 @@ describe('structured dashboard fields', () => {
     }));
   }, 30000);
 
+  it('saves the checked Power option without validating the disabled numeric entry', async () => {
+    const { onSubmit } = open();
+    change('Power value', '50x');
+    fireEvent.click(field('As per requirement'));
+    expect(field('Power value')).toBeDisabled();
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      warehouseData: expect.objectContaining({ powerKva: 'As per requirement' }),
+    }));
+  });
+
+  it('reopens checked Power and allows replacing it with a numeric value', async () => {
+    const { onSubmit } = open({ initialData: { ...original, WarehouseData: { ...original.WarehouseData, powerKva: 'As per requirement' } } });
+    expect(field('As per requirement')).toBeChecked();
+    expect(field('Power unit')).toBeDisabled();
+    fireEvent.click(field('As per requirement'));
+    change('Power value', '75');
+    change('Power unit', 'HP');
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      warehouseData: expect.objectContaining({ powerKva: '75 HP' }),
+    }));
+  });
+
   it('preserves legacy ranges, descriptions, dropdown values, totals, setback, media and uploader', async () => {
     const legacy = { ...original, clearHeightFt: '20–25 feet', dimensions: '100 by 200', washroom_count: '5 total',
       ventilationType: 'Cross ventilation with fans', canopyType: 'Custom canopy', flooringType: 'Old stone',
