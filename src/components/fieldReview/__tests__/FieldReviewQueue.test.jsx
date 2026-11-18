@@ -52,6 +52,28 @@ it('discards filter suggestions and pending responses when warehouse access narr
   expect(screen.queryByText('Restricted city')).not.toBeInTheDocument();
 });
 
+it('gives reviewers the management queue and resets it when reviewer access is revoked', async () => {
+  let finishOld;
+  fieldReviewService.list.mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }))
+    .mockResolvedValueOnce(result(4822));
+  const user = { email: 'reviewer@wareongo.com', isAdmin: false, isReviewer: true };
+  const { rerender } = render(tree(user));
+  expect(screen.getByRole('heading', { name: 'Flag Review Queue' })).toBeInTheDocument();
+  expect(screen.getByText('Reviewer view')).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Filter by assignee' })).toBeInTheDocument();
+  await waitFor(() => expect(fieldReviewService.list).toHaveBeenCalledWith(
+    expect.objectContaining({ view: 'verify' }), expect.any(AbortSignal)));
+  const oldSignal = fieldReviewService.list.mock.calls[0][1];
+  rerender(tree({ ...user, isReviewer: false }));
+  await screen.findByText('Warehouse #4822');
+  expect(oldSignal.aborted).toBe(true);
+  expect(fieldReviewService.list).toHaveBeenLastCalledWith(expect.objectContaining({ view: 'current' }), expect.any(AbortSignal));
+  await act(async () => finishOld(result(4821)));
+  expect(screen.queryByText('Warehouse #4821')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Flag Review Queue' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('combobox', { name: 'Filter by assignee' })).not.toBeInTheDocument();
+});
+
 it('clears the previous identity and ignores its late queue response', async () => {
   let finishOld, finishNew;
   fieldReviewService.list.mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }))

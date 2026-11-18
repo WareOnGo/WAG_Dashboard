@@ -1,12 +1,14 @@
 import useFieldReviewCreation from './fieldReview/useFieldReviewCreation';
 import FieldReviewSelection from './fieldReview/FieldReviewSelection';
 import { FieldReviewSelectionContext } from './fieldReview/SelectionContext';
+import { FieldReviewHighlightContext } from './fieldReview/HighlightContext';
+import useFieldReviewHighlights from './fieldReview/useFieldReviewHighlights';
 import { withDefaultUnit } from '../utils/measurementDisplay';
 import ImageWithFallback from './ImageWithFallback';
 import VoiceNotesList from './VoiceNotesList';
 import { imageVariant } from '../utils/mediaUtils';
 import { useState, useEffect, useContext } from 'react';
-import { Image, Space, Button, Tag } from 'antd';
+import { Alert, Image, Space, Button, Spin, Tag } from 'antd';
 import {
   ZoomInOutlined,
   ZoomOutOutlined,
@@ -18,6 +20,7 @@ import {
   FileTextOutlined,
   LinkOutlined,
   ExportOutlined,
+  FlagOutlined,
 } from '@ant-design/icons';
 import ResponsiveModal from './ResponsiveModal';
 import RedactedPhone from './RedactedPhone';
@@ -74,15 +77,25 @@ const sectionTitle = { color: 'var(--text-primary)', fontSize: 18, fontWeight: 7
 
 // ── Reusable read-only field components ───────────────────────────────────────
 
-const Field = ({ label, children, style, mobile, fieldKey }) => (
-  <div className="fr-flag-field" style={{ marginBottom: 20, ...style }}>
-    {label && (
-      <label style={labelStyle(mobile)}>{label}</label>
-    )}
+const Field = ({ label, children, style, mobile, fieldKey, reviewKey = fieldKey }) => {
+  const flags = useContext(FieldReviewHighlightContext);
+  const flagged = flags.has(reviewKey);
+  const reviewNote = flags.get(reviewKey);
+  return <div className={'fr-flag-field' + (flagged ? ' fr-flag-field--active' : '')}
+    data-review-field={reviewKey} style={{ marginBottom: 20, ...style }}>
+    <div className="fr-field-heading">
+      {label && <label style={labelStyle(mobile)}>{label}</label>}
+      {flagged && <Tag className="fr-field-marker" color="orange" icon={<FlagOutlined aria-hidden="true" />}
+        aria-label={label + ' is flagged for review'}>Flagged for review</Tag>}
+    </div>
     {children}
+    {flagged && typeof reviewNote === 'string' && reviewNote.trim() && <div className="fr-field-note" role="note" aria-label={label + ' review note'}>
+      <strong>Review note</strong>
+      <p>{reviewNote}</p>
+    </div>}
     <FieldReviewSelection fieldKey={fieldKey} label={label} />
-  </div>
-);
+  </div>;
+};
 
 const renderRaw = (v) => {
   if (v === null || v === undefined || v === '') return '-';
@@ -157,6 +170,8 @@ const WarehouseDetailsModal = ({
 }) => {
   const { user } = useContext(AuthContext) || {};
   const creation = useFieldReviewCreation({warehouse, visible, onClose, enabled: enableFieldReview});
+  const reviewHighlights = useFieldReviewHighlights({ warehouse, warehouseId: warehouse?.id, visible, user });
+  const flaggedFields = reviewHighlights.fields;
   const { isMobile } = useViewport();
   const m = isMobile;
   const [isDownloading, setIsDownloading] = useState(false);
@@ -363,6 +378,7 @@ const WarehouseDetailsModal = ({
 
   // ── Render ─────────────────────────────────────────────────────────────
   return (
+    <FieldReviewHighlightContext.Provider value={flaggedFields}>
     <FieldReviewSelectionContext.Provider value={creation.selection}>
     <ResponsiveModal
       visible={visible}
@@ -376,6 +392,15 @@ const WarehouseDetailsModal = ({
 
         {creation.toolbar}
         {statusBanner && <div style={{ marginBottom: 16 }}>{statusBanner}</div>}
+        {reviewHighlights.loading && <div className="fr-review-loading" role="status" aria-live="polite">
+          <Spin size="small" aria-hidden="true" />
+          <span>{reviewHighlights.refreshing ? 'Refreshing' : 'Loading'} review flags and notes…</span>
+        </div>}
+        {reviewHighlights.error && <Alert type="warning" showIcon message="Review flags could not be refreshed."
+          action={<Button size="small" onClick={reviewHighlights.refresh}>Retry field flags</Button>} />}
+        {flaggedFields.size > 0 && <p className="fr-view-flags" role="status"><FlagOutlined aria-hidden="true" />
+          {' '}{flaggedFields.size} flagged {flaggedFields.size === 1 ? 'field is' : 'fields are'} highlighted below.
+        </p>}
 
         {/* ── Owner Details ───────────────────────────────────── */}
         <Section title="Owner Details">
@@ -424,7 +449,7 @@ const WarehouseDetailsModal = ({
         <Section title="Availability">
           {row(<>
             {col(<Field fieldKey="availabilityReview" label="Availability" mobile={m}><TextValue mobile={m} value={warehouse.availability} /></Field>, true)}
-            {col(<Field label="Availability last reviewed" mobile={m}><TextValue mobile={m} value={formatAvailabilityReview(warehouse.availabilityLastReviewedOn)} /></Field>, true)}
+            {col(<Field reviewKey="availabilityReview" label="Availability last reviewed" mobile={m}><TextValue mobile={m} value={formatAvailabilityReview(warehouse.availabilityLastReviewedOn)} /></Field>, true)}
           </>)}
 
           {row(<>
@@ -512,14 +537,14 @@ const WarehouseDetailsModal = ({
             col(<Field fieldKey="warehouseType" label="Warehouse Type" mobile={m}><TextValue mobile={m} value={warehouse.warehouseType} /></Field>, true)
           )}
 
-          {/* RCC-specific specs — shown only for RCC, mirroring WarehouseForm. */}
-          {warehouse.warehouseType === 'RCC' && (<>
+          {/* Keep flagged RCC/lift fields visible even if their parent values changed. */}
+          {(warehouse.warehouseType === 'RCC' || ['totalFloors', 'liftAccess', 'passengerLiftCount', 'serviceLiftCount', 'liftLoadCapacity'].some(key => flaggedFields.has(key))) && (<>
             {row(<>
               {col(<Field fieldKey="totalFloors" label="Total Number of Floors" mobile={m}><TextValue mobile={m} value={warehouse.totalFloors} /></Field>, true)}
               {col(<Field fieldKey="liftAccess" label="Lift Access" mobile={m}><TextValue mobile={m} value={warehouse.liftAccess === true ? 'Yes' : warehouse.liftAccess === false ? 'No' : '-'} /></Field>, true)}
             </>)}
 
-            {warehouse.liftAccess === true && (<>
+            {(warehouse.liftAccess === true || ['passengerLiftCount', 'serviceLiftCount', 'liftLoadCapacity'].some(key => flaggedFields.has(key))) && (<>
               {row(<>
                 {col(<Field fieldKey="passengerLiftCount" label="Number of Passenger Lifts" mobile={m}><TextValue mobile={m} value={warehouse.passengerLiftCount} /></Field>, true)}
                 {col(<Field fieldKey="serviceLiftCount" label="Number of Service Lifts" mobile={m}><TextValue mobile={m} value={warehouse.serviceLiftCount} /></Field>, true)}
@@ -842,6 +867,7 @@ const WarehouseDetailsModal = ({
     </ResponsiveModal>
     {creation.summary}
     </FieldReviewSelectionContext.Provider>
+    </FieldReviewHighlightContext.Provider>
   );
 };
 

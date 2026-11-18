@@ -5,6 +5,11 @@ import { mockWarehouses } from '../../test/mockData';
 import Dashboard from '../Dashboard';
 import AuthContext from '../../contexts/AuthContext';
 import { warehouseService } from '../../services/warehouseService';
+import { fieldReviewService } from '../../services/fieldReviewService';
+
+vi.mock('../../services/fieldReviewService', () => ({
+  fieldReviewService: { summaries: vi.fn(), setup: vi.fn() },
+}));
 
 vi.mock('../../services/warehouseService', () => ({
   warehouseService: {
@@ -52,9 +57,33 @@ beforeEach(() => {
   warehouseService.getCoordinates.mockResolvedValue([]);
   warehouseService.getContactNumber.mockResolvedValue({ contactNumber: '9876543210' });
   warehouseService.getById.mockResolvedValue({ WarehouseProximity: [] });
+  fieldReviewService.summaries.mockReset().mockResolvedValue([]);
 });
 
 describe('Dashboard current list contract', () => {
+  it('shows bundled flags and per-field notes without a summaries request, then refreshes them with the page', async () => {
+    const row = { ...mockWarehouses[0], imageLabels: {}, fieldReviewSummary: { warehouseId: 1,
+      activeCount: 1, activeFieldKeys: ['ratePerSqft'],
+      activeFields: [{ fieldKey: 'ratePerSqft', comment: 'Confirm the quoted rent.' }],
+      canOpen: false, reviewId: null } };
+    warehouseService.list.mockResolvedValue(page([row]));
+    open();
+    await screen.findByText('Flagged for review · 1 field');
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /View$/ }));
+    expect(screen.getByRole('note', { name: 'Rate per sq ft review note' })).toHaveTextContent('Confirm the quoted rent.');
+    expect(fieldReviewService.summaries).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close', exact: true }));
+    warehouseService.list.mockResolvedValue(page([{ ...row, fieldReviewSummary: {
+      warehouseId: 1, activeCount: 0, activeFieldKeys: [], activeFields: [], canOpen: false, reviewId: null,
+    } }]));
+    act(() => window.dispatchEvent(new Event('warehouse-field-review-updated')));
+    await waitFor(() => expect(screen.queryByText('Flagged for review · 1 field')).not.toBeInTheDocument());
+    await loaded();
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /View$/ }));
+    expect(screen.queryByRole('note', { name: 'Rate per sq ft review note' })).not.toBeInTheDocument();
+    expect(fieldReviewService.summaries).not.toHaveBeenCalled();
+  });
+
   it.each([null, 'table', 'cards'])('loads cards and the server total with saved preference %s', async preference => {
     if (preference) localStorage.setItem('warehouse-view-preference', preference);
     else localStorage.removeItem('warehouse-view-preference');
@@ -66,7 +95,7 @@ describe('Dashboard current list contract', () => {
     expect(cardFor(2)).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Table|Cards|recommended/i })).not.toBeInTheDocument();
-    expect(warehouseService.list).toHaveBeenCalledWith({ page: 1, limit: 20, includeImageLabels: 'true' });
+    expect(warehouseService.list).toHaveBeenCalledWith({ page: 1, limit: 20, includeImageLabels: 'true', includeFieldReviews: 'true' });
     await settleDebounce();
     expect(warehouseService.list).toHaveBeenCalledTimes(1);
   });
@@ -150,6 +179,22 @@ describe('Dashboard current list contract', () => {
     fireEvent.change(search(), { target: { value: 'PEB' } });
     expect(await screen.findByText('Error: Server unavailable')).toBeInTheDocument();
     expect(screen.getByText('#1')).toBeInTheDocument();
+  });
+
+  it.each([401, 403])('clears cached cards and their notes when a refresh rejects access with %s', async status => {
+    const row = { ...mockWarehouses[0], imageLabels: {}, fieldReviewSummary: { warehouseId: 1,
+      activeCount: 1, activeFieldKeys: ['ratePerSqft'],
+      activeFields: [{ fieldKey: 'ratePerSqft', comment: 'Previously visible note.' }], canOpen: false, reviewId: null } };
+    warehouseService.list.mockResolvedValue(page([row]));
+    open();
+    await loaded();
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /View$/ }));
+    expect(screen.getByRole('note', { name: 'Rate per sq ft review note' })).toBeInTheDocument();
+    warehouseService.list.mockRejectedValueOnce({ response: { status }, message: 'Access revoked.' });
+    act(() => window.dispatchEvent(new Event('warehouse-field-review-updated')));
+    await waitFor(() => expect(screen.queryByText('#1')).not.toBeInTheDocument());
+    expect(screen.queryByText('Previously visible note.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 

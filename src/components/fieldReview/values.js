@@ -8,7 +8,7 @@ import { formatAvailabilityReview, todayInIndia } from '../../utils/availability
 const stringToggles = new Set(['ccRoads', 'insulationPresent', 'warehouseData.vaastuCompliance']);
 export const STATUS_LABEL = {
   NEEDS_RESPONSE: 'Needs response',
-  AWAITING_ADMIN: 'Awaiting admin',
+  AWAITING_ADMIN: 'Awaiting reviewer',
   CHANGES_REQUESTED: 'Changes requested',
   VERIFIED: 'Verified & closed'
 };

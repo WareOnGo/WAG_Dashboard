@@ -23,7 +23,7 @@ const { Text } = Typography
 const CAPABILITIES = [
   { key: 'dashboardAccess', label: 'Dashboard', hint: 'Access the warehouse dashboard' },
   { key: 'callDashboardAccess', label: 'Calls', hint: 'Access the call dashboard' },
-  { key: 'reviewerAccess', label: 'Reviewer', hint: 'Review staged submissions and micro-markets' },
+  { key: 'reviewerAccess', label: 'Reviewer', hint: 'Review staged submissions, manage flagged fields and micro-markets' },
   { key: 'analystAccess', label: 'Analyst access', hint: 'Read all CRM leads and GA4 / Search Console reports in Wareongo Context' },
   { key: 'adminAccess', label: 'Admin', hint: 'Full access, including this panel' },
 ]

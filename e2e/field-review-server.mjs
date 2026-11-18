@@ -65,6 +65,12 @@ export async function startFieldReviewServer() {
     invalidateCapabilities
   } = backend('./src/utils/access');
   const service = new FieldReviewService(db);
+  const WarehouseController = backend('./src/controllers/warehouseController');
+  const WarehouseService = backend('./src/services/warehouseService');
+  const WarehouseModel = backend('./src/models/warehouseModel');
+  const warehouseController = new WarehouseController(new WarehouseService(new WarehouseModel(db)), null, null, {
+    getForWarehouses: async ids => ({ warehouses: Object.fromEntries(ids.map(id => [id, { labels: {} }])) }),
+  }, service);
   const buildDir = await mkdtemp(join(tmpdir(), 'field-review-build-'));
   let server,
     created = false;
@@ -102,7 +108,30 @@ export async function startFieldReviewServer() {
         is_active: true,
         dashboardAccess: true,
         viewOwnWarehouseEntries: true,
+        editOwnWarehouseEntries: false,
+        editAllWarehouseEntries: false
+      }, {
+        id: 3,
+        name: 'Reviewer One',
+        email: 'reviewer@wareongo.com',
+        phone_number: 'fixture-reviewer',
+        is_active: true,
+        reviewerAccess: true,
+        dashboardAccess: true,
+        viewOwnWarehouseEntries: true,
+        viewAllWarehouseEntries: true,
         editOwnWarehouseEntries: true
+      }, {
+        id: 4,
+        name: 'Observer One',
+        email: 'observer@wareongo.com',
+        phone_number: 'fixture-observer',
+        is_active: true,
+        dashboardAccess: true,
+        viewOwnWarehouseEntries: true,
+        viewAllWarehouseEntries: true,
+        editOwnWarehouseEntries: false,
+        editAllWarehouseEntries: false
       }]
     });
     const seed = async () => {
@@ -141,20 +170,26 @@ export async function startFieldReviewServer() {
     app.use(express.json());
     app.get('/fixture/session/:role', (req, res) => {
       const isAdmin = req.params.role === 'admin',
-        email = isAdmin ? 'admin@wareongo.com' : 'employee@wareongo.com';
+        isReviewer = isAdmin || req.params.role === 'reviewer',
+        isObserver = req.params.role === 'observer',
+        email = isAdmin ? 'admin@wareongo.com' : isReviewer ? 'reviewer@wareongo.com' : isObserver ? 'observer@wareongo.com' : 'employee@wareongo.com';
       res.json({
         user: {
           email,
           isAdmin,
-          name: isAdmin ? 'Meera Shah' : 'Arjun Rao',
+          isReviewer,
+          name: isAdmin ? 'Meera Shah' : isReviewer ? 'Reviewer One' : isObserver ? 'Observer One' : 'Arjun Rao',
           capabilities: {
             DASHBOARD: true,
             WAREHOUSE_VIEW_OWN: true,
-            WAREHOUSE_EDIT_OWN: true
+            WAREHOUSE_EDIT_OWN: isReviewer,
+            WAREHOUSE_EDIT_ALL: isAdmin,
+            WAREHOUSE_VIEW_ALL: isReviewer || isObserver,
+            REVIEW: isReviewer
           }
         },
         token: jwt.sign({
-          id: isAdmin ? 'fixture-admin' : 'fixture-employee',
+          id: isAdmin ? 'fixture-admin' : isReviewer ? 'fixture-reviewer' : isObserver ? 'fixture-observer' : 'fixture-employee',
           email,
           name: email,
           domain: 'wareongo.com'
@@ -166,6 +201,12 @@ export async function startFieldReviewServer() {
       });
     });
     app.use('/api/field-reviews', createRouter(service));
+    app.use('/api/warehouses', (req, _res, next) => { req.audit = () => {}; next(); });
+    const warehouseView = [authMiddleware.authenticateJWT, authMiddleware.requireAccess('WAREHOUSE_VIEW_OWN')];
+    app.get('/api/warehouses', ...warehouseView, warehouseController.getAllWarehouses);
+    app.get('/api/warehouses/filter-options', ...warehouseView, warehouseController.getFilterOptions);
+    app.get('/api/warehouses/:id', ...warehouseView,
+      backend('./src/middleware/warehouseAccess').requireWarehouseEntry('view'), warehouseController.getWarehouseById);
     app.get('/api/fixture/warehouses', authMiddleware.authenticateJWT, async (_req, res, next) => {
       try {
         const rows = await db.warehouse.findMany({

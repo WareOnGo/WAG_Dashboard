@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Row, Col, Empty, Alert, Button } from 'antd';
+import React, { useContext, useState, useEffect, useMemo, useRef } from 'react';
+import { Row, Col, Empty, Alert, Button, Spin } from 'antd';
 import ListingPagination from './ListingPagination';
 import SimpleWarehouseCard from './SimpleWarehouseCard';
 import { useViewport } from '../hooks/useViewport';
 import { fieldReviewService } from '../services/fieldReviewService';
+import AuthContext from '../contexts/AuthContext';
+import { embeddedFieldReview, fieldReviewAccessKey } from '../utils/fieldReviewPermissions';
 import './CardView.css';
 
 /**
@@ -114,12 +116,15 @@ const CardView = ({
   paginated = true, // when false, render all rows as-is (caller paginates server-side) and hide the internal pager
 }) => {
   const { isMobile } = useViewport();
+  const auth = useContext(AuthContext);
+  const reviewAccessKey = fieldReviewAccessKey(auth?.user);
   const [currentPage, setCurrentPage] = useState(1);
   const resultsRef = useRef(null);
   const [pageSize, setPageSize] = useState(isMobile ? 6 : 12);
-  const [reviewSummaries, setReviewSummaries] = useState({});
+  const [reviewStatus, setReviewStatus] = useState({ accessKey: reviewAccessKey, summaries: {}, error: false });
   const [reviewRevision, setReviewRevision] = useState(0);
-  const [reviewError, setReviewError] = useState(false);
+  const reviewSummaries = reviewStatus.accessKey === reviewAccessKey ? reviewStatus.summaries : {};
+  const reviewError = reviewStatus.accessKey === reviewAccessKey && reviewStatus.error;
 
   // Reset to first page whenever the dataset changes (filters/search applied upstream)
   useEffect(() => {
@@ -150,22 +155,34 @@ const CardView = ({
     return warehouses.slice(startIndex, startIndex + pageSize);
   }, [paginated, warehouses, currentPage, pageSize]);
 
-  // One request for the visible cards; review queues already supply their own status.
-  const reviewIds = getCardProps ? '' : paginatedData.map(w => w.id).filter(Number.isInteger).join(',');
+  // Dashboard rows include this data already and refresh with the list after
+  // mutations. Only older/unbundled callers need the separate lookup.
+  const reviewIds = getCardProps ? '' : paginatedData
+    .filter(w => embeddedFieldReview(w, reviewAccessKey) === undefined)
+    .map(w => w.id).filter(Number.isInteger).join(',');
+  const reviewLoading = !!reviewIds && (reviewStatus.accessKey !== reviewAccessKey
+    || reviewStatus.ids !== reviewIds || reviewStatus.revision !== reviewRevision);
   useEffect(() => {
     if (!reviewIds || loading) return;
     const controller = new AbortController();
     fieldReviewService.summaries(reviewIds.split(',').map(Number), controller.signal)
       .then(rows => {
         if (!controller.signal.aborted) {
-          setReviewSummaries(Object.fromEntries(rows.map(r => [r.warehouseId, r])));
-          setReviewError(false);
+          setReviewStatus({ accessKey: reviewAccessKey, ids: reviewIds, revision: reviewRevision,
+            summaries: Object.fromEntries(rows.map(r => [r.warehouseId, r])), error: false });
         }
       })
-      // Preserve a known active marker during a transient failure.
-      .catch(() => { if (!controller.signal.aborted) setReviewError(true); });
+      // Preserve known markers only while their authorization scope is current.
+      .catch(error => {
+        if (!controller.signal.aborted) setReviewStatus(previous => ({
+          accessKey: reviewAccessKey,
+          ids: reviewIds, revision: reviewRevision,
+          summaries: previous.accessKey === reviewAccessKey && ![401, 403].includes(error.response?.status) ? previous.summaries : {},
+          error: true,
+        }));
+      });
     return () => controller.abort();
-  }, [reviewIds, loading, reviewRevision]);
+  }, [reviewIds, loading, reviewRevision, reviewAccessKey]);
   useEffect(() => {
     const refresh = () => setReviewRevision(n => n + 1);
     window.addEventListener('warehouse-field-review-updated', refresh);
@@ -205,8 +222,11 @@ const CardView = ({
 
   return (
     <div ref={resultsRef} style={{ scrollMarginTop: isMobile ? 80 : undefined }} className={`card-view${columnsPerRow === 2 ? ' card-view--two-columns' : ''}`}>
-      {!getCardProps && reviewError && <Alert type="warning" showIcon style={{ marginBottom: 16 }}
-        message="Review status could not be refreshed. Previously loaded flags are still shown."
+      {reviewLoading && <div role="status" aria-live="polite" style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <Spin size="small" aria-hidden="true" /><span>Loading review flags and notes…</span>
+      </div>}
+      {!!reviewIds && !reviewLoading && reviewError && <Alert type="warning" showIcon style={{ marginBottom: 16 }}
+        message="Review status could not be refreshed. Retry to see the latest flags."
         action={<Button size="small" onClick={() => setReviewRevision(n => n + 1)}>Retry review status</Button>} />}
       <Row gutter={[16, 16]}>
         {paginatedData.map((warehouse) => (
@@ -217,7 +237,7 @@ const CardView = ({
               onDelete={onDelete}
               onViewDetails={onViewDetails}
               onToggleVisibility={onToggleVisibility}
-              fieldReviewSummary={reviewSummaries[warehouse.id]}
+              fieldReviewSummary={embeddedFieldReview(warehouse, reviewAccessKey) ?? reviewSummaries[warehouse.id]}
               {...(getCardProps ? getCardProps(warehouse) : {})}
             />
           </Col>

@@ -3,6 +3,7 @@ import { Alert, App, Button, Modal } from 'antd';
 import { FlagOutlined } from '@ant-design/icons';
 import AuthContext from '../../contexts/AuthContext';
 import { fieldReviewService } from '../../services/fieldReviewService';
+import { canManageFieldReviews, fieldReviewAccessKey } from '../../utils/fieldReviewPermissions';
 import { formatValue } from './values';
 import './fieldReview.css';
 export default function useFieldReviewCreation({
@@ -25,7 +26,8 @@ export default function useFieldReviewCreation({
   const [confirm, setConfirm] = useState(false),
     [error, setError] = useState('');
   const request = useRef(null);
-  const canCreate = enabled && auth?.user?.isAdmin && Number.isInteger(warehouse?.id);
+  const accessKey = fieldReviewAccessKey(auth?.user);
+  const canCreate = enabled && canManageFieldReviews(auth?.user) && Number.isInteger(warehouse?.id);
   const eligibleAssignee = setup?.assignees?.some(person => person.id === Number(assignee));
   useEffect(() => {
     request.current = null;
@@ -38,7 +40,7 @@ export default function useFieldReviewCreation({
     setLoading(false);
     setSaving(false);
     return () => { request.current = null; };
-  }, [warehouse?.id, visible, auth?.user?.email, canCreate]);
+  }, [warehouse?.id, visible, accessKey, canCreate]);
   const discard = next => {
     if (selected.length) modal.confirm({
       title: 'Discard unsent flags?',
@@ -121,7 +123,7 @@ export default function useFieldReviewCreation({
   // so it restores keyboard focus, then remove its portal before the next use.
   const summary = canCreate && visible ? <Modal title={'Confirm flags for warehouse #' + warehouse?.id} open={confirm} destroyOnHidden onCancel={() => !saving && setConfirm(false)} width={820} footer={<div className="fr-row fr-end"><Button disabled={saving} onClick={() => setConfirm(false)}>Back to fields</Button>
    <Button type="primary" loading={saving} disabled={!eligibleAssignee} onClick={submit}>Confirm & flag for review</Button></div>}>
-  <p>The employee will propose a correction or explain why no change is needed. Each response requires admin verification.</p>
+  <p>The assigned employee can respond to these flagged fields without Edit permission. Each response requires reviewer verification.</p>
   <div className="fr-table-scroll"><table className="fr-summary"><thead><tr><th>Field</th><th>Current value</th><th>Review comment</th></tr></thead>
    <tbody>{selected.map(key => {
             const f = setup?.fields.find(x => x.key === key);
@@ -130,7 +132,7 @@ export default function useFieldReviewCreation({
   <label htmlFor="fr-new-assignee" className="fr-label">Assign review to</label>
   <select id="fr-new-assignee" className="fr-input" value={assignee} disabled={saving || !!setup?.existingReviewId} onChange={e => setAssignee(e.target.value)}>
    <option value="">Select an employee</option>{setup?.assignees.map(p => <option key={p.id} value={p.id}>{p.name} · {p.email}</option>)}
-  </select><p className="fr-help">{setup?.existingReviewId ? 'Keeps the current review’s assignee. Change ownership from its review screen.' : 'Defaults to the original uploader: ' + (setup?.uploader || 'Unknown') + '. Admin can change this.'}</p>
+  </select><p className="fr-help">{setup?.existingReviewId ? 'Keeps the current review’s assignee. Change ownership from its review screen.' : 'Defaults to the original uploader: ' + (setup?.uploader || 'Unknown') + '. You can change this.'}</p>
   {setup?.existingReviewId && !eligibleAssignee && <Alert type="warning" showIcon message="The current assignee cannot respond to this warehouse." description={<a href={'/field-reviews?review=' + setup.existingReviewId}>Open the existing review to change its assignee.</a>} />}
   {error && <Alert role="alert" type="error" message={error} showIcon />}
  </Modal> : null;

@@ -41,7 +41,8 @@ import {
 } from '../utils/errorHandler';
 import { imageLabelService } from '../services/imageLabelService';
 import { EDIT_PREFILL_REASON } from '../utils/revealReason';
-import { canViewWarehouses, canCreateWarehouse, canEditWarehouse, warehouseAccessKey } from '../utils/warehousePermissions';
+import { canViewWarehouses, canCreateWarehouse, canEditWarehouse } from '../utils/warehousePermissions';
+import { fieldReviewAccessKey } from '../utils/fieldReviewPermissions';
 import { pasteAsOneLine } from '../utils/pasteLines';
 
 const { Text } = Typography;
@@ -68,7 +69,7 @@ const Dashboard = () => {
   // Follow the server's granular permissions, including refreshed sessions.
   const hasDashboardAccess = canViewWarehouses(user);
   const canCreate = canCreateWarehouse(user);
-  const accessKey = warehouseAccessKey(user);
+  const accessKey = fieldReviewAccessKey(user);
 
   // Cards are the dashboard's listing view at every viewport width.
   const { isMobile } = useViewport();
@@ -148,6 +149,7 @@ const Dashboard = () => {
         // paints its segmented gallery on the first render — no second request,
         // and no flat-then-segmented reflow.
         includeImageLabels: 'true',
+        includeFieldReviews: 'true',
       });
       // Ignore stale responses (a newer request has since been issued).
       if (reqId !== reqIdRef.current) return;
@@ -159,16 +161,25 @@ const Dashboard = () => {
         setCurrentPage(lastPage);
         return;
       }
-      setWarehouses(Array.isArray(res?.data) ? res.data : []);
+      setWarehouses(Array.isArray(res?.data) ? res.data.map(row => ({ ...row, _fieldReviewAccessKey: accessKey })) : []);
       setTotal(nextTotal);
       setSearchMeta(res?.search ?? null);
     } catch (err) {
       // A rejected search (e.g. too many pasted IDs) says why in its first issue.
-      if (reqId === reqIdRef.current) setError(err.response?.data?.details?.issues?.[0]?.message || err.message);
+      if (reqId === reqIdRef.current) {
+        if ([401, 403].includes(err.response?.status)) {
+          setWarehouses([]);
+          setTotal(0);
+          setSearchMeta(null);
+          setSelectedWarehouse(null);
+          setViewDetailsVisible(false);
+        }
+        setError(err.response?.data?.details?.issues?.[0]?.message || err.message);
+      }
     } finally {
       if (reqId === reqIdRef.current) setLoading(false);
     }
-  }, [authLoading, isAuthenticated, hasDashboardAccess, debouncedParams, currentPage, pageSize]);
+  }, [authLoading, isAuthenticated, hasDashboardAccess, accessKey, debouncedParams, currentPage, pageSize]);
 
   // Network/connection failures (no HTTP response) get a connection-specific
   // message + icon; everything else is a generic error.

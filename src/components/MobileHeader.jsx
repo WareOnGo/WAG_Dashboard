@@ -23,6 +23,7 @@ import RevealReasonModal from './RevealReasonModal';
 import { generateDetailedPpt, generatePptV2, generatePptV3, generateGodamwalePpt, generateTciPpt, generateLastMileExcel } from '../services/pptService';
 import PptConfigModal from './PptConfigModal';
 import { canViewWarehouses, warehouseAccessKey } from '../utils/warehousePermissions';
+import { canManageFieldReviews } from '../utils/fieldReviewPermissions';
 
 const { Header } = Layout;
 const { Text } = Typography;
@@ -312,7 +313,7 @@ const ScopedMobileHeader = ({ onMenuToggle }) => {
       label: 'Flagged for review (beta)',
       href: '/field-reviews',
       icon: <FlagOutlined />,
-      tooltip: user?.isAdmin ? 'Verify flagged warehouse fields' : 'Review fields assigned to you',
+      tooltip: canManageFieldReviews(user) ? 'Verify flagged warehouse fields' : 'Review fields assigned to you',
     },
     ...((user?.isAdmin || user?.isReviewer)
       ? [{

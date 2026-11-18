@@ -59,10 +59,11 @@ const people = [{
   name: 'Other Employee',
   email: 'other@wareongo.com'
 }];
-const mount = (ui, admin = false) => render(<AuthContext.Provider value={{
+const mount = (ui, admin = false, user = {}) => render(<AuthContext.Provider value={{
   user: {
     email: admin ? 'admin@wareongo.com' : 'employee@wareongo.com',
-    isAdmin: admin
+    isAdmin: admin,
+    ...user
   },
   isAuthenticated: true
 }}><App>{ui}</App></AuthContext.Provider>);
@@ -246,7 +247,7 @@ it.each(['response', 'permission change'])('ignores an older activity page after
   fireEvent.click(screen.getByRole('button', { name: 'No change needed' }));
   fireEvent.change(screen.getByLabelText('How did you verify this? *'), { target: { value: 'Owner confirmed.' } });
   fireEvent.click(screen.getByRole('button', { name: 'Submit for verification' }));
-  await screen.findByText(outcome === 'response' ? 'Awaiting admin' : 'Review access was removed.');
+  await screen.findByText(outcome === 'response' ? 'Awaiting reviewer' : 'Review access was removed.');
   await act(async () => finishEvents({ events: [], nextEventCursor: null }));
   if (outcome === 'response') {
     fireEvent.click(screen.getByRole('button', { name: 'Load earlier activity' }));
@@ -301,7 +302,52 @@ it('ignores a late flagging setup from a different admin identity', async () => 
   expect(screen.getByRole('button', { name: 'Flag for review (beta)' })).toBeEnabled();
 });
 
-it('requires reassignment before adding flags to a review whose employee lost edit access', async () => {
+it('hides flag creation from employees without reviewer access', () => {
+  mount(<WarehouseDetailsModal visible warehouse={warehouse} onClose={() => {}} />);
+  expect(screen.queryByRole('button', { name: 'Flag for review (beta)' })).not.toBeInTheDocument();
+  expect(fieldReviewService.setup).not.toHaveBeenCalled();
+});
+
+it('discards unsent flags when reviewer permission is revoked for the same identity', async () => {
+  fieldReviewService.setup.mockResolvedValue({ fields: [{ ...field, value: [50000] }], assignees: people,
+    defaultAssigneeId: 2, uploader: 'Employee One', activeFields: [],
+  });
+  const tree = isReviewer => <AuthContext.Provider value={{ user: { email: 'reviewer@wareongo.com', isAdmin: false, isReviewer } }}><App>
+    <WarehouseDetailsModal visible warehouse={warehouse} onClose={() => {}} />
+  </App></AuthContext.Provider>;
+  const { rerender } = render(tree(true));
+  fireEvent.click(screen.getByRole('button', { name: 'Flag for review (beta)' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Flag Offered Area (sq ft)' }));
+  fireEvent.change(screen.getByLabelText('Review comment for Offered Area (sq ft)'), { target: { value: 'Confirm area.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review flags' }));
+  await screen.findByRole('dialog', { name: 'Confirm flags for warehouse #4821' });
+  rerender(tree(false));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Confirm flags for warehouse #4821' })).not.toBeInTheDocument());
+  expect(screen.queryByRole('button', { name: 'Flag for review (beta)' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('checkbox', { name: 'Flag Offered Area (sq ft)' })).not.toBeInTheDocument();
+  expect(fieldReviewService.create).not.toHaveBeenCalled();
+});
+
+it('discards reviewer controls and ignores a pending detail response after reviewer access is revoked', async () => {
+  const r = review(true, { status: 'AWAITING_ADMIN', baselineValue: [50000], proposedValue: [48000] });
+  let finishOld;
+  fieldReviewService.detail.mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }))
+    .mockResolvedValueOnce({ ...r, canVerify: false, canRespond: true });
+  const tree = isReviewer => <AuthContext.Provider value={{ user: { email: 'employee@wareongo.com', isAdmin: false, isReviewer } }}><App>
+    <FieldReviewDialog open reviewId={r.id} onClose={() => {}} />
+  </App></AuthContext.Provider>;
+  const { rerender } = render(tree(true));
+  await waitFor(() => expect(finishOld).toBeTypeOf('function'));
+  const oldSignal = fieldReviewService.detail.mock.calls[0][1];
+  rerender(tree(false));
+  await screen.findByText('Awaiting reviewer');
+  expect(oldSignal.aborted).toBe(true);
+  await act(async () => finishOld(r));
+  expect(screen.queryByRole('button', { name: 'Verify & close' })).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Assigned employee')).not.toBeInTheDocument();
+});
+
+it('requires reassignment before adding flags to a review whose employee lost warehouse View access', async () => {
   const id = crypto.randomUUID();
   fieldReviewService.setup.mockResolvedValue({ fields: [{ ...field, value: [50000] }],
     assignees: people.filter(person => person.id !== 2), defaultAssigneeId: 2,
@@ -363,7 +409,7 @@ it('preserves a linked availability draft across the actual All details modal an
   await waitFor(() => expect(fieldReviewService.respond).toHaveBeenCalledWith(r.id, r.flags[0].id, {
     version: 0, baselineVersion: 0, resolution: 'CORRECTION', proposedValue: proposed, explanation: 'Owner says it is occupied.',
   }));
-  expect(await screen.findByText('Awaiting admin')).toBeInTheDocument();
+  expect(await screen.findByText('Awaiting reviewer')).toBeInTheDocument();
 });
 
 it('shows both availability values in each conflict choice, history and replacement confirmation', async () => {
@@ -431,9 +477,9 @@ it('does not let a slow refresh undo a successful response on screen', async () 
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
   await waitFor(() => expect(finishRefresh).toBeTypeOf('function'));
   fireEvent.click(screen.getByRole('button', { name: 'Submit for verification' }));
-  await screen.findByText('Awaiting admin');
+  await screen.findByText('Awaiting reviewer');
   await act(async () => finishRefresh(r));
-  expect(screen.getByText('Awaiting admin')).toBeInTheDocument();
+  expect(screen.getByText('Awaiting reviewer')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Submit for verification' })).not.toBeInTheDocument();
 });
 
@@ -454,7 +500,7 @@ it('does not request an overwrite reason when the server says the selected value
     version: 1, currentVersion: 2, choice: 'PROPOSED',
   }));
 });
-it('flags fields in the existing View and keeps the chosen assignee on Back', async () => {
+it.each(['admin', 'reviewer'])('%s flags fields in the existing View and keeps the chosen assignee on Back', async role => {
   fieldReviewService.setup.mockResolvedValue({
     fields: [{
       ...field,
@@ -466,7 +512,9 @@ it('flags fields in the existing View and keeps the chosen assignee on Back', as
     activeFields: []
   });
   fieldReviewService.create.mockResolvedValue({});
-  mount(<WarehouseDetailsModal visible warehouse={warehouse} onClose={() => {}} />, true);
+  mount(<WarehouseDetailsModal visible warehouse={warehouse} onClose={() => {}} />, role === 'admin', {
+    email: role + '@wareongo.com', isReviewer: true
+  });
   expect(document.querySelector('.warehouse-details-modal')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', {
     name: 'Flag for review (beta)'
@@ -587,7 +635,7 @@ it('requires a no-change explanation and stages the response', async () => {
     resolution: 'NO_CHANGE',
     explanation: 'Inspected the layout.'
   }));
-  expect(await screen.findByText('Awaiting admin')).toBeInTheDocument();
+  expect(await screen.findByText('Awaiting reviewer')).toBeInTheDocument();
   expect(screen.queryByRole('button', {
     name: 'Submit for verification'
   })).not.toBeInTheDocument();
@@ -633,7 +681,7 @@ it('keeps a failed draft but requires reconfirming a new live baseline', async (
     name: 'Submit for verification'
   })).toBeEnabled();
 });
-it('admin compares all three values and must explain and confirm a replacement', async () => {
+it.each(['admin', 'reviewer'])('%s compares all three values and must explain and confirm a replacement', async role => {
   const r = review(true, {
     status: 'AWAITING_ADMIN',
     version: 1,
@@ -669,7 +717,9 @@ it('admin compares all three values and must explain and confirm a replacement',
       currentValue: [48000]
     }]
   });
-  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />, true);
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />, role === 'admin', {
+    email: role + '@wareongo.com', isReviewer: true
+  });
   const proposal = await screen.findByRole('radio', {
     name: /Apply proposed/
   });
@@ -733,6 +783,65 @@ it('shows active markers, preserves them on failure and clears them after succes
   expect(within(document.querySelector('.simple-warehouse-card')).getByRole('button', {
     name: /View$/
   })).toBeInTheDocument();
+});
+
+it.each([false, true])('refreshes dashboard review links when reviewer access changes from %s', async initialReviewer => {
+  const id = crypto.randomUUID();
+  let finishRefresh;
+  fieldReviewService.summaries.mockReset().mockResolvedValueOnce([{
+    warehouseId: 4821, activeCount: 1, canOpen: initialReviewer, reviewId: initialReviewer ? id : null,
+  }]).mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve; }));
+  const rows = [warehouse];
+  const tree = isReviewer => <AuthContext.Provider value={{ user: { email: 'reviewer@wareongo.com', isAdmin: false, isReviewer } }}><App>
+    <CardView warehouses={rows} paginated={false} />
+  </App></AuthContext.Provider>;
+  const { rerender } = render(tree(initialReviewer));
+  await screen.findByText('Flagged for review · 1 field');
+  rerender(tree(!initialReviewer));
+  expect(screen.queryByRole('link', { name: 'Flagged for review · 1 field' })).not.toBeInTheDocument();
+  await waitFor(() => expect(fieldReviewService.summaries).toHaveBeenCalledTimes(2));
+  await act(async () => finishRefresh([{
+    warehouseId: 4821, activeCount: 1, canOpen: !initialReviewer, reviewId: initialReviewer ? null : id,
+  }]));
+  expect(screen.getByText('Flagged for review · 1 field')).toBeInTheDocument();
+  const link = screen.queryByRole('link', { name: 'Flagged for review · 1 field' });
+  if (initialReviewer) expect(link).not.toBeInTheDocument();
+  else expect(link).toHaveAttribute('href', '/field-reviews?review=' + id);
+});
+
+it('ignores a late dashboard summary from the previous reviewer role', async () => {
+  const id = crypto.randomUUID();
+  let finishOld;
+  fieldReviewService.summaries.mockReset()
+    .mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }))
+    .mockResolvedValueOnce([{ warehouseId: 4821, activeCount: 1, canOpen: false, reviewId: null }]);
+  const rows = [warehouse];
+  const tree = isReviewer => <AuthContext.Provider value={{ user: { email: 'reviewer@wareongo.com', isAdmin: false, isReviewer } }}><App>
+    <CardView warehouses={rows} paginated={false} />
+  </App></AuthContext.Provider>;
+  const { rerender } = render(tree(true));
+  await waitFor(() => expect(finishOld).toBeTypeOf('function'));
+  const oldSignal = fieldReviewService.summaries.mock.calls[0][1];
+  rerender(tree(false));
+  await screen.findByText('Flagged for review · 1 field');
+  expect(oldSignal.aborted).toBe(true);
+  await act(async () => finishOld([{ warehouseId: 4821, activeCount: 1, canOpen: true, reviewId: id }]));
+  expect(screen.queryByRole('link', { name: 'Flagged for review · 1 field' })).not.toBeInTheDocument();
+});
+
+it('does not retain dashboard review links from an old role when the new summary fails', async () => {
+  fieldReviewService.summaries.mockReset().mockResolvedValueOnce([{
+    warehouseId: 4821, activeCount: 1, canOpen: true, reviewId: crypto.randomUUID(),
+  }]).mockRejectedValueOnce(new Error('Review access was removed.'));
+  const rows = [warehouse];
+  const tree = isReviewer => <AuthContext.Provider value={{ user: { email: 'reviewer@wareongo.com', isAdmin: false, isReviewer } }}><App>
+    <CardView warehouses={rows} paginated={false} />
+  </App></AuthContext.Provider>;
+  const { rerender } = render(tree(true));
+  await screen.findByRole('link', { name: 'Flagged for review · 1 field' });
+  rerender(tree(false));
+  await screen.findByRole('button', { name: 'Retry review status' });
+  expect(screen.queryByText('Flagged for review · 1 field')).not.toBeInTheDocument();
 });
 
 it.each([[false, 'Verified · no change needed'], [true, 'Applied verified baseline']])(

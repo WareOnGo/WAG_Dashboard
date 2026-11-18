@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Alert, App, Button, Spin } from 'antd';
 import { useAuth } from '../../contexts/AuthContext';
 import { fieldReviewService } from '../../services/fieldReviewService';
+import { fieldReviewAccessKey } from '../../utils/fieldReviewPermissions';
 import ResponsiveModal from '../ResponsiveModal';
 import WarehouseDetailsModal from '../WarehouseDetailsModal';
 import ReviewField from './ReviewField';
@@ -30,7 +31,7 @@ const draftFor = (flag, saved) => {
   if (saved?.version !== flag.version) return initialDraft(flag);
   if (saved.comparisonVersion === flag.currentVersion) return saved;
   // Preserve employee input and its original baseline, but a new live revision
-  // requires a fresh admin choice, even after closing/reopening the preview.
+  // requires a fresh reviewer choice, even after closing/reopening the preview.
   return { ...saved, comparisonVersion: flag.currentVersion, choice: '', reason: '', confirming: false, decisionVersion: undefined };
 };
 export default function FieldReviewDialog({
@@ -64,7 +65,8 @@ export default function FieldReviewDialog({
     readGeneration = useRef(0),
     writing = useRef(null);
   // Reopening the same review is a new session: old promises must not match it.
-  const scope = useMemo(() => ({ key, admin: user?.isAdmin, open }), [key, user?.isAdmin, open]);
+  const accessKey = fieldReviewAccessKey(user);
+  const scope = useMemo(() => ({ key, accessKey, open }), [key, accessKey, open]);
   target.current = scope;
   useEffect(() => {
     target.current = scope;
@@ -168,10 +170,10 @@ export default function FieldReviewDialog({
       });
       if (result.id !== reviewId) onReviewIdChange?.(result.id);
       onChanged?.();
-      message.success(method === 'respond' ? 'Submitted for admin verification.' : method === 'decide' ? 'Field verified and closed.' : method === 'reopen' ? 'Flag reopened.' : 'Changes requested.');
+      message.success(method === 'respond' ? 'Submitted for reviewer verification.' : method === 'decide' ? 'Field verified and closed.' : method === 'reopen' ? 'Flag reopened.' : 'Changes requested.');
     } catch (e) {
       if (target.current !== scope) return;
-      // A refreshed comparison must require a fresh admin decision. Employee text
+      // A refreshed comparison must require a fresh reviewer decision. Employee text
       // remains intact; its old baseline is shown until explicitly reconfirmed.
       const status = e.response?.status;
       if (status === 409 || status === 403) {
@@ -249,7 +251,7 @@ export default function FieldReviewDialog({
    {tabs}{error && <Alert type="error" showIcon role="alert" message={error.message} action={<Button size="small" disabled={!!busy} onClick={() => load()}>Refresh</Button>} />}
    {loading && !review ? <div className="fr-empty"><Spin /><p>Loading review…</p></div> : review && <>
     {review.deleted && <Alert type="warning" message="This warehouse was deleted. Its review history is retained; further changes are disabled." />}
-    {!review.deleted && !review.closedAt && review.assigneeCanRespond === false && <Alert type="warning" message="The assigned employee can no longer edit this warehouse. An admin must restore their access or reassign the review." />}
+    {!review.deleted && !review.closedAt && review.assigneeCanRespond === false && <Alert type="warning" message="The assigned employee no longer has access to this warehouse. A reviewer can reassign the review, or an admin can restore the employee’s access." />}
     <p className="fr-summary-count">Assigned to {review.assignee?.name || 'Employee unavailable'} · {active} active · {review.flags.length - active} closed</p>
     <div className={review.canVerify ? 'fr-layout' : ''}><div className="fr-fields">
      {review.flags.map(flag => <ReviewField key={flag.id} review={review} flag={flag} locationState={locationState} draft={draftFor(flag, drafts[flag.id])} onDraft={patch => setDraft(flag, patch)} onAction={action} actionError={error?.flagId === flag.id ? error.message : ''} busy={busy === flag.id} disabled={review.deleted || !!busy} />)}

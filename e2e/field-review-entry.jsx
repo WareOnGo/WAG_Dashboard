@@ -1,6 +1,6 @@
 // Production components + API client against a disposable real database.
 // Only sign-in and the dashboard's list-loading shell are fixtures.
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from 'antd';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
@@ -13,20 +13,24 @@ import {MobileToolsProvider} from '../src/contexts/MobileToolsContext';
 import WarehouseDetailsModal from '../src/components/WarehouseDetailsModal';
 import FieldReviewQueue from '../src/components/FieldReviewQueue';
 import DashboardReference from '../src/components/Dashboard';
-import { apiClient } from '../src/services/apiClient';
+import { warehouseService } from '../src/services/warehouseService';
+import { fieldReviewAccessKey } from '../src/utils/fieldReviewPermissions';
 import { setStoredToken } from '../src/utils/tokenStorage';
 import '../src/index.css';
 import '../src/App.css';
 import '../src/styles/dashboard-mobile.css';
 function Dashboard() {
+  const { user } = useContext(AuthContext);
+  const accessKey = fieldReviewAccessKey(user);
   const [rows, setRows] = useState([]),
     [selected, setSelected] = useState(null);
   useEffect(() => {
-    const load = () => apiClient.get('/fixture/warehouses').then(setRows);
+    const load = () => warehouseService.list({ includeImageLabels: 'true', includeFieldReviews: 'true' })
+      .then(result => setRows(result.data.map(row => ({ ...row, _fieldReviewAccessKey: accessKey }))));
     load();
     window.addEventListener('warehouse-field-review-updated', load);
     return () => window.removeEventListener('warehouse-field-review-updated', load);
-  }, []);
+  }, [accessKey]);
   return <><h1>Warehouse Dashboard</h1><CardView warehouses={rows} paginated={false} onViewDetails={setSelected} /><WarehouseDetailsModal warehouse={selected} visible={!!selected} onClose={() => setSelected(null)} /></>;
 }
 function Fixture() {

@@ -11,6 +11,9 @@ import { imageLabelService } from '../../services/imageLabelService';
 
 // Unrelated to images, and it needs an AuthProvider this test has no reason to build.
 vi.mock('../VisitNotes', () => ({ default: () => null }));
+vi.mock('../../services/fieldReviewService', () => ({
+  fieldReviewService: { summaries: vi.fn().mockResolvedValue([]) },
+}));
 
 const IMAGES = ['https://cdn/a.jpg', 'https://cdn/b.jpg', 'https://cdn/c.jpg'];
 

@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useViewport } from '../hooks';
 import { useWarehouseFilters } from '../hooks/useWarehouseFilters';
 import { fieldReviewService } from '../services/fieldReviewService';
-import { warehouseAccessKey } from '../utils/warehousePermissions';
+import { canManageFieldReviews, fieldReviewAccessKey } from '../utils/fieldReviewPermissions';
 import { pasteAsOneLine } from '../utils/pasteLines';
 import CardView from './CardView';
 import ListingPagination from './ListingPagination';
@@ -19,12 +19,13 @@ export default function FieldReviewQueue() {
   const { user } = useAuth();
   // Identity and access changes discard records and filter suggestions, and
   // cancel requests from the previous scope.
-  return <ReviewQueueContent key={warehouseAccessKey(user)} user={user} />;
+  return <ReviewQueueContent key={fieldReviewAccessKey(user)} user={user} />;
 }
 function ReviewQueueContent({ user }) {
+  const canReview = canManageFieldReviews(user);
   const { isMobile } = useViewport();
   const [params, setParams] = useSearchParams();
-  const [view, setView] = useState(user?.isAdmin ? 'verify' : 'current'),
+  const [view, setView] = useState(canReview ? 'verify' : 'current'),
     [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [assignee, setAssignee] = useState('');
@@ -97,7 +98,7 @@ function ReviewQueueContent({ user }) {
       return p;
     });
   };
-  const labels = user?.isAdmin ? [['employee', 'Awaiting employee'], ['verify', 'To verify'], ['previous', 'Previously flagged'], ['all', 'All']] : [['current', 'Currently flagged'], ['previous', 'Previously flagged']];
+  const labels = canReview ? [['employee', 'Awaiting employee'], ['verify', 'To verify'], ['previous', 'Previously flagged'], ['all', 'All']] : [['current', 'Currently flagged'], ['previous', 'Previously flagged']];
   const rows = result.data.map(r => ({
     ...r.warehouse,
     id: r.warehouseId,
@@ -107,12 +108,12 @@ function ReviewQueueContent({ user }) {
   const cardProps = warehouse => {
     const r = warehouse._review;
     return {
-      statusContent: <Tag color={r.closedAt ? 'green' : r.awaitingCount ? 'purple' : 'orange'}>{r.closedAt ? 'Verified & closed' : r.awaitingCount ? 'Awaiting admin' : 'Needs response'}</Tag>,
-      metaInfo: <div className="fr-stack">{user?.isAdmin && <span>Assigned to <strong>{r.assignee?.name || 'Unavailable employee'}</strong></span>}
-    <span>{r.activeCount} active fields · {r.awaitingCount} awaiting admin</span>
+      statusContent: <Tag color={r.closedAt ? 'green' : r.awaitingCount ? 'purple' : 'orange'}>{r.closedAt ? 'Verified & closed' : r.awaitingCount ? 'Awaiting reviewer' : 'Needs response'}</Tag>,
+      metaInfo: <div className="fr-stack">{canReview && <span>Assigned to <strong>{r.assignee?.name || 'Unavailable employee'}</strong></span>}
+    <span>{r.activeCount} active fields · {r.awaitingCount} awaiting reviewer</span>
     {r.closedAt ? <span>{r.flags.filter(f => f.resolution === 'NO_CHANGE').length} verified no-change responses</span> : null}
     <small>{new Date(r.createdAt).toLocaleDateString('en-IN')}</small></div>,
-      actions: <Button type={user?.isAdmin ? 'primary' : 'default'} block onClick={() => openReview(r.id)}>{r.closedAt ? 'View history' : user?.isAdmin ? 'Review flags' : r.awaitingCount === r.activeCount ? 'View progress' : 'Review fields'}</Button>
+      actions: <Button type={canReview ? 'primary' : 'default'} block onClick={() => openReview(r.id)}>{r.closedAt ? 'View history' : canReview ? 'Review flags' : r.awaitingCount === r.activeCount ? 'View progress' : 'Review fields'}</Button>
     };
   };
   const total = result.pagination.total || 0;
@@ -124,11 +125,11 @@ function ReviewQueueContent({ user }) {
     setPageSize(nextSize);
     if (isMobile) resultsRef.current?.scrollIntoView({ block: 'start' });
   };
-  return <div className="fr-page fr-queue dashboard-page"><div className="fr-page-heading"><div><h1>{user?.isAdmin ? 'Flag Review Queue' : 'Flagged for review'}</h1>
-  <p>{user?.isAdmin ? 'Verify employee responses and manage field reviews.' : 'Warehouse fields assigned to you for review.'}</p></div><Tag icon={<FlagOutlined />}>{user?.isAdmin ? 'Admin view' : 'Assigned to me'}</Tag></div>
-  <Card className="fr-queue-panel dashboard-panel"><div className="fr-segments"><Segmented block={isMobile && !user?.isAdmin} value={view} options={labels.map(([value, label]) => ({
+  return <div className="fr-page fr-queue dashboard-page"><div className="fr-page-heading"><div><h1>{canReview ? 'Flag Review Queue' : 'Flagged for review'}</h1>
+  <p>{canReview ? 'Verify employee responses and manage field reviews.' : 'Warehouse fields assigned to you for review.'}</p></div><Tag icon={<FlagOutlined />}>{canReview ? 'Reviewer view' : 'Assigned to me'}</Tag></div>
+  <Card className="fr-queue-panel dashboard-panel"><div className="fr-segments"><Segmented block={isMobile && !canReview} value={view} options={labels.map(([value, label]) => ({
           value,
-          label: (isMobile && !user?.isAdmin ? value === 'current' ? 'Current' : 'Previous' : label) + ' (' + (result.counts[value] ?? 0) + ')'
+          label: (isMobile && !canReview ? value === 'current' ? 'Current' : 'Previous' : label) + ' (' + (result.counts[value] ?? 0) + ')'
         }))} onChange={setView} /></div>
    <div className="fr-queue-toolbar dashboard-toolbar">
     <div className="fr-queue-search dashboard-search-row">
@@ -139,7 +140,7 @@ function ReviewQueueContent({ user }) {
     </div>
     <div className="fr-queue-actions dashboard-actions-row">
      {isMobile && filterButton}
-     {user?.isAdmin && <Select className="fr-queue-assignee" aria-label="Filter by assignee" placeholder="All assignees" allowClear
+     {canReview && <Select className="fr-queue-assignee" aria-label="Filter by assignee" placeholder="All assignees" allowClear
        value={assignee || undefined} onChange={value => setAssignee(value || '')}
        options={result.assignees?.map(person => ({ value: person.id, label: person.name }))} />}
      <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading} size={isMobile ? 'small' : 'middle'}>Refresh</Button>
@@ -151,7 +152,7 @@ function ReviewQueueContent({ user }) {
     {filtersVisible && <WarehouseFilterBar filters={filters} optionRows={result.filterOptions || EMPTY_OPTIONS} />}
    </div>
    {error && <Alert role="alert" type="error" showIcon message={error} action={<Button onClick={refresh}>Retry</Button>} />}
-   <p className="fr-help">{view === 'previous' ? 'Completed reviews retain comments, responses and admin decisions.' : 'Pending responses remain here until admin verification. Live warehouse values are unchanged until approval.'}</p>
+   <p className="fr-help">{view === 'previous' ? 'Completed reviews retain comments, responses and reviewer decisions.' : 'Pending responses remain here until reviewer verification. Live warehouse values are unchanged until approval.'}</p>
    <div className="fr-queue-results dashboard-card-results" ref={resultsRef}>
     {!error && (!loading && !rows.length ? <Empty description={Object.keys(queryParams).length ? 'No reviews match these filters.' : view === 'previous' ? 'No completed reviews yet.' : 'No warehouses in this review queue.'} /> : <CardView warehouses={rows} loading={loading} paginated={false} getCardProps={cardProps} />)}
     {(total > pageSize || (!isMobile && pageSize !== 20 && total > 0)) && <ListingPagination current={page} pageSize={pageSize} total={total} onChange={changePage} pageSizeOptions={[10, 20, 50, 100]} disabled={loading} />}

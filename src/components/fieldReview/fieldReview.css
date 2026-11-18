@@ -148,6 +148,59 @@
 .fr-flag-field {
   position: relative;
 }
+.fr-flag-field--active {
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(250, 173, 20, 0.08);
+  box-shadow: inset 3px 0 #d48806, inset 0 0 0 1px rgba(212, 136, 6, 0.4);
+}
+.fr-field-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 10px;
+}
+.fr-field-marker {
+  margin: 0 0 6px;
+  white-space: normal;
+}
+.fr-field-note {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(212, 136, 6, 0.35);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.fr-field-note strong {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.fr-field-note p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fr-review-loading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color, #363d55);
+  border-radius: 8px;
+  background: var(--bg-secondary, #1a1b26);
+  color: var(--text-primary);
+}
+.fr-view-flags {
+  color: var(--text-primary);
+  padding: 10px 12px;
+  border-left: 3px solid #d48806;
+  background: rgba(250, 173, 20, 0.08);
+}
 .fr-selection .ant-checkbox-wrapper {
   position: absolute;
   left: 0;
@@ -155,10 +208,6 @@
 }
 .fr-flag-field:has(.fr-selection) {
   padding-left: 26px;
-}
-.fr-active-field {
-  font-size: 11px;
-  float: right;
 }
 .fr-tabs {
   position: sticky;

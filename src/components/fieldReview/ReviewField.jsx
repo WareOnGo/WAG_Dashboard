@@ -149,7 +149,7 @@ export default function ReviewField({
   <div className="fr-field-head"><div><span className="fr-section">{field.section}</span><h3 id={'fr-heading-' + flag.id}>{field.label}</h3></div>
    <Tag color={flag.status === 'VERIFIED' ? 'green' : awaiting ? 'purple' : 'orange'}>{STATUS_LABEL[flag.status]}</Tag></div>
   <p className="fr-current">Current warehouse value <strong>{formatValue(values.currentValue, field)}</strong></p>
-  <div className="fr-comment"><small>{flag.createdBy || 'Admin not recorded'} · {time(flag.createdAt)}</small>{flag.comment}</div>
+  <div className="fr-comment"><small>{flag.createdBy || 'Reviewer not recorded'} · {time(flag.createdAt)}</small>{flag.comment}</div>
   {flag.valuesMasked && <Button size="small" style={{
       marginTop: 10
     }} onClick={() => setRevealOpen(true)}>{revealed ? 'Reveal latest values' : 'Reveal protected values'}</Button>}
@@ -181,13 +181,13 @@ export default function ReviewField({
             explanation: e.target.value
           })} placeholder="Explain what you checked and with whom…" />
    </div></div>
-   <div className="fr-actions"><p>The admin verifies before this flag closes.</p><div className="fr-row">
+   <div className="fr-actions"><p>A reviewer verifies before this flag closes.</p><div className="fr-row">
     <Button type="primary" loading={busy} disabled={disabled || staleDraft} onClick={submit}>Submit for verification</Button></div></div>
   </>}
   {awaiting && !review.canVerify && <>
    <div className="fr-values fr-two-values">{valueCard('Value checked', values.baselineValue)}
-    {valueCard(flag.resolution === 'NO_CHANGE' ? 'No change needed' : 'Proposed value', values.proposedValue, 'Awaiting admin verification')}</div>
-   <p>{flag.explanation}</p>{flag.conflict && <p className="fr-help">The live value changed after your response. The admin will compare the values before deciding.</p>}
+    {valueCard(flag.resolution === 'NO_CHANGE' ? 'No change needed' : 'Proposed value', values.proposedValue, 'Awaiting reviewer verification')}</div>
+   <p>{flag.explanation}</p>{flag.conflict && <p className="fr-help">The live value changed after your response. A reviewer will compare the values before deciding.</p>}
   </>}
   {awaiting && review.canVerify && <>
    {flag.conflict && <Alert type="warning" showIcon message="The value changed while verification was pending." description="Compare Baseline, Proposed and Current, then choose which value to use." />}
@@ -228,7 +228,7 @@ export default function ReviewField({
   </>}
   {flag.status === 'VERIFIED' && <>
    <div className="fr-actions"><strong>{formatValue(values.finalValue, field)}</strong><Tag color="green">{outcome}</Tag></div>
-   <p>{flag.explanation}</p>{flag.decisionReason && <p>Admin reason: {flag.decisionReason}</p>}
+   <p>{flag.explanation}</p>{flag.decisionReason && <p>Reviewer reason: {flag.decisionReason}</p>}
    <p className="fr-help">Verified by {flag.decidedBy} · {time(flag.decidedAt)}</p>
    {review.canVerify && <Button disabled={disabled || busy} onClick={() => onDraft({
         reopening: true
