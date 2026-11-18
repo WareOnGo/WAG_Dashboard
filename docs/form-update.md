@@ -12,11 +12,11 @@ Scout and dashboard forms capture magnitudes separately from units, then save th
 - Unchanged legacy strings, ranges, totals and missing fields remain saveable. Scout restores existing drafts and uploaded media. Cards, details and PPTs respect explicitly stored units.
 - Controls match the existing layout, with joined number/unit inputs and dimensions arranged for mobile. Browser checks cover 320px, 390px and 1280px.
 
-## Compatible rollout
+## Required answers
 
-The updated UI requires Land Type and a non-empty Google Location on new submissions. Changed values on existing records cannot be cleared. Google pin verification and submission-time geocoding are deferred, so saving does not depend on Google availability.
+The UI and API always require the PPT v3 answers on new dashboard and Scout submissions, including Land Type and Google Location. Existing blank fields may stay blank; saved answers cannot be cleared. Google pin verification and submission-time geocoding are deferred, so saving does not depend on Google availability.
 
-Deploy the compatible backend before these frontends. Keep `WAREHOUSE_FORM_REQUIREMENTS_ENFORCED` unset or `false` so older open forms can still submit missing values. Set it to `true` later, after older clients migrate, to enable server enforcement. There is no automatic expiry or record-age flag. Avoid forcing a refresh during entry: unfinished dashboard edits are not persisted across reloads.
+Release the backend with both frontends; there is no environment switch to enable. Older clients cannot create incomplete records and must reload to supply the original-answer snapshot on edits. Let users finish or copy unfinished entries before refreshing: dashboard edits are not persisted across reloads. See the backend's `docs/form-rollout.md` for the complete required-field and conflict-handling contract.
 
 ## Validation
 

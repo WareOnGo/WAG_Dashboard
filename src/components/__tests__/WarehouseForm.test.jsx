@@ -15,8 +15,8 @@ const record = {
   WarehouseProximity: [],
 };
 const field = label => {
-  const node = screen.getByText((_, element) => ['LABEL', 'LEGEND'].includes(element.tagName)
-    && element.textContent.replace(/\s*\*\s*$/, '').trim() === label);
+  const node = screen.getByText((_, element) => element.textContent.replace(/\s*\*\s*$/, '').trim() === label,
+    { selector: 'label, legend' });
   return node.parentElement.querySelector('input[data-field]') || node.parentElement.querySelector('input, textarea, select, [role="switch"]');
 };
 const change = (label, value) => fireEvent.change(field(label), { target: { value } });
@@ -252,6 +252,7 @@ describe('WarehouseForm current fields and payload', () => {
     expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
+  // Filling every mandatory field renders the real form repeatedly under jsdom and coverage.
   it('submits a new warehouse with the default area and derived zone', async () => {
     const { props } = open();
     change('Listing Type', 'Rent');
@@ -267,6 +268,16 @@ describe('WarehouseForm current fields and payload', () => {
     change('Land Type', 'Warehouse CLU');
     change('Google Location URL', 'https://www.google.com/maps?q=12.9,77.6');
     change('Compliances', 'Fire Safety');
+    for (const [label, value] of [['Clear Height', '30'], ['Plinth Height', '0'], ['Floor Strength', '5'],
+      ['Number of Docks', '0'], ['Flooring Type', 'VDF'], ['Canopy Type', 'None'],
+      ['Fire NOC Available', 'No'], ['Fire Safety Measures', 'None']]) change(label, value);
+    fireEvent.click(screen.getByLabelText('As per requirement'));
+    fireEvent.change(screen.getByLabelText('Male washrooms'), { target: { value: '0' } });
+    fireEvent.click(screen.getByLabelText('Ventilation Type options'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'None' }));
+    fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
+    fireEvent.change(screen.getByLabelText('Handover lead time'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Handover unit'), { target: { value: 'Weeks' } });
     await submit();
     await waitFor(() => expect(props.onSubmit).toHaveBeenCalledTimes(1));
     expect(props.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
@@ -275,7 +286,7 @@ describe('WarehouseForm current fields and payload', () => {
       suitableFor: [], googleLocation: 'https://www.google.com/maps?q=12.9,77.6',
       warehouseData: expect.objectContaining({ latitude: null, longitude: null }),
     }));
-  });
+  }, 45000);
 
   it('submits edited values and preserves coordinate precision', async () => {
     const { props } = open({ initialData: {

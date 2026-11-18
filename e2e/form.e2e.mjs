@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { startServer } from './server.mjs';
+import { completePptForm } from '../src/test/pptFormFixture.js';
 let server;
 const field = (page, label) => page.getByLabel(new RegExp('^' + label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:\\s*\\*)?$'));
 const data = (page, key) => page.locator(`[data-field="${key}"]`);
@@ -50,16 +51,17 @@ async function searchSubmissions(page, text) {
   // Search ranks related matches too; select the intended record by its owner.
 }
 
-test('an older open dashboard can submit without newly required fields during rollout', async ({ request }) => {
+test('an older open dashboard cannot create an incomplete new warehouse', async ({ request }) => {
   const response = await request.post(`${server.url}/api/warehouses`, { data: {
     listing_type: 'Rent', warehouseType: 'PEB', address: 'Older dashboard client', city: 'New Delhi', state: 'Delhi',
     contactPerson: 'QA owner', contactNumber: '9876543210', totalSpaceSqft: [10000], compliances: 'CLU', ratePerSqft: '25',
     warehouseData: { landType: null }, googleLocation: null,
   } });
-  expect(response.status()).toBe(201);
-  const result = await response.json();
-  const stored = await server.prisma.stagedWarehouse.findUnique({ where: { id: result.submissionId } });
-  expect(stored).toMatchObject({ googleLocation: null, landType: null, uploadedBy: 'dashboard@example.test' });
+  expect(response.status()).toBe(400);
+  expect((await response.json()).details.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({ path: ['googleLocation'] }), expect.objectContaining({ path: ['clearHeightFt'] }),
+  ]));
+  expect(await server.prisma.stagedWarehouse.count({ where: { address: 'Older dashboard client' } })).toBe(0);
 });
 
 for (const width of [320, 390, 1280]) {
@@ -154,6 +156,12 @@ for (const width of [320, 390, 1280]) {
       await field(page, 'Ridge').check(); await field(page, 'Turbo').check();
       await field(page, 'Ventilation Air Changes/Day').fill('4');
       await field(page, 'Setback Area').fill('5m on all sides');
+      await data(page, 'numberOfDocks').fill('0');
+      await data(page, 'fireNocAvailable').selectOption('No');
+      await data(page, 'fireSafetyMeasures').fill('None');
+      await page.getByLabel('Handover mode').selectOption('Variable');
+      await page.getByLabel('Handover lead time').fill('2');
+      await page.getByLabel('Handover unit').selectOption('Weeks');
       await noOverflow(page);
       await data(page, 'dimensions').scrollIntoViewIfNeeded();
       await page.screenshot({ path: test.info().outputPath(`dashboard-measurements-${width}.png`) });
@@ -229,6 +237,27 @@ test('new required fields, invalid numbers and partial dimensions block saving',
   expect(await server.prisma.stagedWarehouse.count()).toBe(before);
 });
 
+test('a saved warehouse rejects cleared specifications and accepts valid replacements', async ({ page, request }) => {
+  await server.settings.setAutoApprove(true);
+  const response = await request.post(`${server.url}/api/warehouses`, { data: completePptForm() });
+  expect(response.status()).toBe(201);
+  const { warehouseId } = await response.json();
+  await page.goto(`${server.url}/?id=${warehouseId}`);
+  await data(page, 'clearHeightFt').fill('');
+  await data(page, 'fireNocAvailable').selectOption('');
+  await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
+  await expect(data(page, 'clearHeightFt')).toHaveAttribute('aria-invalid', 'true');
+  await expect(data(page, 'fireNocAvailable')).toHaveAttribute('aria-invalid', 'true');
+  expect(await server.prisma.warehouse.findUnique({ where: { id: warehouseId }, include: { WarehouseData: true } }))
+    .toMatchObject({ clearHeightFt: '30 feet', WarehouseData: { fireNocAvailable: false } });
+  await data(page, 'clearHeightFt').fill('35');
+  await data(page, 'fireNocAvailable').selectOption('Yes');
+  await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
+  await expect(page.getByTestId('receipt')).toBeVisible();
+  expect(await server.prisma.warehouse.findUnique({ where: { id: warehouseId }, include: { WarehouseData: true } }))
+    .toMatchObject({ clearHeightFt: '35 feet', WarehouseData: { fireNocAvailable: true } });
+});
+
 test('legacy review can save unrelated edits and reject an incomplete draft', async ({ page }) => {
   const legacy = await server.prisma.stagedWarehouse.create({ data: {
     address: 'Legacy form QA', city: 'New Delhi', state: 'Delhi', warehouseType: 'PEB', listing_type: 'Rent',
@@ -259,4 +288,73 @@ test('legacy review can save unrelated edits and reject an incomplete draft', as
     uploadedBy: 'original@example.test', dimensions: null, landType: null, googleLocation: null,
     clearHeightFt: '20–25 feet', washroom_count: '5 total', builtup_area: '10000', carpet_area: '120 sqm', land_parcel_size: '400 m²', nearest_transport: 'Old stop', setbackArea: '5m on all sides',
   });
+});
+
+for (const pending of [false, true]) for (const changed of [false, true]) {
+  test(`two open forms preserve newer power answers and report intentional conflicts (staged=${pending}, edited=${changed})`, async ({ page, request }) => {
+    await server.settings.setAutoApprove(!pending);
+    const fixture = completePptForm();
+    fixture.address = `Concurrent power ${pending} ${changed}`;
+    fixture.contactPerson = `Concurrent owner ${pending} ${changed}`;
+    fixture.warehouseData.powerKva = '100 kVA';
+    const created = await request.post(`${server.url}/api/warehouses`, { data: fixture });
+    expect(created.status()).toBe(201);
+    const { warehouseId, submissionId } = await created.json();
+    const endpoint = pending ? `/api/staging/${submissionId}` : `/api/warehouses/${warehouseId}`;
+    const readPower = async () => pending
+      ? (await server.prisma.stagedWarehouse.findUniqueOrThrow({ where: { id: submissionId } })).powerKva
+      : (await server.prisma.warehouseData.findUniqueOrThrow({ where: { warehouseId } })).powerKva;
+    const openEditor = async editor => {
+      await editor.goto(pending ? `${server.url}/?review` : `${server.url}/?id=${warehouseId}`);
+      if (pending) {
+        await searchSubmissions(editor, fixture.address);
+        await reviewButton(editor, fixture.contactPerson).click();
+      }
+      await expect(data(editor, 'powerKva')).toHaveValue('100');
+    };
+    const save = async editor => {
+      const response = editor.waitForResponse(response => new URL(response.url()).pathname === endpoint
+        && ['PUT', 'PATCH'].includes(response.request().method()));
+      await editor.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
+      return response;
+    };
+    const other = await page.context().newPage();
+    other.on('pageerror', error => page.formErrors.push(error.message));
+    await other.route('**/*', route => new URL(route.request().url()).origin === server.url ? route.continue() : route.abort());
+    try {
+      await openEditor(page); await openEditor(other);
+      await data(other, 'powerKva').fill('200');
+      expect((await save(other)).ok()).toBe(true);
+      await field(page, 'Address').fill(`${fixture.address} edited`);
+      if (changed) await data(page, 'powerKva').fill('300');
+      const response = await save(page);
+      if (changed) {
+        expect(response.status()).toBe(409);
+        expect(await response.json()).toMatchObject({ code: 'FORM_FIELDS_CHANGED' });
+        await expect(page.getByText(/Warehouse details changed while this form was open/)).toBeVisible();
+        await expect(data(page, 'powerKva')).toHaveValue('300');
+      } else expect(response.ok()).toBe(true);
+      expect(await readPower()).toBe('200 kVA');
+    } finally { await other.close(); }
+  });
+}
+
+test('a legacy warehouse without a details row can fill answers, while partial washroom clearing stays blocked', async ({ page, request }) => {
+  await server.settings.setAutoApprove(true);
+  const created = await request.post(`${server.url}/api/warehouses`, { data: { ...completePptForm(), washroom_count: 'Male: 3; Female: 2' } });
+  expect(created.status()).toBe(201);
+  const { warehouseId } = await created.json();
+  await server.prisma.warehouseData.deleteMany({ where: { warehouseId } });
+  await page.goto(`${server.url}/?id=${warehouseId}`);
+  await data(page, 'powerKva').fill('100');
+  await data(page, 'fireNocAvailable').selectOption('No');
+  await data(page, 'washroom_count').fill('');
+  await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
+  await expect(page.getByText('Male washroom count cannot be cleared.', { exact: true }).first()).toBeVisible();
+  expect(await server.prisma.warehouseData.count({ where: { warehouseId } })).toBe(0);
+  await data(page, 'washroom_count').fill('0');
+  await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
+  await expect(page.getByTestId('receipt')).toBeVisible();
+  expect(await server.prisma.warehouse.findUniqueOrThrow({ where: { id: warehouseId }, include: { WarehouseData: true } }))
+    .toMatchObject({ washroom_count: 'Male: 0; Female: 2', WarehouseData: { powerKva: '100 kVA', fireNocAvailable: false } });
 });

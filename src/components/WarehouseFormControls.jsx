@@ -271,23 +271,23 @@ export function OfferedAreaInput({ value, onChange, mobile, disabled = false, id
 }
 
 // Labels match the normal form; callers translate the stored enums at the edge.
-export function HandoverInput({ value, onChange, mobile, disabled = false, labelPrefix = 'Handover' }) {
+export function HandoverInput({ value, onChange, mobile, disabled = false, labelPrefix = 'Handover', errors = {}, required = false }) {
   return <div role="group" aria-label={labelPrefix} style={{ display: 'flex', flexDirection: mobile ? 'column' : 'row', gap: 8 }}>
     <div style={{ width: mobile ? '100%' : 120, flexShrink: 0 }}>
-      <SelectInput mobile={mobile} disabled={disabled} aria-label={`${labelPrefix} mode`}
+      <SelectInput mobile={mobile} disabled={disabled} data-field="handoverType" aria-invalid={Boolean(errors.handoverType)} aria-label={`${labelPrefix} mode`}
         value={value.handoverType} onChange={v => onChange('handoverType', v)} options={HANDOVER_TYPE_OPTIONS} placeholder="Mode" />
     </div>
     {value.handoverType === 'Variable' ? <div style={{ display: 'flex', gap: 8, flex: 1, minWidth: 0 }}>
       <div style={{ width: mobile ? '40%' : 90, flexShrink: 0 }}>
-        <TextInput mobile={mobile} disabled={disabled} aria-label={`${labelPrefix} lead time`} inputMode="numeric"
+        <TextInput mobile={mobile} disabled={disabled} aria-required={required || undefined} aria-invalid={Boolean(errors.handoverLeadValue)} aria-label={`${labelPrefix} lead time`} inputMode="numeric"
           value={value.handoverLeadValue} onChange={v => onChange('handoverLeadValue', v)} placeholder="2" data-field="handoverLeadValue" />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <SelectInput mobile={mobile} disabled={disabled} aria-label={`${labelPrefix} unit`} value={value.handoverLeadUnit}
+        <SelectInput mobile={mobile} disabled={disabled} data-field="handoverLeadUnit" aria-required={required || undefined} aria-invalid={Boolean(errors.handoverLeadUnit)} aria-label={`${labelPrefix} unit`} value={value.handoverLeadUnit}
           onChange={v => onChange('handoverLeadUnit', v)} options={HANDOVER_UNIT_OPTIONS} placeholder="Unit" />
       </div>
     </div> : <div style={{ flex: 1, minWidth: 0 }}>
-      <DateInput mobile={mobile} disabled={disabled} aria-label={`${labelPrefix} date`} value={value.handoverDate}
+      <DateInput mobile={mobile} disabled={disabled} data-field="handoverDate" aria-required={required || undefined} aria-invalid={Boolean(errors.handoverDate)} aria-label={`${labelPrefix} date`} value={value.handoverDate}
         onChange={v => onChange('handoverDate', v)} />
     </div>}
   </div>;
