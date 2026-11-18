@@ -65,6 +65,42 @@ test('an older open dashboard can submit without newly required fields during ro
 for (const width of [320, 390, 1280]) {
   test.describe(`dashboard at ${width}px`, () => {
     test.use({ viewport: { width, height: 850 }, isMobile: width < 768, hasTouch: width < 768 });
+    test('rejection stays above successive submission forms and supports cancel and retry', async ({ page }) => {
+      const submissions = [];
+      for (const index of [1, 2]) submissions.push(await server.prisma.stagedWarehouse.create({ data: {
+        address: `Repeated rejection ${width} ${index}`, city: 'New Delhi', state: 'Delhi', warehouseType: 'PEB', listing_type: 'Rent',
+        contactPerson: `Rejection owner ${width} ${index}`, contactNumber: '9876543210', totalSpaceSqft: [1000],
+        uploadedBy: 'original@example.test', submittedBy: 'original@example.test', source: 'PARTNER_API', reviewStatus: 'PENDING'
+      } }));
+      await page.goto(`${server.url}/?review`);
+      for (const submission of submissions) {
+        await reviewButton(page, submission.contactPerson).click();
+        await data(page, 'dimensions').fill('10'); // Reject an incomplete submission without saving its draft.
+        const rejectButton = page.locator('.warehouse-form-modal').getByRole('button', { name: /(?:^| )Reject$/ });
+        await rejectButton.click();
+        const dialog = page.getByRole('dialog', { name: 'Reject this submission?', exact: true });
+        const reason = dialog.getByRole('textbox', { name: 'Reason for rejection', exact: true });
+        await expect.poll(() => reason.evaluate(element => {
+          const rect = element.getBoundingClientRect();
+          return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+        })).toBe(true);
+        await reason.fill('The site details are incomplete.');
+        await reason.press('Escape');
+        await expect(dialog).not.toBeVisible();
+        await expect(rejectButton).toBeFocused();
+        await rejectButton.click();
+        await reason.fill('The site details are incomplete.');
+        await page.route('**/api/staging/*/reject', route => route.fulfill({ status: 503,
+          json: { error: 'Rejection unavailable. Please retry.' } }), { times: 1 });
+        await dialog.getByRole('button', { name: 'Reject', exact: true }).click();
+        await expect(dialog.getByRole('alert').filter({ hasText: 'Service temporarily unavailable' })).toBeVisible();
+        await expect(reason).toHaveValue('The site details are incomplete.');
+        await dialog.getByRole('button', { name: 'Reject', exact: true }).click();
+        await expect(dialog).not.toBeVisible();
+        await expect(page.locator('.warehouse-form-modal')).not.toBeVisible();
+        expect((await server.prisma.stagedWarehouse.findUnique({ where: { id: submission.id } })).reviewStatus).toBe('REJECTED');
+      }
+    });
     test('create, review, approve and reopen all structured fields through the real API', async ({ page }) => {
       const address = `Dashboard unit QA ${width}`;
       await create(page, address);

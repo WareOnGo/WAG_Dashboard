@@ -533,8 +533,10 @@ const ReviewQueue = () => {
         reviewActions={editFooterActions}
       />
 
-      <Modal
+      {/* Scope the rejection portal to its form, including repeated reviews. */}
+      {editingRow && <Modal
         open={!!rejection}
+        destroyOnHidden
         title="Reject this submission?"
         okText="Reject"
         okButtonProps={{ danger: true }}
@@ -562,7 +564,7 @@ const ReviewQueue = () => {
           style={{ marginTop: 8 }}
         />
         {rejectionError && <div id={rejectionErrorId} role="alert" style={{ marginTop: 8, color: 'var(--text-danger)' }}>{rejectionError}</div>}
-      </Modal>
+      </Modal>}
 
       {/* APPROVED/REJECTED → read-only details modal; move-to-pending in footer */}
       <WarehouseDetailsModal

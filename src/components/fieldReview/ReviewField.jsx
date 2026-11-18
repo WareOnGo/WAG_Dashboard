@@ -43,6 +43,7 @@ export default function ReviewField({
   draft,
   onDraft,
   onAction,
+  actionError,
   busy,
   disabled = false,
   locationState
@@ -241,6 +242,7 @@ export default function ReviewField({
    <p>This changes only <strong>{field.label}</strong> and closes its flag.</p>
    <div className="fr-values fr-two-values">{valueCard('Current', values.currentValue)}{valueCard('Replace with ' + (draft.choice === 'BASELINE' ? 'baseline' : 'proposed'), selected)}</div>
    <p><strong>Reason:</strong> {draft.reason}</p><p>The current value will be checked again when you confirm.</p>
+   {draft.confirming && actionError && <Alert role="alert" type="error" showIcon message={actionError} />}
   </Modal>
   <Modal title="Reopen this field?" open={!!draft.reopening} okText="Reopen flag" confirmLoading={busy} okButtonProps={{ disabled }} onCancel={() => onDraft({
       reopening: false
@@ -248,6 +250,7 @@ export default function ReviewField({
       version: flag.version
     })}>
    Start a new response against the current live value. Earlier verification stays in history. If this warehouse has another active review, the field joins that review and uses its current assignee.
+   {draft.reopening && actionError && <Alert role="alert" type="error" showIcon message={actionError} />}
   </Modal>
   <Modal title="Reveal protected review values" open={revealOpen} confirmLoading={revealing} okText="Reveal values" onCancel={() => setRevealOpen(false)} onOk={reveal}><label className="fr-label" htmlFor={'fr-reveal-' + flag.id}>Reason for access *</label>
    <Input.TextArea id={'fr-reveal-' + flag.id} value={revealReason} maxLength={500} onChange={e => setRevealReason(e.target.value)} />

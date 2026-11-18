@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Alert, App, Button, Spin } from 'antd';
 import { useAuth } from '../../contexts/AuthContext';
 import { fieldReviewService } from '../../services/fieldReviewService';
@@ -48,7 +48,7 @@ export default function FieldReviewDialog({
     } = App.useApp();
   const [review, setReview] = useState(null),
     [loading, setLoading] = useState(false),
-    [error, setError] = useState('');
+    [error, setError] = useState(null);
   const [tab, setTab] = useState('flags'),
     [drafts, setDrafts] = useState({}),
     [busy, setBusy] = useState(null);
@@ -63,7 +63,8 @@ export default function FieldReviewDialog({
     target = useRef(null),
     readGeneration = useRef(0),
     writing = useRef(null);
-  const scope = key + ':' + !!user?.isAdmin + ':' + open;
+  // Reopening the same review is a new session: old promises must not match it.
+  const scope = useMemo(() => ({ key, admin: user?.isAdmin, open }), [key, user?.isAdmin, open]);
   target.current = scope;
   useEffect(() => {
     target.current = scope;
@@ -73,7 +74,7 @@ export default function FieldReviewDialog({
     const generation = ++readGeneration.current;
     const current = () => !signal?.aborted && target.current === scope && generation === readGeneration.current;
     setLoading(true);
-    setError('');
+    setError(null);
     try {
       const r = await fieldReviewService.detail(reviewId, signal);
       if (!current()) return;
@@ -81,7 +82,7 @@ export default function FieldReviewDialog({
       setAssignee(r.assigneeId);
     } catch (e) {
       if (current()) {
-        setError(e.message);
+        setError({ message: e.message });
         if (e.response?.status === 403) setReview(null);
       }
     } finally {
@@ -97,8 +98,11 @@ export default function FieldReviewDialog({
   useEffect(() => {
     setReview(null);
     setBusy(null);
+    setEventsLoading(false);
     setTab('flags');
-    setDrafts(sessionDrafts.get(key) || {});
+    // Preserve entered text, but require a new explicit confirmation on reopen.
+    setDrafts(Object.fromEntries(Object.entries(sessionDrafts.get(key) || {}).map(([id, draft]) =>
+      [id, { ...draft, confirming: false, reopening: false }])));
     scroll.current = {
       flags: 0,
       details: 0
@@ -124,6 +128,7 @@ export default function FieldReviewDialog({
     });
   };
   const switchTab = next => {
+    if (busy) return;
     const body = document.querySelector(tab === 'details' ? '.warehouse-details-modal .responsive-modal__body' : '.fr-modal .responsive-modal__body');
     if (body) scroll.current[tab] = body.scrollTop;
     if (next === 'details' && !review?.warehouse) return;
@@ -138,8 +143,8 @@ export default function FieldReviewDialog({
       switchTab(e.key === 'Home' ? 'flags' : e.key === 'End' ? 'details' : tab === 'flags' ? 'details' : 'flags');
     }
   }}>
-  <button role="tab" aria-selected={tab === 'flags'} onClick={() => switchTab('flags')}>Flagged fields {review?.flags.length ?? ''}</button>
-  <button role="tab" aria-selected={tab === 'details'} disabled={!review?.warehouse} onClick={() => switchTab('details')}>All details</button>
+  <button role="tab" aria-selected={tab === 'flags'} disabled={!!busy} onClick={() => switchTab('flags')}>Flagged fields {review?.flags.length ?? ''}</button>
+  <button role="tab" aria-selected={tab === 'details'} disabled={!!busy || !review?.warehouse} onClick={() => switchTab('details')}>All details</button>
  </div>;
   const action = async (method, flag, body) => {
     if (writing.current === scope) return;
@@ -147,7 +152,7 @@ export default function FieldReviewDialog({
     ++readGeneration.current;
     setLoading(false);
     setBusy(flag.id);
-    setError('');
+    setError(null);
     try {
       const result = await fieldReviewService[method](review.id, flag.id, body);
       if (target.current !== scope) return;
@@ -177,7 +182,8 @@ export default function FieldReviewDialog({
         });
         await load();
       }
-      setError(e.message);
+      if (target.current !== scope) return;
+      setError({ message: e.message, flagId: flag.id });
     } finally {
       if (writing.current === scope) writing.current = null;
       if (target.current === scope) setBusy(null);
@@ -189,7 +195,7 @@ export default function FieldReviewDialog({
     ++readGeneration.current;
     setLoading(false);
     setBusy('assignee');
-    setError('');
+    setError(null);
     try {
       const r = await fieldReviewService.reassign(review.id, {
         version: review.version,
@@ -203,24 +209,28 @@ export default function FieldReviewDialog({
     } catch (e) {
       if (target.current !== scope) return;
       if ([403, 409].includes(e.response?.status)) await load();
-      setError(e.message);
+      if (target.current === scope) setError({ message: e.message });
     } finally {
       if (writing.current === scope) writing.current = null;
       if (target.current === scope) setBusy(null);
     }
   };
   const moreEvents = async () => {
+    if (writing.current === scope || eventsLoading) return;
+    const generation = readGeneration.current;
+    const current = () => target.current === scope && generation === readGeneration.current;
     setEventsLoading(true);
     try {
       const r = await fieldReviewService.events(review.id, review.nextEventCursor);
-      if (target.current !== scope) return;
-      setReview(old => ({
+      // A newer snapshot owns both the events and its pagination cursor.
+      if (!current()) return;
+      setReview(old => old ? ({
         ...old,
         events: [...new Map([...old.events, ...r.events].map(event => [event.id, event])).values()],
         nextEventCursor: r.nextEventCursor
-      }));
+      }) : old);
     } catch (e) {
-      if (target.current === scope) setError(e.message);
+      if (current()) setError({ message: e.message });
     } finally {
       if (target.current === scope) setEventsLoading(false);
     }
@@ -236,13 +246,13 @@ export default function FieldReviewDialog({
   }}><span>{active} active {active === 1 ? 'flag' : 'flags'} · Live values change only after verification.</span><Button disabled={!!busy} onClick={onClose}>Back to queue</Button></div>;
   return <>
   <ResponsiveModal visible={open && tab === 'flags'} onClose={() => !busy && onClose()} title={review ? 'Warehouse #' + review.warehouseId + ' · ' + (review.canVerify ? 'Verify responses' : 'Flagged fields') : 'Field review'} className="fr-modal" maxWidth={review?.canVerify ? '1120px' : '900px'} footer={footer}>
-   {tabs}{error && <Alert type="error" showIcon role="alert" message={error} action={<Button size="small" disabled={!!busy} onClick={() => load()}>Refresh</Button>} />}
+   {tabs}{error && <Alert type="error" showIcon role="alert" message={error.message} action={<Button size="small" disabled={!!busy} onClick={() => load()}>Refresh</Button>} />}
    {loading && !review ? <div className="fr-empty"><Spin /><p>Loading review…</p></div> : review && <>
     {review.deleted && <Alert type="warning" message="This warehouse was deleted. Its review history is retained; further changes are disabled." />}
     {!review.deleted && !review.closedAt && review.assigneeCanRespond === false && <Alert type="warning" message="The assigned employee can no longer edit this warehouse. An admin must restore their access or reassign the review." />}
     <p className="fr-summary-count">Assigned to {review.assignee?.name || 'Employee unavailable'} · {active} active · {review.flags.length - active} closed</p>
     <div className={review.canVerify ? 'fr-layout' : ''}><div className="fr-fields">
-     {review.flags.map(flag => <ReviewField key={flag.id} review={review} flag={flag} locationState={locationState} draft={draftFor(flag, drafts[flag.id])} onDraft={patch => setDraft(flag, patch)} onAction={action} busy={busy === flag.id} disabled={review.deleted || !!busy} />)}
+     {review.flags.map(flag => <ReviewField key={flag.id} review={review} flag={flag} locationState={locationState} draft={draftFor(flag, drafts[flag.id])} onDraft={patch => setDraft(flag, patch)} onAction={action} actionError={error?.flagId === flag.id ? error.message : ''} busy={busy === flag.id} disabled={review.deleted || !!busy} />)}
     </div>{review.canVerify && <aside className="fr-aside"><h3>Review ownership</h3>
      <label className="fr-label" htmlFor="fr-detail-assignee">Assigned employee</label>
      <select id="fr-detail-assignee" className="fr-input" value={assignee} disabled={!!busy || review.deleted || !!review.closedAt} onChange={e => setAssignee(e.target.value)}>
@@ -255,7 +265,7 @@ export default function FieldReviewDialog({
             }}>Flagged by</h3><p className="fr-help">{review.createdBy}</p><p className="fr-help">{new Date(review.createdAt).toLocaleString('en-IN')}</p>
     </aside>}</div>
     <details className="fr-events"><summary>Review activity and earlier responses</summary>
-     <ReviewActivity events={review.events} flags={review.flags} people={review.assignees || [review.assignee].filter(Boolean)} />{review.nextEventCursor && <Button loading={eventsLoading} onClick={moreEvents}>Load earlier activity</Button>}
+     <ReviewActivity events={review.events} flags={review.flags} people={review.assignees || [review.assignee].filter(Boolean)} />{review.nextEventCursor && <Button loading={eventsLoading} disabled={!!busy} onClick={moreEvents}>Load earlier activity</Button>}
     </details>
     {review.cycles?.length > 1 && <div><label className="fr-label" htmlFor="fr-cycle">Other review cycles for this warehouse</label>
      <select id="fr-cycle" className="fr-input" disabled={!!busy} value={review.id} onChange={e => onReviewIdChange?.(e.target.value)}>

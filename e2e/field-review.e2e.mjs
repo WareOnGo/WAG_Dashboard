@@ -47,6 +47,136 @@ for (const width of [1280, 390]) test.describe('field review at ' + width + 'px'
     isMobile: width < 768,
     hasTouch: width < 768
   });
+  test('can flag blank handover and status on successive warehouses without reloading', async ({ page }) => {
+    const first = await server.db.warehouse.update({ where: { id: 4821 }, data: {
+      handoverType: 'FIXED', handoverDate: null, handoverLeadValue: null, handoverLeadUnit: null, status: null
+    } });
+    await server.db.warehouse.create({ data: { ...first, id: 4822 } });
+    // Use the production dashboard: it retains the selected warehouse when its
+    // details close. The simpler fixture dashboard clears it and hid this bug.
+    await page.route(url => url.origin === server.url && url.pathname === '/api/warehouses', async route => {
+      const response = await route.fetch({ url: server.url + '/api/fixture/warehouses' });
+      const rows = await response.json();
+      await route.fulfill({ json: { data: rows, pagination: { page: 1, limit: 20, total: rows.length, totalPages: 1 } } });
+    });
+    await page.goto(server.url + '/dashboard-reference?role=admin');
+    let createRequests = 0;
+    page.on('request', request => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/field-reviews') createRequests++;
+    });
+    for (const warehouseId of [4821, 4822]) {
+      const card = page.locator('.simple-warehouse-card').filter({
+        has: page.getByRole('button', { name: 'Copy warehouse ID ' + warehouseId, exact: true })
+      });
+      await card.getByRole('button', { name: /View$/ }).click();
+      await page.getByRole('button', { name: 'Flag for review (beta)', exact: true }).click();
+      for (const label of ['Handover', 'Status']) {
+        await page.getByRole('checkbox', { name: 'Flag ' + label, exact: true }).check();
+        await page.getByRole('textbox', { name: 'Review comment for ' + label, exact: true }).fill('Confirm the missing ' + label.toLowerCase() + '.');
+      }
+      await page.getByRole('button', { name: 'Review flags', exact: true }).click();
+      const confirmation = page.getByRole('dialog', { name: 'Confirm flags for warehouse #' + warehouseId, exact: true });
+      const submit = confirmation.getByRole('button', { name: 'Confirm & flag for review', exact: true });
+      await expect(submit).toBeVisible();
+      // Visibility alone passes even when the entire dialog is covered.
+      await expect.poll(() => submit.evaluate(button => {
+        const rect = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+      })).toBe(true);
+      await confirmation.getByLabel('Assign review to').focus();
+      await expect(confirmation.getByLabel('Assign review to')).toBeFocused();
+      await confirmation.getByRole('button', { name: 'Back to fields', exact: true }).click();
+      await expect(confirmation).not.toBeVisible();
+      await expect(page.getByRole('button', { name: 'Review flags', exact: true })).toBeFocused();
+      await expect(page.getByRole('textbox', { name: 'Review comment for Handover', exact: true })).toHaveValue('Confirm the missing handover.');
+      await page.getByRole('button', { name: 'Review flags', exact: true }).click();
+      await submit.click();
+      await expect(confirmation).not.toBeVisible();
+      const flags = await server.db.warehouseFieldFlag.findMany({ where: { warehouseId }, select: { fieldKey: true, originalValue: true } });
+      expect(flags.map(flag => flag.fieldKey).sort()).toEqual(['handover', 'status']);
+      expect(flags.find(flag => flag.fieldKey === 'status').originalValue).toBeNull();
+      expect(flags.find(flag => flag.fieldKey === 'handover').originalValue.handoverDate).toBeNull();
+      await page.locator('.warehouse-details-modal').getByRole('button', { name: 'Close', exact: true }).click();
+      await expect(page.locator('.warehouse-details-modal')).not.toBeVisible();
+    }
+    expect(createRequests).toBe(2);
+  });
+  test('nested verification failures stay visible and can be retried after reopening', async ({ page }) => {
+    const admin = { email: 'admin@wareongo.com' }, employee = { email: 'employee@wareongo.com' };
+    let review = await server.service.create({ requestId: randomUUID(), warehouseId: 4821,
+      fields: [{ key: 'totalSpaceSqft', comment: 'Confirm usable area.' }, { key: 'contactNumber', comment: 'Confirm the contact.' }]
+    }, admin);
+    let areaFlag = review.flags.find(item => item.fieldKey === 'totalSpaceSqft');
+    review = await server.service.respond(review.id, areaFlag.id, { requestId: randomUUID(), version: areaFlag.version,
+      baselineVersion: areaFlag.currentVersion, resolution: 'CORRECTION', proposedValue: [48000], explanation: 'Owner confirmed.' }, employee);
+    await server.db.warehouse.update({ where: { id: 4821 }, data: { totalSpaceSqft: [52000] } });
+    await page.goto(server.url + '/field-reviews?role=admin&review=' + review.id);
+    const area = flag(page, 'Offered Area (sq ft)');
+    await area.getByRole('radio', { name: /Apply proposed/ }).check();
+    await area.getByLabel('Why replace the current value? *').fill('Owner reconfirmed the correction.');
+    await area.getByRole('button', { name: 'Review replacement', exact: true }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Confirm replacement of the current value', exact: true });
+    await page.route('**/flags/*/decision', route => route.fulfill({ status: 503,
+      json: { error: { message: 'Verification is temporarily unavailable. Please retry.' } } }), { times: 1 });
+    await confirmation.getByRole('button', { name: 'Confirm replacement & close', exact: true }).click();
+    await expect(confirmation.getByRole('alert')).toContainText('Verification is temporarily unavailable. Please retry.');
+    expect((await server.db.warehouse.findUnique({ where: { id: 4821 } })).totalSpaceSqft).toEqual([52000]);
+    await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(area.getByRole('button', { name: /Review replacement$/ })).toBeFocused();
+    await expect(area.getByRole('button', { name: /Review replacement$/ })).not.toHaveClass(/ant-btn-loading/);
+    await page.getByRole('tab', { name: 'All details', exact: true }).click();
+    await page.getByRole('tab', { name: /Flagged fields/ }).click();
+    await expect(area.getByLabel('Why replace the current value? *')).toHaveValue('Owner reconfirmed the correction.');
+    await area.getByRole('button', { name: 'Review replacement', exact: true }).click();
+    await confirmation.getByRole('button', { name: 'Confirm replacement & close', exact: true }).click();
+    await expect(confirmation).not.toBeVisible();
+    await expect(area.getByText('Verified & closed', { exact: true })).toBeVisible();
+    expect((await server.db.warehouse.findUnique({ where: { id: 4821 } })).totalSpaceSqft).toEqual([48000]);
+    await page.getByRole('button', { name: 'Back to queue', exact: true }).click();
+    await page.getByText(/^Awaiting employee \(/).click();
+    await page.getByRole('button', { name: 'Review flags', exact: true }).click();
+    await area.getByRole('button', { name: 'Reopen flag', exact: true }).click();
+    const reopening = page.getByRole('dialog', { name: 'Reopen this field?', exact: true });
+    await page.route('**/flags/*/reopen', route => route.fulfill({ status: 503,
+      json: { error: { message: 'Reopening is temporarily unavailable. Please retry.' } } }), { times: 1 });
+    const reopenButton = reopening.getByRole('button', { name: /Reopen flag$/ });
+    await reopenButton.click();
+    await expect(reopening.getByRole('alert')).toContainText('Reopening is temporarily unavailable. Please retry.');
+    await expect(reopenButton).not.toHaveClass(/ant-btn-loading/);
+    await reopenButton.click();
+    await expect(reopening).not.toBeVisible();
+    await expect(area.getByText('Needs response', { exact: true })).toBeVisible();
+  });
+  test('protected-value prompts remain usable across cancel, tab switches and request failure', async ({ page }) => {
+    const review = await server.service.create({ requestId: randomUUID(), warehouseId: 4821,
+      fields: [{ key: 'contactNumber', comment: 'Confirm the contact.' }] }, { email: 'admin@wareongo.com' });
+    await page.goto(server.url + '/field-reviews?role=admin&review=' + review.id);
+    const contact = flag(page, 'Contact Number');
+    const reveal = page.getByRole('dialog', { name: 'Reveal protected review values', exact: true });
+    await contact.getByRole('button', { name: 'Reveal protected values', exact: true }).click();
+    await reveal.getByLabel('Reason for access *').fill('Confirm the owner for this review.');
+    await reveal.getByLabel('Reason for access *').press('Escape');
+    await expect(reveal).not.toBeVisible();
+    await expect(contact.getByRole('button', { name: 'Reveal protected values', exact: true })).toBeFocused();
+    await page.getByRole('tab', { name: 'All details', exact: true }).click();
+    await page.locator('.warehouse-details-modal').getByRole('button', { name: 'Show Number' }).click();
+    const phone = page.getByRole('dialog', { name: 'Reveal contact number' });
+    await phone.getByRole('textbox', { name: 'Reason for revealing' }).fill('Warehouse audit.');
+    await phone.getByRole('textbox', { name: 'Reason for revealing' }).press('Escape');
+    await expect(phone).not.toBeVisible();
+    await expect(page.locator('.warehouse-details-modal').getByRole('button', { name: 'Show Number' })).toBeFocused();
+    await page.getByRole('tab', { name: /Flagged fields/ }).click();
+    await contact.getByRole('button', { name: 'Reveal protected values', exact: true }).click();
+    await reveal.getByLabel('Reason for access *').fill('Confirm the owner for this review.');
+    await page.route('**/flags/*/reveal', route => route.fulfill({ status: 503,
+      json: { error: { message: 'Reveal unavailable. Please retry.' } } }), { times: 1 });
+    await reveal.getByRole('button', { name: 'Reveal values', exact: true }).click();
+    await expect(reveal).toContainText('Reveal unavailable. Please retry.');
+    await expect(reveal.getByLabel('Reason for access *')).toHaveValue('Confirm the owner for this review.');
+    await reveal.getByRole('button', { name: 'Reveal values', exact: true }).click();
+    await expect(reveal).not.toBeVisible();
+    await expect(contact).toContainText('+919999999999');
+  });
   test('dashboard filters and pagination work across the assigned queue', async ({ page }) => {
     const template = await server.db.warehouse.findUnique({ where: { id: 4821 } });
     for (let index = 1; index <= 21; index++) {

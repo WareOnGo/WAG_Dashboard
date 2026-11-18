@@ -117,7 +117,9 @@ export default function useFieldReviewCreation({
    <div className="fr-row"><Button onClick={cancel}>Cancel flagging</Button><Button type="primary" disabled={!selected.length} onClick={review}>Review flags</Button></div></> : <Button icon={<FlagOutlined aria-hidden="true" />} loading={loading} onClick={start}>Flag for review (beta)</Button>}
   {error && !confirm && <Alert type="error" message={error} showIcon />}
  </div> : null;
-  const summary = <Modal title={'Confirm flags for warehouse #' + warehouse?.id} open={!!canCreate && visible && confirm} onCancel={() => !saving && setConfirm(false)} width={820} footer={<div className="fr-row fr-end"><Button disabled={saving} onClick={() => setConfirm(false)}>Back to fields</Button>
+  // Keep the confirmation within this details session. Let Modal finish closing
+  // so it restores keyboard focus, then remove its portal before the next use.
+  const summary = canCreate && visible ? <Modal title={'Confirm flags for warehouse #' + warehouse?.id} open={confirm} destroyOnHidden onCancel={() => !saving && setConfirm(false)} width={820} footer={<div className="fr-row fr-end"><Button disabled={saving} onClick={() => setConfirm(false)}>Back to fields</Button>
    <Button type="primary" loading={saving} disabled={!eligibleAssignee} onClick={submit}>Confirm & flag for review</Button></div>}>
   <p>The employee will propose a correction or explain why no change is needed. Each response requires admin verification.</p>
   <div className="fr-table-scroll"><table className="fr-summary"><thead><tr><th>Field</th><th>Current value</th><th>Review comment</th></tr></thead>
@@ -131,7 +133,7 @@ export default function useFieldReviewCreation({
   </select><p className="fr-help">{setup?.existingReviewId ? 'Keeps the current review’s assignee. Change ownership from its review screen.' : 'Defaults to the original uploader: ' + (setup?.uploader || 'Unknown') + '. Admin can change this.'}</p>
   {setup?.existingReviewId && !eligibleAssignee && <Alert type="warning" showIcon message="The current assignee cannot respond to this warehouse." description={<a href={'/field-reviews?review=' + setup.existingReviewId}>Open the existing review to change its assignee.</a>} />}
   {error && <Alert role="alert" type="error" message={error} showIcon />}
- </Modal>;
+ </Modal> : null;
   return {
     toolbar,
     summary,

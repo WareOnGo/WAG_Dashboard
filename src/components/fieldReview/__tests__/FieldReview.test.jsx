@@ -124,6 +124,139 @@ it.each([false, true])('clears a saved admin choice when Current changed on reop
   expect(fieldReviewService.decide).not.toHaveBeenCalled();
 });
 
+it('keeps decision text but does not resurrect a confirmation after closing the preview', async () => {
+  const r = review(true, { status: 'AWAITING_ADMIN', conflict: true, currentVersion: 1,
+    baselineValue: [50000], currentValue: [52000], proposedValue: [48000], resolution: 'CORRECTION',
+    replacementRequired: { CURRENT: false, PROPOSED: true, BASELINE: true },
+  });
+  fieldReviewService.detail.mockResolvedValue(r);
+  function Preview() {
+    const [open, setOpen] = useState(true);
+    return <><button onClick={() => setOpen(value => !value)}>Toggle preview</button><FieldReviewDialog open={open} reviewId={r.id} onClose={() => setOpen(false)} /></>;
+  }
+  mount(<Preview />, true);
+  fireEvent.click(await screen.findByRole('radio', { name: /Apply proposed/ }));
+  fireEvent.change(screen.getByLabelText('Why replace the current value? *'), { target: { value: 'Owner reconfirmed this correction.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review replacement' }));
+  await screen.findByRole('dialog', { name: 'Confirm replacement of the current value' });
+  fireEvent.click(screen.getByText('Toggle preview'));
+  fireEvent.click(screen.getByText('Toggle preview'));
+  await waitFor(() => expect(fieldReviewService.detail).toHaveBeenCalledTimes(2));
+  expect(await screen.findByLabelText('Why replace the current value? *')).toHaveValue('Owner reconfirmed this correction.');
+  expect(screen.queryByRole('dialog', { name: 'Confirm replacement of the current value' })).not.toBeInTheDocument();
+  expect(fieldReviewService.decide).not.toHaveBeenCalled();
+});
+
+it('ignores a late write from an earlier opening of the same review', async () => {
+  const r = review();
+  let finishResponse;
+  fieldReviewService.respond.mockImplementationOnce(() => new Promise(resolve => { finishResponse = resolve; }));
+  fieldReviewService.detail.mockResolvedValueOnce(r).mockResolvedValue({ ...r,
+    flags: [{ ...r.flags[0], status: 'VERIFIED', version: 2, currentVersion: 1,
+      currentValue: [48000], finalValue: [48000], decision: 'PROPOSED', explanation: 'Latest verified outcome.' }]
+  });
+  function Preview() {
+    const [open, setOpen] = useState(true);
+    return <><button onClick={() => setOpen(value => !value)}>Toggle preview</button><FieldReviewDialog open={open} reviewId={r.id} onClose={() => setOpen(false)} /></>;
+  }
+  mount(<Preview />);
+  fireEvent.change(await screen.findByLabelText('Proposed Offered Area (sq ft)'), { target: { value: '48000' } });
+  fireEvent.change(screen.getByLabelText('Verification note *'), { target: { value: 'Owner confirmed.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Submit for verification' }));
+  await waitFor(() => expect(fieldReviewService.respond).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('tab', { name: 'All details' })).toBeDisabled();
+  fireEvent.click(screen.getByText('Toggle preview'));
+  fireEvent.click(screen.getByText('Toggle preview'));
+  await screen.findByText('Latest verified outcome.');
+  await act(async () => finishResponse({ ...r, flags: [{ ...r.flags[0], status: 'AWAITING_ADMIN', version: 1,
+    explanation: 'Older response snapshot.', baselineValue: [50000], proposedValue: [48000] }] }));
+  expect(screen.getByText('Latest verified outcome.')).toBeInTheDocument();
+  expect(screen.queryByText('Older response snapshot.')).not.toBeInTheDocument();
+});
+
+it.each(['respond', 'reassign'])('ignores a late conflict refresh from an earlier %s attempt', async method => {
+  const r = { ...review(method === 'reassign'), assignees: people, assigneeId: 2 };
+  let finishRefresh;
+  fieldReviewService.detail.mockResolvedValueOnce(r)
+    .mockImplementationOnce(() => new Promise(resolve => { finishRefresh = resolve; })).mockResolvedValue(r);
+  fieldReviewService[method].mockRejectedValueOnce(Object.assign(new Error('An earlier session had a conflict.'), { response: { status: 409 } }));
+  function Preview() {
+    const [open, setOpen] = useState(true);
+    return <><button onClick={() => setOpen(value => !value)}>Toggle preview</button><FieldReviewDialog open={open} reviewId={r.id} onClose={() => setOpen(false)} /></>;
+  }
+  mount(<Preview />, method === 'reassign');
+  if (method === 'respond') {
+    fireEvent.click(await screen.findByRole('button', { name: 'No change needed' }));
+    fireEvent.change(screen.getByLabelText('How did you verify this? *'), { target: { value: 'Owner confirmed.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit for verification' }));
+  } else {
+    fireEvent.change(await screen.findByLabelText('Assigned employee'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Update assignee' }));
+  }
+  await waitFor(() => expect(finishRefresh).toBeTypeOf('function'));
+  fireEvent.click(screen.getByText('Toggle preview'));
+  fireEvent.click(screen.getByText('Toggle preview'));
+  await waitFor(() => expect(fieldReviewService.detail).toHaveBeenCalledTimes(3));
+  await act(async () => finishRefresh(r));
+  expect(screen.queryByText('An earlier session had a conflict.')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Back to queue' })).toBeEnabled();
+});
+
+it('resets activity loading and ignores earlier results after reopening the same review', async () => {
+  const r = review(false, {});
+  r.nextEventCursor = 'older-page';
+  let finishEvents;
+  fieldReviewService.events.mockImplementationOnce(() => new Promise(resolve => { finishEvents = resolve; })).mockResolvedValue({ events: [], nextEventCursor: null });
+  fieldReviewService.detail.mockResolvedValueOnce(r).mockResolvedValue({ ...r, nextEventCursor: 'fresh-page' });
+  function Preview() {
+    const [open, setOpen] = useState(true);
+    return <><button onClick={() => setOpen(value => !value)}>Toggle preview</button><FieldReviewDialog open={open} reviewId={r.id} onClose={() => setOpen(false)} /></>;
+  }
+  mount(<Preview />);
+  fireEvent.click(await screen.findByText('Review activity and earlier responses'));
+  fireEvent.click(screen.getByRole('button', { name: 'Load earlier activity' }));
+  fireEvent.click(screen.getByText('Toggle preview'));
+  fireEvent.click(screen.getByText('Toggle preview'));
+  await waitFor(() => expect(fieldReviewService.detail).toHaveBeenCalledTimes(2));
+  fireEvent.click(await screen.findByText('Review activity and earlier responses'));
+  expect(screen.getByRole('button', { name: /Load earlier activity$/ })).not.toHaveClass('ant-btn-loading');
+  await act(async () => finishEvents({ events: [], nextEventCursor: null }));
+  fireEvent.click(screen.getByRole('button', { name: 'Load earlier activity' }));
+  await waitFor(() => expect(fieldReviewService.events).toHaveBeenLastCalledWith(r.id, 'fresh-page'));
+});
+
+it.each(['response', 'permission change'])('ignores an older activity page after a newer %s', async outcome => {
+  const r = { ...review(), nextEventCursor: 'old-page' };
+  let finishEvents;
+  fieldReviewService.events.mockImplementationOnce(() => new Promise(resolve => { finishEvents = resolve; }))
+    .mockResolvedValue({ events: [], nextEventCursor: null });
+  fieldReviewService.detail.mockResolvedValueOnce(r);
+  if (outcome === 'response') {
+    fieldReviewService.respond.mockResolvedValueOnce({ ...r, nextEventCursor: 'fresh-page',
+      flags: [{ ...r.flags[0], status: 'AWAITING_ADMIN', version: 1, baselineValue: [50000], proposedValue: [50000],
+        resolution: 'NO_CHANGE', explanation: 'Owner confirmed.' }] });
+  } else {
+    const denied = Object.assign(new Error('Review access was removed.'), { response: { status: 403 } });
+    fieldReviewService.respond.mockRejectedValueOnce(denied);
+    fieldReviewService.detail.mockRejectedValueOnce(denied);
+  }
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />);
+  fireEvent.click(await screen.findByText('Review activity and earlier responses'));
+  fireEvent.click(screen.getByRole('button', { name: 'Load earlier activity' }));
+  fireEvent.click(screen.getByRole('button', { name: 'No change needed' }));
+  fireEvent.change(screen.getByLabelText('How did you verify this? *'), { target: { value: 'Owner confirmed.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Submit for verification' }));
+  await screen.findByText(outcome === 'response' ? 'Awaiting admin' : 'Review access was removed.');
+  await act(async () => finishEvents({ events: [], nextEventCursor: null }));
+  if (outcome === 'response') {
+    fireEvent.click(screen.getByRole('button', { name: 'Load earlier activity' }));
+    await waitFor(() => expect(fieldReviewService.events).toHaveBeenLastCalledWith(r.id, 'fresh-page'));
+  } else {
+    expect(screen.getByRole('alert')).toHaveTextContent('Review access was removed.');
+    expect(screen.queryByRole('article')).not.toBeInTheDocument();
+  }
+});
+
 it('discards flagging setup and confirmation when the admin identity changes', async () => {
   fieldReviewService.setup.mockResolvedValue({ fields: [{ ...field, value: [50000] }], assignees: people,
     defaultAssigneeId: 2, uploader: 'Employee One', activeFields: [],
