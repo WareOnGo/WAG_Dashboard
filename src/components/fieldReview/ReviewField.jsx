@@ -3,6 +3,7 @@ import { Alert, Button, Input, Modal, Tag } from 'antd';
 import { fieldReviewService } from '../../services/fieldReviewService';
 import FieldValueInput from './FieldValueInput';
 import { formatValue, fromInput, isActiveFlag, STATUS_LABEL } from './values';
+import MediaReviewValue from './MediaReviewValue';
 const time = value => value ? new Date(value).toLocaleString('en-IN') : '';
 function EditHistory({
   reviewId,
@@ -28,10 +29,13 @@ function EditHistory({
   }, [open, reviewId, flag.id, flag.currentVersion, retry]);
   if (!flag.hasEditHistory) return <p className="fr-help">No edit history available.</p>;
   const rows = revealed?.history || items;
+  const historyValue = (value, entry) => entry.partLabel ? formatValue(value, { key: entry.fieldKey })
+    : flag.field.type === 'media' ? <MediaReviewValue value={value} /> : formatValue(value, flag.field);
   return <details open={open} onToggle={e => setOpen(e.currentTarget.open)}><summary>Edit history</summary>
   {error ? <><p role="alert">{error}</p><Button size="small" onClick={() => setRetry(n => n + 1)}>Retry history</Button></> : !rows ? <p>Loading history…</p> : rows.length ? rows.map(e => <div className="fr-history-entry" key={e.id}>
     {e.partLabel && <small>{e.partLabel} · recorded field</small>}
-    <span>Before: {formatValue(e.oldValue, flag.field)}</span><strong>After: {formatValue(e.newValue, flag.field)}</strong>
+    <div>Before: {historyValue(e.oldValue, e)}</div>
+    <div>After: {historyValue(e.newValue, e)}</div>
     <small>{e.actorEmail || 'Editor not recorded'} · {time(e.createdAt)}</small><small>{e.source}</small>
    </div>) : <p>No edit history available.</p>}
   {rows?.length >= 100 && <p className="fr-help">Showing the latest 100 recorded edits.</p>}
@@ -49,6 +53,7 @@ export default function ReviewField({
   locationState
 }) {
   const [localError, setLocalError] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [revealReason, setRevealReason] = useState(''),
     [revealOpen, setRevealOpen] = useState(false);
   const [revealed, setRevealed] = useState(null),
@@ -66,7 +71,8 @@ export default function ReviewField({
   const cancelled = flag.status === 'CANCELLED';
   const canCancel = review.canVerify && !review.closedAt && isActiveFlag(flag);
   const staleDraft = canEdit && draft.baselineVersion !== flag.currentVersion;
-  const valueCard = (label, value, help, history = false) => <div className="fr-value"><span>{label}</span><strong>{formatValue(value, field)}</strong>
+  const showValue = value => field.type === 'media' ? <MediaReviewValue value={value} /> : <strong>{formatValue(value, field)}</strong>;
+  const valueCard = (label, value, help, history = false) => <div className="fr-value"><span>{label}</span>{showValue(value)}
   {help && <small>{help}</small>}{history && <EditHistory reviewId={review.id} flag={flag} revealed={activeReveal} />}</div>;
   const reveal = async () => {
     if (revealReason.trim().length < 3) {
@@ -85,6 +91,7 @@ export default function ReviewField({
     }
   };
   const submit = async () => {
+    if (uploading) return;
     setLocalError('');
     if (!draft.explanation.trim()) {
       setLocalError('Explain what you checked before submitting.');
@@ -150,7 +157,7 @@ export default function ReviewField({
   return <article className="fr-field" data-status={flag.status} aria-labelledby={'fr-heading-' + flag.id}>
   <div className="fr-field-head"><div><span className="fr-section">{field.section}</span><h3 id={'fr-heading-' + flag.id}>{field.label}</h3></div>
    <Tag color={flag.status === 'VERIFIED' ? 'green' : cancelled ? 'default' : awaiting ? 'purple' : 'orange'}>{STATUS_LABEL[flag.status]}</Tag></div>
-  <p className="fr-current">Current warehouse value <strong>{formatValue(values.currentValue, field)}</strong></p>
+  <div className="fr-current">Current warehouse value {showValue(values.currentValue)}</div>
   <div className="fr-comment"><small>{flag.createdBy || 'Reviewer not recorded'} · {time(flag.createdAt)}</small>{flag.comment}</div>
   {flag.valuesMasked && <Button size="small" style={{
       marginTop: 10
@@ -171,7 +178,8 @@ export default function ReviewField({
         })}>No change needed</button>
    </div>
    <div className="fr-editor"><div><label className="fr-label" htmlFor={'fr-proposal-' + flag.id}>{draft.resolution === 'NO_CHANGE' ? 'Value being verified' : 'Proposed ' + field.label}</label>
-    {draft.resolution === 'NO_CHANGE' ? <p>{formatValue(values.currentValue, field)}</p> : <FieldValueInput id={'fr-proposal-' + flag.id} field={field} value={draft.proposed} warehouse={{ ...review.warehouse, state: locationState ?? review.warehouse?.state }} disabled={disabled || busy} onChange={proposed => onDraft({
+    {draft.resolution === 'NO_CHANGE' ? <div>{showValue(values.currentValue)}</div> : <FieldValueInput id={'fr-proposal-' + flag.id} field={field} value={draft.proposed} warehouse={{ ...review.warehouse, state: locationState ?? review.warehouse?.state }} disabled={disabled || busy}
+      requestPresignedUrl={contentType => fieldReviewService.upload(review.id, flag.id, contentType)} onUploadingChange={setUploading} onChange={proposed => onDraft({
             proposed
           })} />}
     <p className="fr-help">{field.type === 'integerList' ? 'Keep the order of floors or spaces. Add a separate value for each area.' : 'Warehouse values remain unchanged until verification.'}</p>
@@ -184,7 +192,7 @@ export default function ReviewField({
           })} placeholder="Explain what you checked and with whom…" />
    </div></div>
    <div className="fr-actions"><p>A reviewer verifies before this flag closes.</p><div className="fr-row">
-    <Button type="primary" loading={busy} disabled={disabled || staleDraft} onClick={submit}>Submit for verification</Button></div></div>
+    <Button type="primary" loading={busy} disabled={disabled || staleDraft || uploading} onClick={submit}>{uploading ? 'Uploading files…' : 'Submit for verification'}</Button></div></div>
   </>}
   {awaiting && !review.canVerify && <>
    <div className="fr-values fr-two-values">{valueCard('Value checked', values.baselineValue)}
@@ -195,6 +203,7 @@ export default function ReviewField({
    {flag.conflict && <Alert type="warning" showIcon message="The value changed while verification was pending." description="Compare Baseline, Proposed and Current, then choose which value to use." />}
    {field.type === 'availabilityReview' && <p className="fr-help">Availability and Last reviewed are verified together. Your choice applies both values.</p>}
    {field.type === 'handover' && <p className="fr-help">Your choice applies the selected timing type. Saved values for the other timing type stay unchanged.</p>}
+   {field.type === 'media' && <p className="fr-help">Your choice applies the complete media section shown below.</p>}
    <div className={'fr-values ' + (!flag.conflict ? 'fr-two-values' : '')}>
     {flag.conflict && valueCard('Baseline', values.baselineValue, 'Value the employee checked')}
     {valueCard(flag.resolution === 'NO_CHANGE' ? 'Proposed · no change needed' : 'Proposed', values.proposedValue, 'Employee’s submitted response')}
@@ -229,7 +238,7 @@ export default function ReviewField({
      <Button type="primary" disabled={disabled || masked} loading={busy} onClick={() => verify()}>{flag.resolution === 'NO_CHANGE' ? 'Verify & close' : 'Approve & close'}</Button></div></div>}
   </>}
   {flag.status === 'VERIFIED' && <>
-   <div className="fr-actions"><strong>{formatValue(values.finalValue, field)}</strong><Tag color="green">{outcome}</Tag></div>
+   <div className="fr-actions">{showValue(values.finalValue)}<Tag color="green">{outcome}</Tag></div>
    <p>{flag.explanation}</p>{flag.decisionReason && <p>Reviewer reason: {flag.decisionReason}</p>}
    <p className="fr-help">Verified by {flag.decidedBy} · {time(flag.decidedAt)}</p>
   </>}
@@ -245,7 +254,7 @@ export default function ReviewField({
   {localError && <Alert role="alert" type="error" showIcon message={localError} />}
   <Modal title="Confirm replacement of the current value" open={!!draft.confirming} onCancel={() => !busy && onDraft({
       confirming: false
-    })} confirmLoading={busy} okButtonProps={{ disabled }} okText="Confirm replacement & close" onOk={() => verify(true)}>
+    })} confirmLoading={busy} okButtonProps={{ disabled, 'aria-label': 'Confirm replacement & close', 'aria-busy': !!busy }} okText="Confirm replacement & close" onOk={() => verify(true)}>
    <p>This changes only <strong>{field.label}</strong> and closes its flag.</p>
    <div className="fr-values fr-two-values">{valueCard('Current', values.currentValue)}{valueCard('Replace with ' + (draft.choice === 'BASELINE' ? 'baseline' : 'proposed'), selected)}</div>
    <p><strong>Reason:</strong> {draft.reason}</p><p>The current value will be checked again when you confirm.</p>
@@ -253,7 +262,7 @@ export default function ReviewField({
   </Modal>
   <Modal title={'Cancel review for ' + field.label + '?'} open={canCancel && !!draft.cancelling}
     okText="Cancel flag" cancelText="Keep flag" confirmLoading={busy}
-    okButtonProps={{ danger: true, disabled: disabled || !draft.cancellationReason?.trim() }}
+    okButtonProps={{ danger: true, disabled: disabled || !draft.cancellationReason?.trim(), 'aria-label': 'Cancel flag', 'aria-busy': !!busy }}
     cancelButtonProps={{ disabled: busy }} closable={!busy} maskClosable={!busy}
     onCancel={() => !busy && onDraft({ cancelling: false })}
     onOk={() => draft.cancellationReason?.trim() && onAction('cancel', flag, { version: flag.version, reason: draft.cancellationReason.trim() })}>
@@ -264,7 +273,7 @@ export default function ReviewField({
      onChange={e => onDraft({ cancellationReason: e.target.value })} />
    {draft.cancelling && actionError && <Alert role="alert" type="error" showIcon message={actionError} />}
   </Modal>
-  <Modal title="Reopen this field?" open={!!draft.reopening} okText="Reopen flag" confirmLoading={busy} okButtonProps={{ disabled }} onCancel={() => onDraft({
+  <Modal title="Reopen this field?" open={!!draft.reopening} okText="Reopen flag" confirmLoading={busy} okButtonProps={{ disabled, 'aria-label': 'Reopen flag', 'aria-busy': !!busy }} onCancel={() => onDraft({
       reopening: false
     })} onOk={() => onAction('reopen', flag, {
       version: flag.version
@@ -272,7 +281,9 @@ export default function ReviewField({
    Start a new response against the current live value. Earlier decisions and cancellation reasons stay in history. If this warehouse has another active review, the field joins that review and uses its current assignee.
    {draft.reopening && actionError && <Alert role="alert" type="error" showIcon message={actionError} />}
   </Modal>
-  <Modal title="Reveal protected review values" open={revealOpen} confirmLoading={revealing} okText="Reveal values" onCancel={() => setRevealOpen(false)} onOk={reveal}><label className="fr-label" htmlFor={'fr-reveal-' + flag.id}>Reason for access *</label>
+  <Modal title="Reveal protected review values" open={revealOpen} confirmLoading={revealing} okText="Reveal values"
+   okButtonProps={{ 'aria-label': 'Reveal values', 'aria-busy': revealing, disabled: revealing }}
+   onCancel={() => setRevealOpen(false)} onOk={reveal}><label className="fr-label" htmlFor={'fr-reveal-' + flag.id}>Reason for access *</label>
    <Input.TextArea id={'fr-reveal-' + flag.id} value={revealReason} maxLength={500} onChange={e => setRevealReason(e.target.value)} />
    <p className="fr-help">This access is recorded in the review history.</p>{localError && <Alert type="error" message={localError} />}
   </Modal>

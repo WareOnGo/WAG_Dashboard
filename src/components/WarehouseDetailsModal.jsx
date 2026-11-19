@@ -715,6 +715,9 @@ const WarehouseDetailsModal = ({
             {col(<Field label="Status Updated At" mobile={m}><TextValue mobile={m} value={formatIST(warehouse.status_updated_at)} /></Field>, true)}
           </>)}
 
+          <Field fieldKey="media" label="Media section" mobile={m}>
+            <p className="fr-help">{hasMedia ? `${imageUrls.length} images · ${videoUrls.length} videos · ${docUrls.length} documents` : 'No media uploaded'}</p>
+          </Field>
           {!hasMedia && (
             <Field label="Uploaded Files" mobile={m}>
               <TextValue mobile={m} value="-" />

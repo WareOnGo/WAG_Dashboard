@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Upload, Button, Progress, Typography, Image, Card, Row, Col } from 'antd';
 import {
   DeleteOutlined, EyeOutlined, PlusOutlined,
@@ -90,27 +90,42 @@ const EMPTY_MEDIA = { images: [], videos: [], docs: [] };
  *   maxSize  : number (MB, default 50)
  *   imageRecords : stored image variants for existing media previews
  */
-const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageRecords }) => {
+const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageRecords,
+  requestPresignedUrl = warehouseService.getPresignedUrl, onUploadingChange, maxFiles = Infinity }) => {
   // Per-file upload tracking: Map<id, { name, progress, status }>
   const [activeUploads, setActiveUploads] = useState(new Map());
   const [media, setMedia] = useState(EMPTY_MEDIA);
+  const mediaRef = useRef(EMPTY_MEDIA), mounted = useRef(false), requests = useRef(new Set()), pending = useRef(0);
+  useEffect(() => {
+    mounted.current = true;
+    const active = requests.current;
+    return () => { mounted.current = false; active.forEach(xhr => xhr.abort()); };
+  }, []);
+  useEffect(() => {
+    onUploadingChange?.(activeUploads.size > 0);
+    return () => onUploadingChange?.(false);
+  }, [activeUploads.size, onUploadingChange]);
   const { isMobile } = useViewport();
   const { handleUploadError, showSuccessMessage, showErrorMessage } = useErrorHandler();
 
   // Sync from prop
   useEffect(() => {
     if (value && typeof value === 'object') {
-      setMedia({
+      const next = {
         images: value.images || [],
         videos: value.videos || [],
         docs: value.docs || [],
-      });
+      };
+      mediaRef.current = next;
+      setMedia(next);
     } else {
+      mediaRef.current = EMPTY_MEDIA;
       setMedia(EMPTY_MEDIA);
     }
   }, [value]);
 
   const notify = useCallback((next) => {
+    mediaRef.current = next;
     setMedia(next);
     if (onChange) onChange(next);
   }, [onChange]);
@@ -136,12 +151,14 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
   // Upload one file to R2 via presigned URL
   const uploadFile = async (file, uploadId) => {
     const contentType = resolveMime(file);
-    const { uploadUrl, imageUrl } = await warehouseService.getPresignedUrl(contentType);
+    const { uploadUrl, imageUrl, instructions } = await requestPresignedUrl(contentType);
+    if (!mounted.current) throw new Error('Upload cancelled');
 
     updateUpload(uploadId, { progress: 10 });
 
     await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      requests.current.add(xhr);
       xhr.timeout = 120000; // 2 min for large videos
 
       xhr.upload.addEventListener('progress', (e) => {
@@ -155,9 +172,11 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
       });
       xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
       xhr.addEventListener('timeout', () => reject(new Error('Upload timeout')));
+      xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+      xhr.addEventListener('loadend', () => requests.current.delete(xhr));
 
       xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('Content-Type', contentType);
+      for (const [name, value] of Object.entries({ 'Content-Type': contentType, ...instructions?.headers })) xhr.setRequestHeader(name, value);
       xhr.send(file);
     });
 
@@ -166,9 +185,15 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
 
   // Process a single file — validate, upload, and add to media state
   const processFile = (file) => {
+    if (disabled) return;
     const category = classifyFile(file);
     if (!category) {
       showErrorMessage({ type: 'validation', message: `"${file.name}": Unsupported file type. Allowed: images, videos, PDFs, and Office documents.` });
+      return;
+    }
+    const count = Object.values(mediaRef.current).reduce((n, values) => n + values.length, 0);
+    if (count + pending.current >= maxFiles) {
+      showErrorMessage({ type: 'validation', message: `Keep at most ${maxFiles} files. Remove existing files to make room for new ones.` });
       return;
     }
 
@@ -178,6 +203,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
     }
 
     const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    pending.current++;
     setActiveUploads(prev => {
       const next = new Map(prev);
       next.set(uploadId, { name: file.name, progress: 0 });
@@ -186,19 +212,19 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
 
     uploadFile(file, uploadId)
       .then((url) => {
-        setMedia(prev => {
-          const next = { ...prev, [category]: [...prev[category], url] };
-          if (onChange) onChange(next);
-          return next;
-        });
+        if (!mounted.current) return;
+        const previous = mediaRef.current;
+        notify({ ...previous, [category]: [...previous[category], url] });
         showSuccessMessage('upload');
       })
       .catch((err) => {
+        if (!mounted.current) return;
         console.error('Upload failed:', err);
         handleUploadError(err, file.name);
       })
       .finally(() => {
-        removeUpload(uploadId);
+        pending.current--;
+        if (mounted.current) removeUpload(uploadId);
       });
   };
 
@@ -210,6 +236,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
   };
 
   const handleRemove = (category, urlToRemove) => {
+    if (disabled || uploading) return;
     const next = { ...media, [category]: media[category].filter(u => u !== urlToRemove) };
     notify(next);
   };
@@ -249,7 +276,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
                       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => handleRemove('images', url)}
                       style={{ color: 'var(--text-danger, #ff4d4f)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
-                      disabled={uploading}
+                      disabled={disabled || uploading}
                     />,
                   ]}
                 >
@@ -299,7 +326,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
                       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => handleRemove('videos', url)}
                       style={{ color: 'var(--text-danger, #ff4d4f)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
-                      disabled={uploading}
+                      disabled={disabled || uploading}
                     />,
                   ]}
                 >
@@ -343,7 +370,7 @@ const FileUpload = ({ value, onChange, disabled = false, maxSize = 50, imageReco
                       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.currentTarget.click(); } }}
                       onClick={() => handleRemove('docs', url)}
                       style={{ color: 'var(--text-danger, #ff4d4f)', fontSize: isMobile ? 18 : 14, padding: isMobile ? 8 : 4 }}
-                      disabled={uploading}
+                      disabled={disabled || uploading}
                     />,
                   ]}
                 >

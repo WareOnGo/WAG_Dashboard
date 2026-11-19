@@ -62,6 +62,7 @@ export const fieldReviewService = {
   reveal: (id, flag, reason) => unwrap(apiClient.post(flagPath(id, flag) + '/reveal', {
     reason
   })),
+  upload: (id, flag, contentType) => unwrap(apiClient.post(flagPath(id, flag) + '/upload', { contentType })),
   create: body => write('post', root, body),
   respond: (id, flag, body) => write('post', flagPath(id, flag) + '/response', body),
   decide: (id, flag, body) => write('post', flagPath(id, flag) + '/decision', body),

@@ -64,7 +64,18 @@ export async function startFieldReviewServer() {
   const {
     invalidateCapabilities
   } = backend('./src/utils/access');
-  const service = new FieldReviewService(db);
+  const uploadedFiles = new Map();
+  const service = new FieldReviewService(db, null, { generatePresignedUrl: async ({ contentType }) => {
+    const extension = contentType.startsWith('image/') ? 'jpg' : contentType.startsWith('video/') ? 'mp4' : 'pdf';
+    const file = randomBytes(8).toString('hex') + '.' + extension;
+    const origin = 'http://127.0.0.1:' + server.address().port;
+    return { uploadUrl: origin + '/fixture/upload/' + file, imageUrl: origin + '/fixture/media/' + file, fileName: file,
+      instructions: { headers: { 'Content-Type': contentType, 'If-None-Match': '*' } } };
+  }, getFileInfo: async fileName => {
+    const file = uploadedFiles.get(fileName);
+    if (!file) throw Object.assign(new Error('Fixture file not found'), { statusCode: 404 });
+    return { size: file.data.length, contentType: file.type };
+  } });
   const WarehouseController = backend('./src/controllers/warehouseController');
   const WarehouseService = backend('./src/services/warehouseService');
   const WarehouseModel = backend('./src/models/warehouseModel');
@@ -168,6 +179,18 @@ export async function startFieldReviewServer() {
     await seed();
     const app = express();
     app.use(express.json());
+    app.put('/fixture/upload/:file', express.raw({ type: () => true, limit: '50mb' }), (req, res) => {
+      if (req.headers['if-none-match'] !== '*') return res.sendStatus(403);
+      if (uploadedFiles.has(req.params.file)) return res.sendStatus(412);
+      uploadedFiles.set(req.params.file, { data: req.body, type: req.headers['content-type'] });
+      res.sendStatus(200);
+    });
+    app.get('/fixture/media/:file', (req, res) => {
+      const file = uploadedFiles.get(req.params.file);
+      if (file) return res.type(file.type).send(file.data);
+      if (req.params.file.endsWith('.pdf')) return res.type('application/pdf').send('%PDF-1.4\n%%EOF');
+      res.type('image/png').send(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR9sAAAAASUVORK5CYII=', 'base64'));
+    });
     app.get('/fixture/session/:role', (req, res) => {
       const isAdmin = req.params.role === 'admin',
         isReviewer = isAdmin || req.params.role === 'reviewer',

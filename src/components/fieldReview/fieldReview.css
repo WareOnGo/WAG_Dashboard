@@ -2,6 +2,10 @@
   color: var(--text-primary);
   width: 100%;
 }
+.fr-media-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 10px; max-height: 380px; overflow: auto; margin: 8px 0; min-width: 0; }
+.fr-media-file { min-width: 0; border: 1px solid var(--border-primary); border-radius: 8px; padding: 8px; background: var(--bg-card); }
+.fr-media-file img, .fr-media-file video { width: 100%; height: 110px; object-fit: contain; border-radius: 5px; }
+.fr-media-file a, .fr-media-file span { display: block; overflow-wrap: anywhere; font-size: 12px; }
 .fr-queue {
   padding: 24px;
 }

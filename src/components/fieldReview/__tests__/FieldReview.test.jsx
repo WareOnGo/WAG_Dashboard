@@ -9,7 +9,7 @@ import { toInput, formatValue } from '../values';
 import CardView from '../../CardView';
 import { fieldReviewService } from '../../../services/fieldReviewService';
 vi.mock('../../../services/fieldReviewService', () => ({
-  fieldReviewService: Object.fromEntries(['setup', 'detail', 'create', 'respond', 'decide', 'returnForChanges', 'reopen', 'cancel', 'reassign', 'history', 'events', 'summaries', 'reveal'].map(name => [name, vi.fn()]))
+  fieldReviewService: Object.fromEntries(['setup', 'detail', 'create', 'respond', 'decide', 'returnForChanges', 'reopen', 'cancel', 'reassign', 'history', 'events', 'summaries', 'reveal', 'upload'].map(name => [name, vi.fn()]))
 }));
 vi.mock('../../../services/imageLabelService', () => ({
   imageLabelService: {
@@ -944,3 +944,91 @@ it.each([[false, 'Verified · no change needed'], [true, 'Applied verified basel
     expect(await screen.findByText(label, { exact: true })).toBeInTheDocument();
   }
 );
+
+it.each([false, true])('flags only the complete media section in the existing View (empty=%s)', async empty => {
+  const image = 'https://media.example.test/front.jpg', doc = 'https://media.example.test/layout.pdf';
+  const media = { images: empty ? [] : [image], videos: [], docs: empty ? [] : [doc] };
+  const section = { key: 'media', label: 'Media section', section: 'Media', type: 'media', value: media };
+  fieldReviewService.setup.mockResolvedValue({ fields: [section], assignees: people, defaultAssigneeId: 2, activeFields: [] });
+  fieldReviewService.create.mockResolvedValue({});
+  mount(<WarehouseDetailsModal visible warehouse={{ ...warehouse, media }} onClose={() => {}} />, true);
+  fireEvent.click(screen.getByRole('button', { name: 'Flag for review (beta)' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Flag Media section', exact: true }));
+  expect(screen.getAllByRole('checkbox', { name: /^Flag / })).toHaveLength(1);
+  expect(screen.queryByRole('checkbox', { name: /Flag (Image|Video|Document)/ })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Review comment for Media section'), { target: { value: 'Add missing site photos.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review flags' }));
+  const summary = await screen.findByRole('dialog', { name: 'Confirm flags for warehouse #4821' });
+  if (empty) expect(within(summary).getByText('No media uploaded')).toBeInTheDocument();
+  else {
+    expect(within(summary).getAllByRole('img', { name: 'front.jpg' })).toHaveLength(1);
+    expect(within(summary).getAllByRole('link', { name: 'layout.pdf' })).toHaveLength(1);
+  }
+  fireEvent.click(within(summary).getByRole('button', { name: 'Confirm & flag for review' }));
+  await waitFor(() => expect(fieldReviewService.create).toHaveBeenCalledWith({ warehouseId: 4821, assigneeId: 2,
+    fields: [{ key: 'media', comment: 'Add missing site photos.' }],
+  }));
+});
+
+it('lets an employee edit the proposed gallery while retaining the live media in All details', async () => {
+  const url = 'https://media.example.test/front.jpg';
+  const media = { images: [url], videos: [], docs: [] };
+  const mediaField = { key: 'media', label: 'Media section', section: 'Media', type: 'media' };
+  const r = review(false, { field: mediaField, fieldKey: mediaField.key, currentValue: media, originalValue: media });
+  r.warehouse = { ...warehouse, media };
+  fieldReviewService.detail.mockResolvedValue(r);
+  fieldReviewService.respond.mockResolvedValue({ ...r, flags: [{ ...r.flags[0], status: 'AWAITING_ADMIN', version: 1,
+    proposedValue: { images: [], videos: [], docs: [] }, baselineValue: media,
+  }] });
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove file 1' }));
+  fireEvent.change(screen.getByLabelText('Verification note *'), { target: { value: 'This photo belongs to a different warehouse.' } });
+  fireEvent.click(screen.getByRole('tab', { name: 'All details' }));
+  const view = document.querySelector('.warehouse-details-modal');
+  expect(within(view).getByText('Images (1)', { exact: true })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('tab', { name: /Flagged fields/ }));
+  expect(screen.queryByRole('button', { name: 'Remove file 1' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Submit for verification' }));
+  await waitFor(() => expect(fieldReviewService.respond).toHaveBeenCalledWith(r.id, r.flags[0].id, {
+    version: 0, baselineVersion: 0, resolution: 'CORRECTION', proposedValue: { images: [], videos: [], docs: [] },
+    explanation: 'This photo belongs to a different warehouse.',
+  }));
+});
+
+it('shows the actual recorded legacy media values without presenting them as a full gallery', async () => {
+  const empty = { images: [], videos: [], docs: [] };
+  const r = review(true, { fieldKey: 'media', field: { key: 'media', label: 'Media section', section: 'Media', type: 'media' },
+    status: 'AWAITING_ADMIN', resolution: 'CORRECTION', conflict: true, hasEditHistory: true,
+    currentValue: empty, baselineValue: empty, proposedValue: empty });
+  fieldReviewService.detail.mockResolvedValue(r);
+  fieldReviewService.history.mockResolvedValue({ items: [{ id: 'legacy-photo-edit', fieldKey: 'photos', partLabel: 'Legacy photos',
+    oldValue: 'https://media.example.test/before.jpg', newValue: 'https://media.example.test/after.jpg', actorEmail: 'earlier@wareongo.com' }] });
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />, true);
+  const history = (await screen.findByText('Edit history')).closest('details');
+  fireEvent.click(within(history).getByText('Edit history'));
+  expect(await within(history).findByText('Before: https://media.example.test/before.jpg')).toBeInTheDocument();
+  expect(within(history).getByText('After: https://media.example.test/after.jpg')).toBeInTheDocument();
+  expect(within(history).getByText('Legacy photos · recorded field')).toBeInTheDocument();
+});
+
+it('keeps protected-value retry controls named and exposes their busy state after a failed reveal', async () => {
+  const r = review(true, { fieldKey: 'contactNumber', field: { key: 'contactNumber', label: 'Contact Number', type: 'text', sensitive: true },
+    valuesMasked: true, currentValue: '••••••9999' });
+  fieldReviewService.detail.mockResolvedValue(r);
+  let rejectReveal;
+  fieldReviewService.reveal.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectReveal = reject; }));
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />, true);
+  fireEvent.click(await screen.findByRole('button', { name: 'Reveal protected values' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Reveal protected review values' });
+  fireEvent.change(within(dialog).getByLabelText('Reason for access *'), { target: { value: 'Confirm the owner for this review.' } });
+  const button = within(dialog).getByRole('button', { name: 'Reveal values', exact: true });
+  fireEvent.click(button);
+  await waitFor(() => expect(button).toHaveAttribute('aria-busy', 'true'));
+  expect(button).toHaveAccessibleName('Reveal values');
+  expect(button).toBeDisabled();
+  await act(async () => rejectReveal(new Error('Reveal unavailable. Please retry.')));
+  expect(button).toHaveAccessibleName('Reveal values');
+  expect(button).toHaveAttribute('aria-busy', 'false');
+  expect(button).toBeEnabled();
+  expect(within(dialog).getByLabelText('Reason for access *')).toHaveValue('Confirm the owner for this review.');
+});

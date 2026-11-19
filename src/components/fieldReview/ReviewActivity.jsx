@@ -7,7 +7,8 @@ const actions = {
   RETURNED: 'Changes requested',
   REOPENED: 'Flag reopened',
   REASSIGNED: 'Assignee changed',
-  REVEALED: 'Protected values viewed'
+  REVEALED: 'Protected values viewed',
+  UPLOAD_PREPARED: 'Media upload prepared'
 };
 const decisions = {
   CURRENT: 'Kept current',

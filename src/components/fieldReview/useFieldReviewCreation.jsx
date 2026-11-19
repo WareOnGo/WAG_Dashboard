@@ -5,6 +5,7 @@ import AuthContext from '../../contexts/AuthContext';
 import { fieldReviewService } from '../../services/fieldReviewService';
 import { canManageFieldReviews, fieldReviewAccessKey } from '../../utils/fieldReviewPermissions';
 import { formatValue } from './values';
+import MediaReviewValue from './MediaReviewValue';
 import './fieldReview.css';
 export default function useFieldReviewCreation({
   warehouse,
@@ -127,7 +128,7 @@ export default function useFieldReviewCreation({
   <div className="fr-table-scroll" role="region" aria-label="Selected fields for review" tabIndex={0}><table className="fr-summary"><thead><tr><th scope="col">Field</th><th scope="col">Current value</th><th scope="col">Last edited by</th><th scope="col">Review comment</th></tr></thead>
    <tbody>{selected.map(key => {
             const f = setup?.fields.find(x => x.key === key);
-            return <tr key={key}><th scope="row">{f?.label}</th><td>{formatValue(f?.value, f)}</td><td>{f?.lastEditedBy || 'Not recorded'}</td><td>{comments[key]}</td></tr>;
+            return <tr key={key}><th scope="row">{f?.label}</th><td>{f?.type === 'media' ? <MediaReviewValue value={f.value} /> : formatValue(f?.value, f)}</td><td>{f?.lastEditedBy || 'Not recorded'}</td><td>{comments[key]}</td></tr>;
           })}</tbody></table></div>
   <label htmlFor="fr-new-assignee" className="fr-label">Assign review to</label>
   <select id="fr-new-assignee" className="fr-input" value={assignee} disabled={saving || !!setup?.existingReviewId} onChange={e => setAssignee(e.target.value)}>

@@ -5,6 +5,7 @@ import { suitableForLabel } from '../../utils/suitableFor';
 import { waterSupplyToLabel } from '../../utils/waterSupply';
 import { withDefaultUnit } from '../../utils/measurementDisplay';
 import { formatAvailabilityReview, todayInIndia } from '../../utils/availabilityReview';
+import { emptyMedia, mediaKinds, mediaFileName } from './media';
 const stringToggles = new Set(['ccRoads', 'insulationPresent', 'warehouseData.vaastuCompliance']);
 export const STATUS_LABEL = {
   NEEDS_RESPONSE: 'Needs response',
@@ -15,6 +16,10 @@ export const STATUS_LABEL = {
 };
 export const isActiveFlag = flag => ['NEEDS_RESPONSE', 'AWAITING_ADMIN', 'CHANGES_REQUESTED'].includes(flag.status);
 export const formatValue = (value, field = {}) => {
+  if (field.type === 'media') {
+    const files = mediaKinds.flatMap(kind => (value?.[kind] || []).map(mediaFileName));
+    return files.length ? files.join(', ') : 'No media uploaded';
+  }
   if (value === null || value === undefined || value === '') return 'Not recorded';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (Array.isArray(value)) return value.length ? value.map(v => field.key === 'suitableFor' ? suitableForLabel(v) : typeof v === 'number' ? v.toLocaleString('en-IN') : String(v).replaceAll('_', ' ')).join(', ') : 'Not recorded';
@@ -32,6 +37,7 @@ export const formatValue = (value, field = {}) => {
   return String(value);
 };
 export const toInput = (value, field, masked = false) => {
+  if (field.type === 'media') return value || emptyMedia();
   if (masked) return '';
   if (field.type === 'availabilityReview') return {
     availability: value?.availability ?? '',
@@ -49,6 +55,7 @@ export const toInput = (value, field, masked = false) => {
   return value == null ? '' : String(value);
 };
 export const fromInput = (value, field) => {
+  if (field.type === 'media') return value;
   const leaf = field.key?.split('.').at(-1);
   if (field.type === 'availabilityReview') {
     const availability = value.availability?.trim() || null;

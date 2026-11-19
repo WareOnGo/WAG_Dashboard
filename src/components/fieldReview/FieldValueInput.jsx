@@ -9,6 +9,7 @@ import { SUITABLE_FOR_OPTIONS } from '../../utils/suitableFor';
 import { handoverTypeToEnum, handoverTypeToLabel, handoverUnitToEnum, handoverUnitToLabel } from '../../utils/handover';
 import { todayInIndia } from '../../utils/availabilityReview';
 import { useViewport } from '../../hooks/useViewport';
+import FileUpload from '../FileUpload';
 
 const choices = {
   listing_type: LISTING_TYPES, warehouseOwnerType: OWNER_TYPES, warehouseType: WAREHOUSE_TYPES,
@@ -19,11 +20,17 @@ const choices = {
 const clearableChoices = new Set(['canopyType', 'dockPlatformType', 'flooringType']);
 const stringToggles = new Set(['ccRoads', 'insulationPresent', 'vaastuCompliance']);
 
-function ValueControl({ field, value, onChange, id, disabled = false, warehouse = {} }) {
+function ValueControl({ field, value, onChange, id, disabled = false, warehouse = {}, requestPresignedUrl, onUploadingChange }) {
   const { isMobile: mobile } = useViewport();
   const generatedId = useId();
   const props = { id, disabled, mobile, 'aria-label': 'Proposed ' + field.label };
   const leaf = field.key.split('.').at(-1);
+  if (field.type === 'media') return <div>
+    <FileUpload value={value} onChange={onChange} disabled={disabled} imageRecords={warehouse.images}
+      requestPresignedUrl={requestPresignedUrl} onUploadingChange={onUploadingChange}
+      maxFiles={200} />
+    <p className="fr-help">Add missing files or remove files from the proposed gallery. Changes appear in the warehouse only after verification.</p>
+  </div>;
   const structured = MEASUREMENTS[leaf]
     ? <MeasurementField field={leaf} value={value} onChange={onChange} />
     : field.sensitive ? <PhoneField field={leaf} label={'Proposed ' + field.label} value={value} onChange={onChange} required={leaf === 'contactNumber'} />
