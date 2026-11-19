@@ -10,8 +10,10 @@ export const STATUS_LABEL = {
   NEEDS_RESPONSE: 'Needs response',
   AWAITING_ADMIN: 'Awaiting reviewer',
   CHANGES_REQUESTED: 'Changes requested',
-  VERIFIED: 'Verified & closed'
+  VERIFIED: 'Verified & closed',
+  CANCELLED: 'Cancelled'
 };
+export const isActiveFlag = flag => ['NEEDS_RESPONSE', 'AWAITING_ADMIN', 'CHANGES_REQUESTED'].includes(flag.status);
 export const formatValue = (value, field = {}) => {
   if (value === null || value === undefined || value === '') return 'Not recorded';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';

@@ -6,7 +6,7 @@ import { fieldReviewAccessKey } from '../../utils/fieldReviewPermissions';
 import ResponsiveModal from '../ResponsiveModal';
 import WarehouseDetailsModal from '../WarehouseDetailsModal';
 import ReviewField from './ReviewField';
-import { toInput } from './values';
+import { isActiveFlag, toInput } from './values';
 import ReviewActivity from './ReviewActivity';
 import './fieldReview.css';
 
@@ -25,6 +25,8 @@ const initialDraft = flag => ({
   returnComment: '',
   confirming: false,
   returning: false,
+  cancelling: false,
+  cancellationReason: '',
   version: flag.version
 });
 const draftFor = (flag, saved) => {
@@ -104,7 +106,7 @@ export default function FieldReviewDialog({
     setTab('flags');
     // Preserve entered text, but require a new explicit confirmation on reopen.
     setDrafts(Object.fromEntries(Object.entries(sessionDrafts.get(key) || {}).map(([id, draft]) =>
-      [id, { ...draft, confirming: false, reopening: false }])));
+      [id, { ...draft, confirming: false, reopening: false, cancelling: false }])));
     scroll.current = {
       flags: 0,
       details: 0
@@ -170,7 +172,7 @@ export default function FieldReviewDialog({
       });
       if (result.id !== reviewId) onReviewIdChange?.(result.id);
       onChanged?.();
-      message.success(method === 'respond' ? 'Submitted for reviewer verification.' : method === 'decide' ? 'Field verified and closed.' : method === 'reopen' ? 'Flag reopened.' : 'Changes requested.');
+      message.success(method === 'respond' ? 'Submitted for reviewer verification.' : method === 'decide' ? 'Field verified and closed.' : method === 'reopen' ? 'Flag reopened.' : method === 'cancel' ? 'Flag cancelled. Warehouse value unchanged.' : 'Changes requested.');
     } catch (e) {
       if (target.current !== scope) return;
       // A refreshed comparison must require a fresh reviewer decision. Employee text
@@ -237,8 +239,8 @@ export default function FieldReviewDialog({
       if (target.current === scope) setEventsLoading(false);
     }
   };
-  const active = review?.flags.filter(f => f.status !== 'VERIFIED').length || 0;
-  const stateFlag = review?.flags.find(flag => flag.fieldKey === 'state' && flag.status !== 'VERIFIED');
+  const active = review?.flags.filter(isActiveFlag).length || 0;
+  const stateFlag = review?.flags.find(flag => flag.fieldKey === 'state' && isActiveFlag(flag));
   const stateDraft = stateFlag && drafts[stateFlag.id]?.version === stateFlag.version ? drafts[stateFlag.id] : null;
   const locationState = stateDraft?.resolution === 'CORRECTION' ? stateDraft.proposed
     : stateFlag?.status === 'AWAITING_ADMIN' && stateFlag.resolution === 'CORRECTION' ? stateFlag.proposedValue : review?.warehouse?.state;

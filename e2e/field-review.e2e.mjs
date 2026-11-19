@@ -121,6 +121,58 @@ for (const width of [1280, 390]) test.describe('field review at ' + width + 'px'
     await page.getByRole('button', { name: /View$/ }).click();
     await expect(modal.getByLabel('Rate per sq ft is flagged for review', { exact: true })).toBeVisible();
   });
+  test('reviewers cancel individual rows with reasons and remove their response access and markers', async ({ page }) => {
+    const reviewer = { email: 'reviewer@wareongo.com' };
+    const review = await server.service.create({ requestId: randomUUID(), warehouseId: 4821,
+      fields: [{ key: 'totalSpaceSqft', comment: 'Check this area.' }, { key: 'ratePerSqft', comment: 'Check the quote.' }],
+    }, reviewer);
+    const before = await server.db.warehouse.findUnique({ where: { id: 4821 } });
+    await page.goto(server.url + '/field-reviews?role=reviewer&review=' + review.id);
+    const area = flag(page, 'Offered Area (sq ft)'), rate = flag(page, 'Rate per sq ft');
+    await area.getByRole('button', { name: 'Cancel flag', exact: true }).click();
+    const confirmation = page.getByRole('dialog', { name: 'Cancel review for Offered Area (sq ft)?', exact: true });
+    await expect(confirmation.getByRole('button', { name: 'Cancel flag', exact: true })).toBeDisabled();
+    await confirmation.getByLabel('Cancellation reason *', { exact: true }).fill('The old layout was used to raise this flag.');
+    await confirmation.getByRole('button', { name: 'Cancel flag', exact: true }).click();
+    await expect(area.getByText('Cancelled', { exact: true })).toBeVisible();
+    await expect(area).toContainText('The old layout was used to raise this flag.');
+    await expect(area).toContainText('Cancelled by reviewer@wareongo.com');
+    await expect(rate.getByText('Needs response', { exact: true })).toBeVisible();
+    await expect(page.getByText('Assigned to Arjun Rao · 1 active · 1 closed', { exact: true })).toBeVisible();
+    expect(await server.db.warehouse.findUnique({ where: { id: 4821 } })).toEqual(before);
+    const employee = await (await page.request.get(server.url + '/fixture/session/employee')).json();
+    const headers = { Authorization: 'Bearer ' + employee.token };
+    const cancelled = await server.db.warehouseFieldFlag.findUnique({ where: { id: review.flags.find(f => f.fieldKey === 'totalSpaceSqft').id } });
+    expect((await page.request.post(server.url + '/api/field-reviews/' + review.id + '/flags/' + cancelled.id + '/response', {
+      headers, data: { requestId: randomUUID(), version: cancelled.version, baselineVersion: 0, resolution: 'NO_CHANGE', explanation: 'Late response.' },
+    })).status()).toBe(409);
+    const openRate = review.flags.find(f => f.fieldKey === 'ratePerSqft');
+    expect((await page.request.post(server.url + '/api/field-reviews/' + review.id + '/flags/' + openRate.id + '/cancel', {
+      headers, data: { requestId: randomUUID(), version: openRate.version, reason: 'An employee cannot cancel.' },
+    })).status()).toBe(403);
+    expect((await page.request.post(server.url + '/api/field-reviews/' + review.id + '/flags/' + openRate.id + '/response', {
+      headers, data: { requestId: randomUUID(), version: openRate.version, baselineVersion: 0, resolution: 'NO_CHANGE', explanation: 'Owner confirmed.' },
+    })).status()).toBe(200);
+    await page.reload();
+    await rate.getByRole('button', { name: 'Cancel flag', exact: true }).click();
+    const rateConfirmation = page.getByRole('dialog', { name: 'Cancel review for Rate per sq ft?', exact: true });
+    await rateConfirmation.getByLabel('Cancellation reason *', { exact: true }).fill('This review is no longer needed.');
+    await rateConfirmation.getByRole('button', { name: 'Cancel flag', exact: true }).click();
+    await expect(rate.getByText('Cancelled', { exact: true })).toBeVisible();
+    await expect(page.getByText('0 active flags · Live values change only after verification.', { exact: true })).toBeVisible();
+    await page.getByText('Review activity and earlier responses', { exact: true }).click();
+    const activity = page.locator('.fr-events');
+    await expect(activity.getByText('Flag cancelled · Offered Area (sq ft)', { exact: true })).toBeVisible();
+    await expect(activity.getByText('Reason: The old layout was used to raise this flag.', { exact: true })).toBeVisible();
+    await noOverflow(page);
+    await page.screenshot({ path: test.info().outputPath('cancelled-field-history-' + width + '.png'), animations: 'disabled' });
+    expect((await server.db.warehouseFieldReview.findUnique({ where: { id: review.id } })).closedAt).not.toBeNull();
+    expect((await server.db.warehouse.findUnique({ where: { id: 4821 } })).ratePerSqft).toBe('22');
+    await page.goto(server.url + '/dashboard-reference?role=employee');
+    await page.getByRole('button', { name: /View$/ }).click();
+    await expect(page.locator('.warehouse-details-modal [data-review-field="totalSpaceSqft"]')).not.toHaveClass(/fr-flag-field--active/);
+    await expect(page.locator('.warehouse-details-modal [data-review-field="ratePerSqft"]')).not.toHaveClass(/fr-flag-field--active/);
+  });
   test('can flag blank handover and status on successive warehouses without reloading', async ({ page }) => {
     const first = await server.db.warehouse.update({ where: { id: 4821 }, data: {
       handoverType: 'FIXED', handoverDate: null, handoverLeadValue: null, handoverLeadUnit: null, status: null
@@ -308,6 +360,10 @@ for (const width of [1280, 390]) test.describe('field review at ' + width + 'px'
   for (const managerRole of ['admin', 'reviewer']) test(managerRole + ' can create in current view, respond, verify conflict and no-change, then reopen', async ({
     page
   }) => {
+    await server.db.auditLog.create({ data: { entity: 'warehouse', entityId: '4821', action: 'UPDATE',
+      userEmail: 'area-editor@wareongo.com',
+      metadata: { changes: [{ field: 'totalSpaceSqft', from: [48000], to: [50000] }] },
+    } });
     await page.goto(server.url + '/dashboard?role=' + managerRole);
     await page.getByRole('button', {
       name: /View$/
@@ -339,6 +395,18 @@ for (const width of [1280, 390]) test.describe('field review at ' + width + 'px'
       exact: true
     }).click();
     await expect(page.getByLabel('Assign review to')).toHaveValue('2');
+    const confirmation = page.getByRole('dialog', { name: 'Confirm flags for warehouse #4821', exact: true });
+    await expect(confirmation.getByRole('columnheader', { name: 'Last edited by', exact: true })).toBeVisible();
+    await expect(confirmation.getByRole('row', { name: /Offered Area/ })).toContainText('area-editor@wareongo.com');
+    await expect(confirmation.getByRole('row', { name: /Number of Docks/ })).toContainText('employee@wareongo.com');
+    await noOverflow(page);
+    if (width < 768) {
+      const table = confirmation.getByRole('region', { name: 'Selected fields for review' });
+      await table.focus();
+      for (let i = 0; i < 10; i++) await page.keyboard.press('ArrowRight');
+      await expect(confirmation.getByRole('cell', { name: 'Confirm all six docks are operational.', exact: true })).toBeInViewport();
+      await table.evaluate(element => { element.scrollLeft = 0; });
+    }
     await page.screenshot({
       path: test.info().outputPath(managerRole + '-confirm-' + width + '.png'),
       fullPage: false,
@@ -473,7 +541,17 @@ for (const width of [1280, 390]) test.describe('field review at ' + width + 'px'
     await area.getByText('Edit history', {
       exact: true
     }).click();
-    await expect(area.getByText(/editor@wareongo.com/)).toBeVisible();
+    await expect(area.getByText(/^editor@wareongo\.com\b/)).toBeVisible();
+    await page.getByText('Review activity and earlier responses', { exact: true }).click();
+    await page.getByText('Field baselines when flagged', { exact: true }).click();
+    const baseline = page.getByRole('group', { name: 'Flagged baseline for Offered Area (sq ft)', exact: true });
+    await expect(baseline).toContainText('Value when flagged: 50,000');
+    await expect(baseline).toContainText('Last edited by: area-editor@wareongo.com');
+    await expect(baseline).not.toContainText('Last edited by: editor@wareongo.com');
+    for (const summary of await page.getByText('Recorded values', { exact: true }).all()) await summary.click();
+    await expect(page.getByText('Last edited by at baseline: area-editor@wareongo.com', { exact: true })).toBeVisible();
+    await page.getByText('Review activity and earlier responses', { exact: true }).click();
+    await area.scrollIntoViewIfNeeded();
     await noOverflow(page);
     await page.screenshot({
       path: test.info().outputPath(managerRole + '-conflict-' + width + '.png'),

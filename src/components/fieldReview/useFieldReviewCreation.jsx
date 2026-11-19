@@ -121,13 +121,13 @@ export default function useFieldReviewCreation({
  </div> : null;
   // Keep the confirmation within this details session. Let Modal finish closing
   // so it restores keyboard focus, then remove its portal before the next use.
-  const summary = canCreate && visible ? <Modal title={'Confirm flags for warehouse #' + warehouse?.id} open={confirm} destroyOnHidden onCancel={() => !saving && setConfirm(false)} width={820} footer={<div className="fr-row fr-end"><Button disabled={saving} onClick={() => setConfirm(false)}>Back to fields</Button>
+  const summary = canCreate && visible ? <Modal title={'Confirm flags for warehouse #' + warehouse?.id} open={confirm} destroyOnHidden onCancel={() => !saving && setConfirm(false)} width={960} footer={<div className="fr-row fr-end"><Button disabled={saving} onClick={() => setConfirm(false)}>Back to fields</Button>
    <Button type="primary" loading={saving} disabled={!eligibleAssignee} onClick={submit}>Confirm & flag for review</Button></div>}>
   <p>The assigned employee can respond to these flagged fields without Edit permission. Each response requires reviewer verification.</p>
-  <div className="fr-table-scroll"><table className="fr-summary"><thead><tr><th>Field</th><th>Current value</th><th>Review comment</th></tr></thead>
+  <div className="fr-table-scroll" role="region" aria-label="Selected fields for review" tabIndex={0}><table className="fr-summary"><thead><tr><th scope="col">Field</th><th scope="col">Current value</th><th scope="col">Last edited by</th><th scope="col">Review comment</th></tr></thead>
    <tbody>{selected.map(key => {
             const f = setup?.fields.find(x => x.key === key);
-            return <tr key={key}><th>{f?.label}</th><td>{formatValue(f?.value, f)}</td><td>{comments[key]}</td></tr>;
+            return <tr key={key}><th scope="row">{f?.label}</th><td>{formatValue(f?.value, f)}</td><td>{f?.lastEditedBy || 'Not recorded'}</td><td>{comments[key]}</td></tr>;
           })}</tbody></table></div>
   <label htmlFor="fr-new-assignee" className="fr-label">Assign review to</label>
   <select id="fr-new-assignee" className="fr-input" value={assignee} disabled={saving || !!setup?.existingReviewId} onChange={e => setAssignee(e.target.value)}>

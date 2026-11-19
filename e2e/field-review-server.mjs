@@ -135,7 +135,7 @@ export async function startFieldReviewServer() {
       }]
     });
     const seed = async () => {
-      await db.$executeRawUnsafe('TRUNCATE "WarehouseFieldReviewEvent","WarehouseFieldFlag","WarehouseFieldReview","WarehouseFieldVersion","WarehouseFieldEdit","WarehouseData","Warehouse","warehouse_proximity" CASCADE');
+      await db.$executeRawUnsafe('TRUNCATE "WarehouseFieldReviewEvent","WarehouseFieldFlag","WarehouseFieldReview","WarehouseFieldVersion","WarehouseFieldEdit","WarehouseData","Warehouse","warehouse_proximity",audit_logs CASCADE');
       invalidateCapabilities();
       return db.warehouse.create({
         data: {

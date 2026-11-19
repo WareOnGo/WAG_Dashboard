@@ -100,6 +100,8 @@
 }
 .fr-summary {
   width: 100%;
+  min-width: 600px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
   margin: 16px 0;
@@ -254,6 +256,9 @@
 }
 .fr-field[data-status=VERIFIED] {
   border-left-color: #9ece6a;
+}
+.fr-field[data-status=CANCELLED] {
+  border-left-color: #7f849c;
 }
 .fr-field-head {
   display: flex;
@@ -462,6 +467,10 @@
 }
 .fr-modal .ant-alert {
   margin-bottom: 14px;
+}
+.fr-cancel-reason.ant-input-textarea-show-count {
+  /* Ant Design positions the counter below the textarea, outside its height. */
+  margin-bottom: 1.75em;
 }
 .fr-summary-count {
   color: var(--text-muted);

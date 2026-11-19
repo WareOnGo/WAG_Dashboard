@@ -9,7 +9,7 @@ import { toInput, formatValue } from '../values';
 import CardView from '../../CardView';
 import { fieldReviewService } from '../../../services/fieldReviewService';
 vi.mock('../../../services/fieldReviewService', () => ({
-  fieldReviewService: Object.fromEntries(['setup', 'detail', 'create', 'respond', 'decide', 'returnForChanges', 'reopen', 'reassign', 'history', 'events', 'summaries', 'reveal'].map(name => [name, vi.fn()]))
+  fieldReviewService: Object.fromEntries(['setup', 'detail', 'create', 'respond', 'decide', 'returnForChanges', 'reopen', 'cancel', 'reassign', 'history', 'events', 'summaries', 'reveal'].map(name => [name, vi.fn()]))
 }));
 vi.mock('../../../services/imageLabelService', () => ({
   imageLabelService: {
@@ -100,6 +100,78 @@ function review(admin = false, patch = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   fieldReviewService.summaries.mockResolvedValue([]);
+});
+
+it.each(['NEEDS_RESPONSE', 'AWAITING_ADMIN', 'CHANGES_REQUESTED'])('a reviewer cancels only the selected %s row with a required reason', async status => {
+  const r = review(true, { status });
+  const first = r.flags[0];
+  r.flags.push({ ...first, id: crypto.randomUUID(), fieldKey: 'contactPerson', field: { key: 'contactPerson', label: 'Contact Person', type: 'text' }, currentValue: 'Owner', status: 'NEEDS_RESPONSE' });
+  fieldReviewService.detail.mockResolvedValue(r);
+  fieldReviewService.cancel.mockResolvedValue({ ...r, flags: [{ ...first, version: 1, status: 'CANCELLED', decision: 'CANCELLED', decisionReason: 'Old photo was used.', decidedBy: 'reviewer@wareongo.com', decidedAt: '2026-11-19T12:00:00Z' }, r.flags[1]] });
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />, false, { email: 'reviewer@wareongo.com', isReviewer: true });
+  const row = await screen.findByRole('article', { name: field.label });
+  fireEvent.click(within(row).getByRole('button', { name: 'Cancel flag' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Cancel review for Offered Area (sq ft)?' });
+  const confirm = within(dialog).getByRole('button', { name: 'Cancel flag' });
+  expect(confirm).toBeDisabled();
+  fireEvent.change(within(dialog).getByLabelText('Cancellation reason *'), { target: { value: '   ' } });
+  expect(confirm).toBeDisabled();
+  fireEvent.change(within(dialog).getByLabelText('Cancellation reason *'), { target: { value: '  Old photo was used.  ' } });
+  fireEvent.click(confirm);
+  await waitFor(() => expect(fieldReviewService.cancel).toHaveBeenCalledWith(r.id, first.id, { version: 0, reason: 'Old photo was used.' }));
+  await waitFor(() => expect(within(row).getByText('Cancelled', { exact: true })).toBeInTheDocument());
+  expect(row).toHaveTextContent('Cancellation reason: Old photo was used.');
+  expect(row).toHaveTextContent('Cancelled by reviewer@wareongo.com');
+  expect(within(row).queryByText(/Waiting for|Verified by/)).not.toBeInTheDocument();
+  expect(screen.getByText(/Assigned to Employee One · 1 active · 1 closed/)).toBeInTheDocument();
+  expect(within(screen.getByRole('article', { name: 'Contact Person' })).getByRole('button', { name: 'Cancel flag' })).toBeInTheDocument();
+  expect(fieldReviewService.decide).not.toHaveBeenCalled();
+});
+
+it('cancellation failures retain the reason for retry and closed rows do not offer cancellation', async () => {
+  const r = review(true);
+  fieldReviewService.detail.mockResolvedValue(r);
+  fieldReviewService.cancel.mockRejectedValueOnce(new Error('Temporary cancellation failure.')).mockResolvedValueOnce({ ...r, closedAt: new Date().toISOString(), flags: [{ ...r.flags[0], status: 'CANCELLED', version: 1, decisionReason: 'Duplicate flag.' }] });
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />, true);
+  fireEvent.click(await screen.findByRole('button', { name: 'Cancel flag' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Cancel review for Offered Area (sq ft)?' });
+  fireEvent.change(within(dialog).getByLabelText('Cancellation reason *'), { target: { value: 'Duplicate flag.' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel flag' }));
+  await within(dialog).findByText('Temporary cancellation failure.');
+  expect(within(dialog).getByLabelText('Cancellation reason *')).toHaveValue('Duplicate flag.');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel flag' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Cancel review for Offered Area (sq ft)?' })).not.toBeInTheDocument());
+  expect(screen.queryByRole('button', { name: 'Cancel flag' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Reopen flag' })).toBeInTheDocument();
+  expect(screen.getByText(/0 active flags/)).toBeInTheDocument();
+});
+
+it('employees cannot cancel flags or respond to cancelled rows', async () => {
+  const r = review(false, { status: 'CANCELLED', decisionReason: 'Wrong photo.', decidedBy: 'reviewer@wareongo.com', decidedAt: '2026-11-19T12:00:00Z' });
+  fieldReviewService.detail.mockResolvedValue(r);
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />);
+  await screen.findByText('Cancelled', { exact: true });
+  expect(screen.getByText(/Wrong photo/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Cancel flag|Submit for verification|Reopen flag/ })).not.toBeInTheDocument();
+  expect(screen.queryByText(/Waiting for/)).not.toBeInTheDocument();
+});
+
+it('closing and reopening a review preserves a cancellation draft but requires opening its confirmation again', async () => {
+  const r = review(true);
+  fieldReviewService.detail.mockResolvedValue(r);
+  function Preview() {
+    const [open, setOpen] = useState(true);
+    return <><button onClick={() => setOpen(value => !value)}>Toggle review</button><FieldReviewDialog open={open} reviewId={r.id} onClose={() => setOpen(false)} /></>;
+  }
+  mount(<Preview />, true);
+  fireEvent.click(await screen.findByRole('button', { name: 'Cancel flag' }));
+  fireEvent.change(screen.getByLabelText('Cancellation reason *'), { target: { value: 'Keep this draft.' } });
+  fireEvent.click(screen.getByText('Toggle review'));
+  fireEvent.click(screen.getByText('Toggle review'));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Cancel review for Offered Area (sq ft)?' })).not.toBeInTheDocument());
+  fireEvent.click(await screen.findByRole('button', { name: 'Cancel flag' }));
+  expect(await screen.findByLabelText('Cancellation reason *')).toHaveValue('Keep this draft.');
+  expect(fieldReviewService.cancel).not.toHaveBeenCalled();
 });
 
 it.each([false, true])('clears a saved admin choice when Current changed on reopen (confirmation=%s)', async confirming => {
@@ -504,7 +576,8 @@ it.each(['admin', 'reviewer'])('%s flags fields in the existing View and keeps t
   fieldReviewService.setup.mockResolvedValue({
     fields: [{
       ...field,
-      value: [50000]
+      value: [50000],
+      lastEditedBy: 'area-editor@wareongo.com'
     }],
     assignees: people,
     defaultAssigneeId: 2,
@@ -534,6 +607,9 @@ it.each(['admin', 'reviewer'])('%s flags fields in the existing View and keeps t
     name: 'Review flags'
   }));
   const select = await screen.findByLabelText('Assign review to');
+  const confirmation = screen.getByRole('dialog', { name: 'Confirm flags for warehouse #4821' });
+  expect(within(confirmation).getByRole('columnheader', { name: 'Last edited by' })).toBeInTheDocument();
+  expect(within(confirmation).getByRole('row', { name: /Offered Area/ })).toHaveTextContent('area-editor@wareongo.com');
   expect(select).toHaveValue('2');
   fireEvent.change(select, {
     target: {
@@ -547,6 +623,7 @@ it.each(['admin', 'reviewer'])('%s flags fields in the existing View and keeps t
     name: 'Review flags'
   }));
   expect(screen.getByLabelText('Assign review to')).toHaveValue('3');
+  expect(within(screen.getByRole('dialog', { name: 'Confirm flags for warehouse #4821' })).getByText('area-editor@wareongo.com')).toBeInTheDocument();
   expect(fieldReviewService.create).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', {
     name: 'Confirm & flag for review'
@@ -559,6 +636,20 @@ it.each(['admin', 'reviewer'])('%s flags fields in the existing View and keeps t
       comment: 'Confirm the usable area.'
     }]
   }));
+});
+it.each(['Employee One', null])('shows the server-provided creator fallback or missing editor: %s', async lastEditedBy => {
+  fieldReviewService.setup.mockResolvedValue({ fields: [{ ...field, value: [50000], lastEditedBy }],
+    assignees: people, defaultAssigneeId: 2, uploader: 'Employee One', activeFields: [] });
+  mount(<WarehouseDetailsModal visible warehouse={warehouse} onClose={() => {}} />, true);
+  fireEvent.click(screen.getByRole('button', { name: 'Flag for review (beta)' }));
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Flag Offered Area (sq ft)' }));
+  fireEvent.change(screen.getByLabelText('Review comment for Offered Area (sq ft)'), { target: { value: 'Check the area.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Review flags' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Confirm flags for warehouse #4821' });
+  const row = within(dialog).getByRole('row', { name: /Offered Area/ });
+  expect(within(row).getByRole('cell', { name: lastEditedBy || 'Not recorded', exact: true })).toBeInTheDocument();
+  expect(fieldReviewService.setup).toHaveBeenCalledTimes(1);
+  expect(fieldReviewService.history).not.toHaveBeenCalled();
 });
 it('employee has direct responses, and the real All details view preserves drafts', async () => {
   const r = review();

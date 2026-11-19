@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Button, Input, Modal, Tag } from 'antd';
 import { fieldReviewService } from '../../services/fieldReviewService';
 import FieldValueInput from './FieldValueInput';
-import { formatValue, fromInput, STATUS_LABEL } from './values';
+import { formatValue, fromInput, isActiveFlag, STATUS_LABEL } from './values';
 const time = value => value ? new Date(value).toLocaleString('en-IN') : '';
 function EditHistory({
   reviewId,
@@ -63,6 +63,8 @@ export default function ReviewField({
   const masked = flag.valuesMasked && !activeReveal;
   const canEdit = review.canRespond && ['NEEDS_RESPONSE', 'CHANGES_REQUESTED'].includes(flag.status);
   const awaiting = flag.status === 'AWAITING_ADMIN';
+  const cancelled = flag.status === 'CANCELLED';
+  const canCancel = review.canVerify && !review.closedAt && isActiveFlag(flag);
   const staleDraft = canEdit && draft.baselineVersion !== flag.currentVersion;
   const valueCard = (label, value, help, history = false) => <div className="fr-value"><span>{label}</span><strong>{formatValue(value, field)}</strong>
   {help && <small>{help}</small>}{history && <EditHistory reviewId={review.id} flag={flag} revealed={activeReveal} />}</div>;
@@ -147,7 +149,7 @@ export default function ReviewField({
     : flag.resolution === 'NO_CHANGE' ? noChangeOutcome : 'Correction applied';
   return <article className="fr-field" data-status={flag.status} aria-labelledby={'fr-heading-' + flag.id}>
   <div className="fr-field-head"><div><span className="fr-section">{field.section}</span><h3 id={'fr-heading-' + flag.id}>{field.label}</h3></div>
-   <Tag color={flag.status === 'VERIFIED' ? 'green' : awaiting ? 'purple' : 'orange'}>{STATUS_LABEL[flag.status]}</Tag></div>
+   <Tag color={flag.status === 'VERIFIED' ? 'green' : cancelled ? 'default' : awaiting ? 'purple' : 'orange'}>{STATUS_LABEL[flag.status]}</Tag></div>
   <p className="fr-current">Current warehouse value <strong>{formatValue(values.currentValue, field)}</strong></p>
   <div className="fr-comment"><small>{flag.createdBy || 'Reviewer not recorded'} · {time(flag.createdAt)}</small>{flag.comment}</div>
   {flag.valuesMasked && <Button size="small" style={{
@@ -230,11 +232,16 @@ export default function ReviewField({
    <div className="fr-actions"><strong>{formatValue(values.finalValue, field)}</strong><Tag color="green">{outcome}</Tag></div>
    <p>{flag.explanation}</p>{flag.decisionReason && <p>Reviewer reason: {flag.decisionReason}</p>}
    <p className="fr-help">Verified by {flag.decidedBy} · {time(flag.decidedAt)}</p>
-   {review.canVerify && <Button disabled={disabled || busy} onClick={() => onDraft({
+  </>}
+  {cancelled && <>
+   <p><strong>Cancellation reason:</strong> {flag.decisionReason || 'Not recorded'}</p>
+   <p className="fr-help">Cancelled by {flag.decidedBy || 'Reviewer not recorded'} · {time(flag.decidedAt)}. Warehouse value unchanged.</p>
+  </>}
+  {['VERIFIED', 'CANCELLED'].includes(flag.status) && review.canVerify && <Button disabled={disabled || busy} onClick={() => onDraft({
         reopening: true
       })}>Reopen flag</Button>}
-  </>}
-  {!canEdit && !awaiting && flag.status !== 'VERIFIED' && <p className="fr-help">Waiting for {review.assignee?.name || 'the assigned employee'} to respond.</p>}
+  {!canEdit && !awaiting && isActiveFlag(flag) && <p className="fr-help">Waiting for {review.assignee?.name || 'the assigned employee'} to respond.</p>}
+  {canCancel && <div className="fr-row fr-end"><Button danger disabled={disabled || busy} onClick={() => onDraft({ cancelling: true })}>Cancel flag</Button></div>}
   {localError && <Alert role="alert" type="error" showIcon message={localError} />}
   <Modal title="Confirm replacement of the current value" open={!!draft.confirming} onCancel={() => !busy && onDraft({
       confirming: false
@@ -244,12 +251,25 @@ export default function ReviewField({
    <p><strong>Reason:</strong> {draft.reason}</p><p>The current value will be checked again when you confirm.</p>
    {draft.confirming && actionError && <Alert role="alert" type="error" showIcon message={actionError} />}
   </Modal>
+  <Modal title={'Cancel review for ' + field.label + '?'} open={canCancel && !!draft.cancelling}
+    okText="Cancel flag" cancelText="Keep flag" confirmLoading={busy}
+    okButtonProps={{ danger: true, disabled: disabled || !draft.cancellationReason?.trim() }}
+    cancelButtonProps={{ disabled: busy }} closable={!busy} maskClosable={!busy}
+    onCancel={() => !busy && onDraft({ cancelling: false })}
+    onOk={() => draft.cancellationReason?.trim() && onAction('cancel', flag, { version: flag.version, reason: draft.cancellationReason.trim() })}>
+   <p>This closes only the flag for <strong>{field.label}</strong>. Its warehouse value stays unchanged. The reason is saved in review history.</p>
+   <label className="fr-label" htmlFor={'fr-cancel-' + flag.id}>Cancellation reason *</label>
+   <Input.TextArea className="fr-cancel-reason" id={'fr-cancel-' + flag.id} required aria-required="true" value={draft.cancellationReason || ''}
+     maxLength={500} showCount autoSize={{ minRows: 3, maxRows: 6 }} disabled={busy}
+     onChange={e => onDraft({ cancellationReason: e.target.value })} />
+   {draft.cancelling && actionError && <Alert role="alert" type="error" showIcon message={actionError} />}
+  </Modal>
   <Modal title="Reopen this field?" open={!!draft.reopening} okText="Reopen flag" confirmLoading={busy} okButtonProps={{ disabled }} onCancel={() => onDraft({
       reopening: false
     })} onOk={() => onAction('reopen', flag, {
       version: flag.version
     })}>
-   Start a new response against the current live value. Earlier verification stays in history. If this warehouse has another active review, the field joins that review and uses its current assignee.
+   Start a new response against the current live value. Earlier decisions and cancellation reasons stay in history. If this warehouse has another active review, the field joins that review and uses its current assignee.
    {draft.reopening && actionError && <Alert role="alert" type="error" showIcon message={actionError} />}
   </Modal>
   <Modal title="Reveal protected review values" open={revealOpen} confirmLoading={revealing} okText="Reveal values" onCancel={() => setRevealOpen(false)} onOk={reveal}><label className="fr-label" htmlFor={'fr-reveal-' + flag.id}>Reason for access *</label>

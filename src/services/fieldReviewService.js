@@ -67,5 +67,6 @@ export const fieldReviewService = {
   decide: (id, flag, body) => write('post', flagPath(id, flag) + '/decision', body),
   returnForChanges: (id, flag, body) => write('post', flagPath(id, flag) + '/return', body),
   reopen: (id, flag, body) => write('post', flagPath(id, flag) + '/reopen', body),
+  cancel: (id, flag, body) => write('post', flagPath(id, flag) + '/cancel', body),
   reassign: (id, body) => write('patch', root + '/' + id + '/assignee', body)
 };
