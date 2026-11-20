@@ -129,7 +129,7 @@ for (const width of [320, 390, 1280]) {
         ['centreHeight', 'Centre Height', 'feet'], ['plinthHeightFt', 'Plinth Height', 'feet'],
         ['dockApronLengthFt', 'Dock Apron Length', 'metres'], ['gateSizeFt', 'Compound Gate Width', 'feet'], ['powerKva', 'Power', 'HP'],
       ]) {
-        await data(page, key).fill('50.5');
+        await data(page, key).fill(['plinthHeightFt', 'carpet_area'].includes(key) ? '0' : '50.5');
         if (['builtup_area', 'carpet_area'].includes(key)) {
           await expect(data(page, key).locator('..').locator('..').locator('.measurement-suffix')).toHaveText('sq ft');
         } else await field(page, `${label} unit`).selectOption(unit);
@@ -174,8 +174,8 @@ for (const width of [320, 390, 1280]) {
       const expected = {
         uploadedBy: 'dashboard@example.test', contactNumber: '+4532123456', alt_phone_number: '+442079460018',
         distance_from_highway: '50.5 metres', approachRoadWidth: '50.5 feet', land_parcel_size: '50.5 hectares',
-        builtup_area: '50.5 sq ft', carpet_area: '50.5 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
-        plinthHeightFt: '50.5 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: 'As per requirement',
+        builtup_area: '50.5 sq ft', carpet_area: '0 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
+        plinthHeightFt: '0 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: 'As per requirement',
         dimensions: '100 x 60 x 30 feet', dockDimension: '8 x 10 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
         washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'VDF',
         ventilationType: 'Ridge, Turbo', ventilationAirChangesPerDay: '4', setbackArea: '5m on all sides', latitude: null, longitude: null,
@@ -186,6 +186,8 @@ for (const width of [320, 390, 1280]) {
       await reviewButton(page, `${address} owner`).click();
       await expect(field(page, 'Address')).toHaveValue(address);
       await expect(data(page, 'clearHeightFt')).toHaveValue('50.5');
+      await expect(data(page, 'plinthHeightFt')).toHaveValue('0');
+      await expect(data(page, 'carpet_area')).toHaveValue('0');
       await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
       await expect(field(page, 'Uploaded By')).toHaveValue('dashboard@example.test');
       await expect(powerOption).toBeChecked();
@@ -203,6 +205,8 @@ for (const width of [320, 390, 1280]) {
       expect({ ...stored, ...stored.WarehouseData }).toMatchObject({ ...expected, powerKva: '75 HP', clearHeightFt: '51 metres', latitude: null });
       await page.goto(`${server.url}/?id=${stored.id}`);
       await expect(data(page, 'clearHeightFt')).toHaveValue('51');
+      await expect(data(page, 'plinthHeightFt')).toHaveValue('0');
+      await expect(data(page, 'carpet_area')).toHaveValue('0');
       await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
       await expect(field(page, 'Female washrooms')).toHaveValue('0');
       await expect(field(page, 'Power unit')).toHaveValue('HP');

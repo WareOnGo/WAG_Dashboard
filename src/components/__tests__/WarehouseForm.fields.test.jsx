@@ -71,7 +71,7 @@ describe('structured dashboard fields', () => {
     const { onSubmit } = open();
     for (const [label, value, unit] of [
       ['Distance from Highway', '2.5', 'km'], ['Approach Road Width', '50', 'feet'],
-      ['Land Parcel Size', '2', 'hectares'], ['Built-up Area', '25000', 'sq ft'], ['Carpet Area', '2300', 'sq ft'],
+      ['Land Parcel Size', '2', 'hectares'], ['Built-up Area', '25000', 'sq ft'], ['Carpet Area', '0', 'sq ft'],
       ['Clear Height', '10', 'metres'], ['Centre Height', '12', 'metres'], ['Plinth Height', '0', 'feet'],
       ['Dock Apron Length', '15', 'metres'], ['Compound Gate Width', '20', 'feet'], ['Power', '100', 'HP'],
     ]) {
@@ -94,7 +94,7 @@ describe('structured dashboard fields', () => {
     await submit();
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       contactNumber: '+442079460018', alt_phone_number: '+4532123456', uploadedBy: original.uploadedBy,
-      distance_from_highway: '2.5 km', land_parcel_size: '2 hectares', builtup_area: '25000 sq ft', carpet_area: '2300 sq ft',
+      distance_from_highway: '2.5 km', land_parcel_size: '2 hectares', builtup_area: '25000 sq ft', carpet_area: '0 sq ft',
       clearHeightFt: '10 metres', centreHeight: '12 metres', plinthHeightFt: '0 feet', dockDimension: '8 x 10 feet',
       dockApronLengthFt: '15 metres', gateSizeFt: '20 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
       washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'VDF',
