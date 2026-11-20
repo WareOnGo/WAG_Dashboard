@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../test/testUtils';
 import { mockWarehouse } from '../../test/mockData';
 import WarehouseForm from '../WarehouseForm';
@@ -29,6 +30,22 @@ beforeEach(() => {
 });
 
 describe('structured dashboard fields', () => {
+  it('cleans invisible characters from pasted primary and alternate phones before saving', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = open();
+    await user.clear(field('Contact Number'));
+    await user.paste('\u200e99800\u200b88303\u200f');
+    expect(field('Contact Number')).toHaveValue('9980088303');
+    await user.click(field('Alternate Phone Number'));
+    await user.paste('\u2066+44\u00a020\u202f7946\u202f0123\u2069');
+    expect(field('Alternate Phone Number country code')).toHaveValue('GB');
+    expect(field('Alternate Phone Number')).toHaveValue('2079460123');
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      contactNumber: '+919980088303', alt_phone_number: '+442079460123',
+    }));
+  });
+
   it('displays the stored last editor as read-only metadata without submitting it', async () => {
     const { onSubmit } = open({ initialData: { ...original, lastEditedBy: 'previous@example.test' } });
     expect(field('Last edited by')).toHaveValue('previous@example.test');
