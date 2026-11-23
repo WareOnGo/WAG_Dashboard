@@ -143,6 +143,17 @@ export async function startFieldReviewServer() {
         viewAllWarehouseEntries: true,
         editOwnWarehouseEntries: false,
         editAllWarehouseEntries: false
+      }, {
+        id: 5,
+        name: 'Demo Employee',
+        email: 'editor@wareongo.com',
+        phone_number: 'fixture-editor',
+        is_active: true,
+        dashboardAccess: true,
+        viewOwnWarehouseEntries: true,
+        viewAllWarehouseEntries: true,
+        editOwnWarehouseEntries: true,
+        editAllWarehouseEntries: false
       }]
     });
     const seed = async () => {
@@ -195,24 +206,25 @@ export async function startFieldReviewServer() {
       const isAdmin = req.params.role === 'admin',
         isReviewer = isAdmin || req.params.role === 'reviewer',
         isObserver = req.params.role === 'observer',
-        email = isAdmin ? 'admin@wareongo.com' : isReviewer ? 'reviewer@wareongo.com' : isObserver ? 'observer@wareongo.com' : 'employee@wareongo.com';
+        isEditor = req.params.role === 'editor',
+        email = isAdmin ? 'admin@wareongo.com' : isReviewer ? 'reviewer@wareongo.com' : isObserver ? 'observer@wareongo.com' : isEditor ? 'editor@wareongo.com' : 'employee@wareongo.com';
       res.json({
         user: {
           email,
           isAdmin,
           isReviewer,
-          name: isAdmin ? 'Meera Shah' : isReviewer ? 'Reviewer One' : isObserver ? 'Observer One' : 'Arjun Rao',
+          name: isAdmin ? 'Meera Shah' : isReviewer ? 'Reviewer One' : isObserver ? 'Observer One' : isEditor ? 'Demo Employee' : 'Arjun Rao',
           capabilities: {
             DASHBOARD: true,
             WAREHOUSE_VIEW_OWN: true,
-            WAREHOUSE_EDIT_OWN: isReviewer,
+            WAREHOUSE_EDIT_OWN: isReviewer || isEditor,
             WAREHOUSE_EDIT_ALL: isAdmin,
-            WAREHOUSE_VIEW_ALL: isReviewer || isObserver,
+            WAREHOUSE_VIEW_ALL: isReviewer || isObserver || isEditor,
             REVIEW: isReviewer
           }
         },
         token: jwt.sign({
-          id: isAdmin ? 'fixture-admin' : isReviewer ? 'fixture-reviewer' : isObserver ? 'fixture-observer' : 'fixture-employee',
+          id: isAdmin ? 'fixture-admin' : isReviewer ? 'fixture-reviewer' : isObserver ? 'fixture-observer' : isEditor ? 'fixture-editor' : 'fixture-employee',
           email,
           name: email,
           domain: 'wareongo.com'
@@ -230,6 +242,12 @@ export async function startFieldReviewServer() {
     app.get('/api/warehouses/filter-options', ...warehouseView, warehouseController.getFilterOptions);
     app.get('/api/warehouses/:id', ...warehouseView,
       backend('./src/middleware/warehouseAccess').requireWarehouseEntry('view'), warehouseController.getWarehouseById);
+    app.get('/api/warehouses/:id/contact-number', ...warehouseView,
+      backend('./src/middleware/warehouseAccess').requireWarehouseEntry('view'),
+      backend('./src/middleware/validation').validateContactReveal, warehouseController.getContactNumber);
+    app.put('/api/warehouses/:id', authMiddleware.authenticateJWT, authMiddleware.requireAccess('WAREHOUSE_EDIT_OWN'),
+      backend('./src/middleware/warehouseAccess').requireWarehouseEntry('update'),
+      backend('./src/middleware/validation').validateWarehouseUpdate, warehouseController.updateWarehouse);
     app.get('/api/fixture/warehouses', authMiddleware.authenticateJWT, async (_req, res, next) => {
       try {
         const rows = await db.warehouse.findMany({
@@ -255,14 +273,7 @@ export async function startFieldReviewServer() {
     app.use('/api', (_req, res) => res.status(404).json({
       error: 'Fixture endpoint not configured.'
     }));
-    app.use((err, _req, res, _next) => {
-      console.error(err);
-      res.status(500).json({
-        error: {
-          message: err.message
-        }
-      });
-    });
+    app.use(backend('./src/middleware/errorHandler').handle);
     await build({
       root: frontendRoot,
       configFile: false,

@@ -12,7 +12,7 @@ import { createWarehouseViewportLoader, EMPTY_WAREHOUSE_POINTS } from '../utils/
 import { useViewport } from '../hooks/useViewport';
 import './MapView.css';
 import AuthContext from '../contexts/AuthContext';
-import { canEditWarehouse } from '../utils/warehousePermissions';
+import { canEditWarehouse, canEditWarehouseAvailability } from '../utils/warehousePermissions';
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 const SOURCE = 'dashboard-warehouses';
@@ -54,7 +54,7 @@ function WarehousePopup({ id, warehouse, loading, error, onRetry, onView, onEdit
                 </div>
                 <div className="warehouse-map-card__actions">
                     <button className="warehouse-map-card__view" onClick={() => onView?.(warehouse)}>View</button>
-                    {canEditWarehouse(user, warehouse) && onEdit && <button onClick={() => onEdit(warehouse)}>Edit</button>}
+                    {canEditWarehouseAvailability(user, warehouse) && onEdit && <button onClick={() => onEdit(warehouse)}>{canEditWarehouse(user, warehouse) ? 'Edit' : 'Edit availability'}</button>}
                 </div>
             </>}
         </div>

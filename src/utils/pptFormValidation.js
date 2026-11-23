@@ -10,14 +10,17 @@ export function pptFormErrors(values, original) {
   delete serialized.warehouseData;
   const errors = {};
   for (const key of Object.keys(MEASUREMENTS)) {
+    if (!Object.hasOwn(values, key)) continue;
     try { serialized[key] = serializeMeasurement(values[key], key); }
     catch (error) { errors[key] = error.message; }
   }
-  try { serialized.washroom_count = serializeWashrooms(values.washroom_count); }
-  catch (error) { errors.washroom_count = error.message; }
-  serialized.ventilationType = serializeVentilation(values.ventilationType);
+  if (Object.hasOwn(values, 'washroom_count')) {
+    try { serialized.washroom_count = serializeWashrooms(values.washroom_count); }
+    catch (error) { errors.washroom_count = error.message; }
+  }
+  if (Object.hasOwn(values, 'ventilationType')) serialized.ventilationType = serializeVentilation(values.ventilationType);
   for (const issue of pptFormIssues(original, serialized)) {
-    const key = issue.path.at(-1), variable = String(values.handoverType).toUpperCase() === 'VARIABLE';
+    const key = issue.path.at(-1), variable = String(values.handoverType ?? original?.handoverType).toUpperCase() === 'VARIABLE';
     if (key === 'handoverDate' && variable) errors.handoverType ||= `Switch to Fixed to correct the handover date. ${issue.message}`;
     else if (['handoverLeadValue', 'handoverLeadUnit'].includes(key) && !variable) {
       errors.handoverType ||= `Switch to Variable to correct the lead time. ${issue.message}`;

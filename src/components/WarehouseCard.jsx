@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useViewport } from '../hooks/useViewport';
 import { useAuth } from '../contexts/AuthContext';
-import { canEditWarehouse } from '../utils/warehousePermissions';
+import { canEditWarehouse, canEditWarehouseAvailability } from '../utils/warehousePermissions';
 import RedactedPhone from './RedactedPhone';
 import ImageWithFallback from './ImageWithFallback';
 import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
@@ -79,7 +79,7 @@ const WarehouseCard = ({
     event.stopPropagation();
     switch (action) {
       case 'edit':
-        if (editable) onEdit?.(warehouse);
+        if (canEditWarehouseAvailability(user, warehouse)) onEdit?.(warehouse);
         break;
       case 'delete':
         onDelete?.(warehouse);
@@ -273,14 +273,15 @@ const WarehouseCard = ({
           {isMobile ? '' : 'View'}
         </Button>
         
-        {editable && onEdit && (
+        {canEditWarehouseAvailability(user, warehouse) && onEdit && (
         <Button
           type="text"
           icon={<EditOutlined />}
           onClick={(e) => handleAction('edit', e)}
+          aria-label={editable ? 'Edit' : 'Edit availability'}
           className="warehouse-card__action-btn"
         >
-          {isMobile ? '' : 'Edit'}
+          {isMobile ? '' : editable ? 'Edit' : 'Edit availability'}
         </Button>
         )}
         

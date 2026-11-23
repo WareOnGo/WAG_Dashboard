@@ -25,9 +25,10 @@ vi.mock('../../utils/errorHandler', async importOriginal => ({
 }));
 // Form behavior has its own real-component suite. Here the form is the boundary
 // for testing the dashboard's confirmation, persistence, and refresh behavior.
-vi.mock('../WarehouseForm', () => ({ default: ({ visible, initialData, onSubmit, onCancel }) => visible && (
-  <div role="dialog" aria-label="Warehouse editor">
+vi.mock('../WarehouseForm', () => ({ default: ({ visible, initialData, onSubmit, onCancel, availabilityOnly }) => visible && (
+  <div role="dialog" aria-label="Warehouse editor" data-availability-only={String(!!availabilityOnly)}>
     <span>{initialData ? `Editing ${initialData.id}` : 'New warehouse'}</span>
+    <span data-testid="editor-contact">{initialData?.contactNumber}</span>
     <button onClick={() => onSubmit({ warehouseType: 'PEB', city: 'Bangalore', contactNumber: '9876543210' }).catch(() => {})}>Submit warehouse</button>
     <button onClick={onCancel}>Cancel editor</button>
   </div>
@@ -258,6 +259,52 @@ describe('Dashboard mutations', () => {
 });
 
 describe('Dashboard mutation and session regressions', () => {
+  it('dismisses an unsubmitted confirmation when access changes', async () => {
+    const view = renderWithProviders(<AuthContext.Provider value={auth}><Dashboard /></AuthContext.Provider>);
+    await loaded();
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Edit/ }));
+    fireEvent.click(await screen.findByText('Submit warehouse'));
+    await screen.findByText('Yes, Update');
+    view.rerender(<AuthContext.Provider value={{ ...auth, user: { capabilities: {} } }}><Dashboard /></AuthContext.Provider>);
+    await waitFor(() => expect(screen.queryByText('Yes, Update')).not.toBeInTheDocument());
+    expect(warehouseService.update).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Warehouse editor' })).not.toBeInTheDocument();
+  });
+
+  it('ignores an old contact prefill after closing and reopening the same warehouse', async () => {
+    const old = deferred();
+    warehouseService.getContactNumber.mockReturnValueOnce(old.promise)
+      .mockResolvedValueOnce({ contactNumber: 'new contact' });
+    open();
+    await loaded();
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Edit/ }));
+    fireEvent.click(await screen.findByText('Cancel editor'));
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Edit/ }));
+    await waitFor(() => expect(screen.getByTestId('editor-contact')).toHaveTextContent('new contact'));
+    await act(async () => old.resolve({ contactNumber: 'old contact' }));
+    expect(screen.getByTestId('editor-contact')).toHaveTextContent('new contact');
+  });
+
+  it('does not let a pending save close or replace a later editor after an identity change', async () => {
+    const pending = deferred();
+    warehouseService.update.mockReturnValueOnce(pending.promise);
+    const view = renderWithProviders(<AuthContext.Provider value={auth}><Dashboard /></AuthContext.Provider>);
+    await loaded();
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Edit/ }));
+    fireEvent.click(await screen.findByText('Submit warehouse'));
+    fireEvent.click(await screen.findByText('Yes, Update'));
+    await waitFor(() => expect(warehouseService.update).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('Cancel', { selector: 'button span' }).closest('button')).toBeDisabled();
+    view.rerender(<AuthContext.Provider value={{ ...auth, user: { ...auth.user, email: 'another@wareongo.com' } }}><Dashboard /></AuthContext.Provider>);
+    await loaded();
+    fireEvent.click(within(cardFor(2)).getByRole('button', { name: /Edit/ }));
+    await screen.findByText('Editing 2');
+    await act(async () => pending.resolve({ ...mockWarehouses[0], address: 'Old session edit' }));
+    expect(screen.getByRole('dialog', { name: 'Warehouse editor' })).toHaveTextContent('Editing 2');
+    expect(screen.queryByText('Old session edit')).not.toBeInTheDocument();
+    expect(warehouseService.list).toHaveBeenCalledTimes(2);
+  });
+
   it('refreshes the active filter after an edit removes a matching warehouse', async () => {
     warehouseService.list.mockResolvedValue(page([mockWarehouses[0]]));
     warehouseService.update.mockResolvedValue({ ...mockWarehouses[0], warehouseType: 'PEB' });
@@ -386,11 +433,11 @@ describe('warehouse access controls', () => {
     open({ ...auth, user: viewer });
     await loaded();
     expect(screen.queryByRole('button', { name: /Add Warehouse$/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Edit$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Edit/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Toggle visibility/ })).not.toBeInTheDocument();
     expect(within(cardFor(1)).getByRole('button', { name: /View$/ })).toBeInTheDocument();
   });
-  it('edit-own with view-all allows editing only the matching uploader', async () => {
+  it('edit-own with view-all offers limited editing of other entries without fetching contact details', async () => {
     warehouseService.list.mockResolvedValue(page([
       { ...mockWarehouses[0], uploadedBy: 'EDITOR@wareongo.com' },
       { ...mockWarehouses[1], uploadedBy: 'other@wareongo.com' },
@@ -400,6 +447,14 @@ describe('warehouse access controls', () => {
     expect(within(cardFor(1)).getByRole('button', { name: /Edit$/ })).toBeInTheDocument();
     expect(within(cardFor(2)).queryByRole('button', { name: /Edit$/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Add Warehouse$/ })).toBeInTheDocument();
+    expect(within(cardFor(2)).queryByRole('button', { name: /Toggle visibility/ })).not.toBeInTheDocument();
+    fireEvent.click(within(cardFor(2)).getByRole('button', { name: /Edit availability$/ }));
+    expect(await screen.findByRole('dialog', { name: 'Warehouse editor' })).toHaveAttribute('data-availability-only', 'true');
+    expect(warehouseService.getContactNumber).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editor' }));
+    fireEvent.click(within(cardFor(1)).getByRole('button', { name: /Edit$/ }));
+    expect(await screen.findByRole('dialog', { name: 'Warehouse editor' })).toHaveAttribute('data-availability-only', 'false');
+    expect(warehouseService.getContactNumber).toHaveBeenCalledWith(1, expect.any(String));
   });
   it('clears loaded rows while refetching after view-all is revoked', async () => {
     const session = { ...auth, user: viewer };

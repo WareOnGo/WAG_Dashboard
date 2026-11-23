@@ -1,5 +1,5 @@
 import { pptFormErrors } from '../utils/pptFormValidation';
-import { pptFieldRequired, pptFormSnapshot } from '../utils/pptFormPolicy';
+import { HANDOVER_FIELDS, pptFieldRequired, pptFormSnapshot, sameFormAnswer } from '../utils/pptFormPolicy';
 import { TextInput, TextAreaInput, SelectInput, MultiSelectInput, ComboBox, DateInput, ToggleSwitch, OfferedAreaInput, HandoverInput } from './WarehouseFormControls';
 import { inputBase } from '../utils/warehouseFormStyles';
 import { ZONES, POLLUTION_ZONES, BROKER_OPTIONS, STATUS_OPTIONS, OWNER_TYPES, OWNER_WARMTH_OPTIONS, INDIA_STATE_CITIES, INDIA_STATES, LISTING_TYPES, YES_NO } from '../utils/warehouseFormOptions';
@@ -10,8 +10,9 @@ import { phoneState, phoneError, serializePhone } from '../utils/phone';
 import { WAREHOUSE_TYPES } from '../utils/warehouseOptions';
 import VoiceNotesList from './VoiceNotesList';
 import { useState, useContext, useEffect, useCallback, useRef, useId, Children, isValidElement, cloneElement } from 'react';
-import { Button, Switch, Spin, Tooltip, message, Select } from 'antd';
+import { Button, Switch, Spin, Tooltip, message, Select, ConfigProvider } from 'antd';
 import { availabilityPayload, reviewDateValue, suggestedReviewDate, todayInIndia } from '../utils/availabilityReview';
+import { AVAILABILITY_FIELDS } from '../utils/warehousePermissions';
 import { SaveOutlined, QuestionCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import FileUpload from './FileUpload';
 import ResponsiveModal from './ResponsiveModal';
@@ -276,9 +277,17 @@ const Section = ({ title, children }) => (
   </div>
 );
 
+// Native controls inherit fieldset's disabled state; AntD composite controls
+// use its disabled context. Both remain readable and accessible to assistive tech.
+const ProtectedFields = ({ disabled, label, children }) => (
+  <fieldset className="warehouse-form-protected-fields" disabled={disabled} aria-label={label}>
+    <ConfigProvider componentDisabled={disabled || undefined}>{children}</ConfigProvider>
+  </fieldset>
+);
+
 // ── Main component ────────────────────────────────────────────────────────────
 
-const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loading = false, reviewActions = null }) => {
+const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loading = false, reviewActions = null, availabilityOnly = false }) => {
   const { isMobile } = useViewport();
   const { user } = useContext(AuthContext) || {};
   const [values, setValues] = useState(() => hydrateValues(INITIAL_VALUES));
@@ -301,7 +310,9 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
       setErrors({});
       setInitialSnapshot(initialData);
       availabilitySnapshot.current = initialData;
-      setFormBaseline(pptFormSnapshot(initialData));
+      setFormBaseline(initialData ? { ...pptFormSnapshot(initialData),
+        status: initialData.status ?? null, lockInDate: reviewDateValue(initialData.lockInDate) || null,
+      } : null);
       reviewDateTouched.current = false;
       setContactTouched(false);
       setZoneTouched(false);
@@ -324,6 +335,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   const needsLandType = !isEditing || values.landType !== (formBaseline?.landType ?? '');
 
   const set = (field) => (val) => {
+    if (availabilityOnly && !AVAILABILITY_FIELDS.includes(field)) return;
     if (field === 'availabilityLastReviewedOn') reviewDateTouched.current = true;
     setValues(prev => ({
       ...prev, [field]: val,
@@ -338,6 +350,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   };
 
   const setStateField = (val) => {
+    if (availabilityOnly) return;
     const autoCity = val === 'Delhi' ? 'New Delhi' : val === 'Chandigarh' ? 'Chandigarh' : '';
     setValues(prev => ({
       ...prev,
@@ -350,57 +363,85 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
   const pptRequired = key => pptFieldRequired(formBaseline || initialData, key);
 
+  const buildAvailabilityPayload = () => {
+    const data = {
+      ...(formBaseline && { expectedFormValues: formBaseline }),
+      ...availabilityPayload(values, availabilitySnapshot.current),
+      status: values.status || null,
+      lockInDate: values.lockInDate || null,
+      handoverType: handoverTypeToEnum(values.handoverType),
+      handoverDate: values.handoverDate || null,
+      handoverLeadValue: values.handoverLeadValue === '' || values.handoverLeadValue == null
+        ? null : Number(values.handoverLeadValue),
+      handoverLeadUnit: handoverUnitToEnum(values.handoverLeadUnit),
+    };
+    if (availabilityOnly && formBaseline) {
+      // Preserve untouched legacy answers and inactive timing without resending
+      // them. The server checks intentional edits against the original snapshot.
+      for (const key of ['status', 'lockInDate', ...HANDOVER_FIELDS]) {
+        if (sameFormAnswer(key === 'lockInDate' ? 'handoverDate' : key, data[key], formBaseline[key])) delete data[key];
+      }
+    }
+    return data;
+  };
+
   // ── Validation ──────────────────────────────────────────────────────────────
 
   const validate = (silent = false) => {
     const e = {};
-    if (!values.listing_type) e.listing_type = 'Listing type is required';
-    if (!values.warehouseType?.trim()) e.warehouseType = 'Warehouse type is required';
-    if (!values.address?.trim()) e.address = 'Address is required';
-    if (!values.city?.trim()) e.city = 'City is required';
-    if (!values.state?.trim()) e.state = 'State is required';
-    if (!values.contactPerson?.trim()) e.contactPerson = 'Contact person is required';
-    const contactError = phoneError(values.contactNumber, { required: true, allowLegacy: isEditing });
-    if (contactError) e.contactNumber = contactError;
-    const alternateError = phoneError(values.alt_phone_number, { allowLegacy: isEditing });
-    if (alternateError) e.alt_phone_number = alternateError;
-    for (const key of Object.keys(MEASUREMENTS)) {
-      const error = measurementError(values[key], key);
-      if (error) e[key] = error;
-    }
-    const countError = washroomError(values.washroom_count);
-    if (countError) e.washroom_count = countError;
-    if (needsLandType && !values.landType.trim()) e.landType = 'Land Type is required';
-    if (needsLocation && !values.googleLocation.trim()) e.googleLocation = 'Google Location URL is required';
-    const spaces = (values.totalSpaceSqft || []).filter(v => v != null && v > 0);
-    if (spaces.length === 0) e.totalSpaceSqft = 'At least one space value is required';
-    if (!values.ratePerSqft && values.ratePerSqft !== 0) e.ratePerSqft = 'Rate per sq ft is required';
-    if (!isEditing && !values.uploadedBy?.trim()) e.uploadedBy = 'Sign in before creating a warehouse';
-    if (!values.compliances) e.compliances = 'Compliance info is required';
+    const availabilityData = buildAvailabilityPayload();
+    if (!availabilityOnly) {
+      if (!values.listing_type) e.listing_type = 'Listing type is required';
+      if (!values.warehouseType?.trim()) e.warehouseType = 'Warehouse type is required';
+      if (!values.address?.trim()) e.address = 'Address is required';
+      if (!values.city?.trim()) e.city = 'City is required';
+      if (!values.state?.trim()) e.state = 'State is required';
+      if (!values.contactPerson?.trim()) e.contactPerson = 'Contact person is required';
+      const contactError = phoneError(values.contactNumber, { required: true, allowLegacy: isEditing });
+      if (contactError) e.contactNumber = contactError;
+      const alternateError = phoneError(values.alt_phone_number, { allowLegacy: isEditing });
+      if (alternateError) e.alt_phone_number = alternateError;
+      for (const key of Object.keys(MEASUREMENTS)) {
+        const error = measurementError(values[key], key);
+        if (error) e[key] = error;
+      }
+      const countError = washroomError(values.washroom_count);
+      if (countError) e.washroom_count = countError;
+      if (needsLandType && !values.landType.trim()) e.landType = 'Land Type is required';
+      if (needsLocation && !values.googleLocation.trim()) e.googleLocation = 'Google Location URL is required';
+      const spaces = (values.totalSpaceSqft || []).filter(v => v != null && v > 0);
+      if (spaces.length === 0) e.totalSpaceSqft = 'At least one space value is required';
+      if (!values.ratePerSqft && values.ratePerSqft !== 0) e.ratePerSqft = 'Rate per sq ft is required';
+      if (!isEditing && !values.uploadedBy?.trim()) e.uploadedBy = 'Sign in before creating a warehouse';
+      if (!values.compliances) e.compliances = 'Compliance info is required';
 
-    if (values.chargeableArea !== '' && values.chargeableArea != null) {
-      const n = Number(values.chargeableArea);
-      if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
-        e.chargeableArea = 'Chargeable area must be a non-negative whole number';
+      if (values.chargeableArea !== '' && values.chargeableArea != null) {
+        const n = Number(values.chargeableArea);
+        if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+          e.chargeableArea = 'Chargeable area must be a non-negative whole number';
+        }
       }
     }
 
     // Validate entered inactive values too; the PPT policy below requires the active timing.
-    if (values.handoverLeadValue !== '' && values.handoverLeadValue != null) {
+    if ((!availabilityOnly || Object.hasOwn(availabilityData, 'handoverLeadValue'))
+      && values.handoverLeadValue !== '' && values.handoverLeadValue != null) {
       const n = Number(values.handoverLeadValue);
       if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0 || n > 120) {
         e.handoverLeadValue = 'Lead time must be a whole number between 1 and 120';
       }
     }
 
-    if (values.availabilityLastReviewedOn) {
+    if ((!availabilityOnly || Object.hasOwn(availabilityData, 'availabilityLastReviewedOn')) && values.availabilityLastReviewedOn) {
       if (!values.availability?.trim()) e.availabilityLastReviewedOn = 'Select availability before recording a review date';
       else if (values.availabilityLastReviewedOn > todayInIndia()) e.availabilityLastReviewedOn = 'Review date cannot be in the future';
     }
 
     // Latitude and longitude validation removed to support high precision formats
 
-    for (const [key, error] of Object.entries(pptFormErrors(values, formBaseline || initialData))) e[key] ||= error;
+    for (const [key, error] of Object.entries(pptFormErrors(availabilityOnly ? availabilityData : values, formBaseline || initialData))) {
+      e[key] ||= error;
+    }
 
     if (!silent) setErrors(e);
 
@@ -424,6 +465,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
   // edits before approving/rejecting — otherwise unsaved edits never reach the
   // promoted warehouse or the submitter's WhatsApp notification.
   const buildPayload = () => {
+    const availabilityData = buildAvailabilityPayload();
+    // Do not serialize unrelated controls: older entries can contain missing or
+    // legacy values that this employee has no permission to correct.
+    if (availabilityOnly) return availabilityData;
     const submissionValues = {
       ...serializeMeasurements(values),
       contactNumber: serializePhone(values.contactNumber, isEditing),
@@ -438,7 +483,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     const photosValue = allUrls.length > 0 ? allUrls.join(',') : null;
 
     return {
-        ...(formBaseline && { expectedFormValues: formBaseline }),
+        ...availabilityData,
         warehouseOwnerType: submissionValues.warehouseOwnerType || null,
         warehouseType: submissionValues.warehouseType,
         address: submissionValues.address,
@@ -455,7 +500,6 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         compliances: submissionValues.compliances,
         otherSpecifications: submissionValues.otherSpecifications || null,
         ratePerSqft: submissionValues.ratePerSqft === '' || submissionValues.ratePerSqft == null ? null : String(submissionValues.ratePerSqft),
-        ...availabilityPayload(submissionValues, availabilitySnapshot.current),
         ...(submissionValues.uploadedBy ? { uploadedBy: submissionValues.uploadedBy } : {}),
         visibility: Boolean(submissionValues.visibility),
         isBroker: submissionValues.isBroker || null,
@@ -512,17 +556,6 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
         passengerLiftCount: submissionValues.passengerLiftCount || null,
         serviceLiftCount: submissionValues.serviceLiftCount || null,
         liftLoadCapacity: submissionValues.liftLoadCapacity || null,
-        status: submissionValues.status || null,
-        // Both sides are sent regardless of the selected mode, so switching Fixed <->
-        // Variable hides the other input without wiping its value — same as the RCC
-        // fields above. handoverType alone decides which one is displayed.
-        handoverType: handoverTypeToEnum(submissionValues.handoverType),
-        handoverDate: submissionValues.handoverDate || null,
-        handoverLeadValue: submissionValues.handoverLeadValue === '' || submissionValues.handoverLeadValue == null
-          ? null
-          : Number(submissionValues.handoverLeadValue),
-        handoverLeadUnit: handoverUnitToEnum(submissionValues.handoverLeadUnit),
-        lockInDate: submissionValues.lockInDate || null,
         cam: submissionValues.cam || null,
         chargeableArea: submissionValues.chargeableArea === '' || submissionValues.chargeableArea == null
           ? null
@@ -591,10 +624,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
     <ResponsiveModal
       visible={visible}
       onClose={handleCancel}
-      title={initialData ? 'Edit Warehouse' : 'Create New Warehouse'}
+      title={availabilityOnly ? `Edit Availability — #${initialData?.id}` : initialData ? 'Edit Warehouse' : 'Create New Warehouse'}
       maxWidth="900px"
       className="warehouse-form-modal"
-      bodyStyle={m ? { padding: 0, overflow: 'hidden' } : undefined}
+      bodyStyle={m ? { padding: 0, overflow: 'hidden' } : availabilityOnly ? { paddingBottom: 0 } : undefined}
     >
       <Spin
         spinning={loading || submitting}
@@ -607,7 +640,10 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
 
           <div className="warehouse-form-fields">
 
+          {availabilityOnly && <p>You can edit the Availability section. Other fields are shown below as read-only.</p>}
+
           {/* ── Owner Details ───────────────────────────────────── */}
+          <ProtectedFields disabled={availabilityOnly} label="Owner details">
           <Section title="Owner Details">
             {row(<>
               {col(
@@ -637,7 +673,9 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 </Field>,
                 true)}
               {col(
-                <PhoneField field="contactNumber" label="Contact Number" value={values.contactNumber} onChange={set('contactNumber')} error={errors.contactNumber} required />,
+                availabilityOnly ? <Field label="Contact Number">
+                  <TextInput mobile={m} value={initialData?.contactNumber || 'Not revealed'} readOnly />
+                </Field> : <PhoneField field="contactNumber" label="Contact Number" value={values.contactNumber} onChange={set('contactNumber')} error={errors.contactNumber} required />,
                 true)}
             </>)}
 
@@ -686,6 +724,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                 true)
             )}
           </Section>
+          </ProtectedFields>
 
           {/* ── Availability ────────────────────────────────────── */}
           <Section title="Availability">
@@ -736,6 +775,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
           </Section>
 
           {/* ── Location Details ────────────────────────────────── */}
+          <ProtectedFields disabled={availabilityOnly} label="Other warehouse details">
           <Section title="Location Details">
             <Field label="Address" required error={errors.address} tooltip="Please mention the locality, but not the exact address.">
               <TextAreaInput mobile={m} value={values.address} onChange={set('address')} placeholder="Enter locality" rows={m ? 3 : 2} data-field="address" />
@@ -1175,14 +1215,14 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             )}
 
             <Field label="Upload Files">
-              <FileUpload value={values.media} onChange={set('media')} imageRecords={initialData?.images} />
+              <FileUpload value={values.media} onChange={set('media')} imageRecords={initialData?.images} disabled={availabilityOnly} />
             </Field>
           </Section>
 
           {/* ── Scout Notes ─────────────────────────────────────── */}
           <Section title="Scout Notes">
             <VoiceNotesList key={String(initialData?.id)} recordId={initialData?.id}
-              notes={values.scoutVoiceNotes} onChange={set('scoutVoiceNotes')} disabled={submitting || loading} />
+              notes={values.scoutVoiceNotes} onChange={set('scoutVoiceNotes')} disabled={availabilityOnly || submitting || loading} />
             <Field label="Notes">
               <TextAreaInput
                 mobile={m}
@@ -1198,7 +1238,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
                  warehouses — hidden in create mode and for staged review rows) ── */}
           {typeof initialData?.id === 'number' && (
             <Section title="Visit Notes">
-              <VisitNotes warehouseId={initialData.id} editable />
+              <VisitNotes warehouseId={initialData.id} editable={!availabilityOnly} />
             </Section>
           )}
 
@@ -1227,6 +1267,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
             </div>
             <ToggleSwitch checked={values.wogVerified} onChange={set('wogVerified')} />
           </div>
+          </ProtectedFields>
 
           </div>
 
@@ -1239,11 +1280,12 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               flexDirection: m ? 'column' : 'row',
               justifyContent: 'flex-end',
               gap: 12,
-              position: 'static',
-              bottom: m ? 0 : 'auto',
-              background: m ? 'var(--bg-secondary)' : 'transparent',
-              padding: m ? '12px 16px' : 0,
-              borderTop: m ? '1px solid var(--border-primary)' : 'none',
+              position: availabilityOnly && !m ? 'sticky' : 'static',
+              bottom: m || availabilityOnly ? 0 : 'auto',
+              background: m || availabilityOnly ? 'var(--bg-secondary)' : 'transparent',
+              padding: m ? '12px 16px' : availabilityOnly ? '12px 0' : 0,
+              borderTop: m || availabilityOnly ? '1px solid var(--border-primary)' : 'none',
+              zIndex: availabilityOnly ? 10 : undefined,
             }}
           >
             {reviewActions && (
@@ -1269,7 +1311,7 @@ const WarehouseForm = ({ visible, onCancel, onSubmit, initialData = null, loadin
               disabled={loading}
               style={{ minWidth: 120, minHeight: m ? 44 : 'auto', order: m ? 1 : 2, flex: m ? '1' : 'none' }}
             >
-              {submitting ? (m ? 'Saving...' : 'Saving') : `${initialData ? 'Update' : 'Create'} Warehouse`}
+              {submitting ? (m ? 'Saving...' : 'Saving') : availabilityOnly ? 'Update availability' : `${initialData ? 'Update' : 'Create'} Warehouse`}
             </Button>
           </div>
         </form>

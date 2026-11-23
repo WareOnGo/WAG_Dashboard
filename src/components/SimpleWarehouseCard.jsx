@@ -14,7 +14,7 @@ import ImageWithFallback from './ImageWithFallback';
 import { getMediaFromWarehouse, imageVariant } from '../utils/mediaUtils';
 import { getMicroMarketDisplayNames } from '../utils/microMarketNames';
 import { useAuth } from '../contexts/AuthContext';
-import { canEditWarehouse } from '../utils/warehousePermissions';
+import { canEditWarehouse, canEditWarehouseAvailability } from '../utils/warehousePermissions';
 import { formatAvailabilityReview } from '../utils/availabilityReview';
 import './SimpleWarehouseCard.css';
 
@@ -303,12 +303,12 @@ const SimpleWarehouseCard = ({
                 >
                   <EyeOutlined /> View
                 </button>
-                {editable && onEdit && (
+                {canEditWarehouseAvailability(user, warehouse) && onEdit && (
                 <button
                   className="simple-warehouse-card__action-btn"
                   onClick={(e) => { e.stopPropagation(); onEdit?.(warehouse); }}
                 >
-                  <EditOutlined /> Edit
+                  <EditOutlined /> {editable ? 'Edit' : 'Edit availability'}
                 </button>
                 )}
                 {isAdmin && (

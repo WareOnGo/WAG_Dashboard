@@ -1,5 +1,21 @@
 /* WarehouseForm Mobile Optimization Styles */
 
+.warehouse-form-protected-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.warehouse-form-protected-fields:disabled {
+  opacity: 0.6;
+  filter: grayscale(1);
+}
+
+.warehouse-form-protected-fields:disabled :is(input, textarea, select, button) {
+  cursor: not-allowed;
+}
+
 :is(.warehouse-form-modal, .warehouse-field-controls) .structured-field { margin-bottom: 20px; }
 :is(.warehouse-form-modal, .warehouse-field-controls) .structured-field .form-label {
   display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary);

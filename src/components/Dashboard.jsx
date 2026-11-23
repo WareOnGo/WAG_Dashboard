@@ -41,7 +41,7 @@ import {
 } from '../utils/errorHandler';
 import { imageLabelService } from '../services/imageLabelService';
 import { EDIT_PREFILL_REASON } from '../utils/revealReason';
-import { canViewWarehouses, canCreateWarehouse, canEditWarehouse } from '../utils/warehousePermissions';
+import { canViewWarehouses, canCreateWarehouse, canEditWarehouse, canEditWarehouseAvailability } from '../utils/warehousePermissions';
 import { fieldReviewAccessKey } from '../utils/fieldReviewPermissions';
 import { pasteAsOneLine } from '../utils/pasteLines';
 
@@ -121,8 +121,18 @@ const Dashboard = () => {
 
   // Get modal instance from App context
   const { modal, message } = App.useApp();
+  const editorSession = useRef(0);
+  const saveConfirmation = useRef(null);
+  const invalidateEditor = useCallback(() => {
+    editorSession.current += 1;
+    const pending = saveConfirmation.current;
+    saveConfirmation.current = null;
+    pending?.dialog?.destroy();
+    pending?.reject(new Error('Warehouse editor closed'));
+  }, []);
 
   useEffect(() => {
+    invalidateEditor();
     setWarehouses([]);
     setTotal(0);
     setSearchMeta(null);
@@ -130,7 +140,9 @@ const Dashboard = () => {
     setViewDetailsVisible(false);
     setEditingWarehouse(null);
     setFormVisible(false);
-  }, [accessKey]);
+    setFormLoading(false);
+    return invalidateEditor;
+  }, [accessKey, invalidateEditor]);
 
   // Fetch a page of warehouses with the current filters/page applied server-side.
   const fetchWarehouses = useCallback(async () => {
@@ -275,15 +287,21 @@ const Dashboard = () => {
   }, [modal, refreshWarehouses]);
 
   const handleEdit = useCallback((warehouse) => {
-    if (!canEditWarehouse(user, warehouse)) return;
+    if (!canEditWarehouseAvailability(user, warehouse)) return;
+    invalidateEditor();
+    const session = editorSession.current;
+    setFormLoading(false);
     setEditingWarehouse(warehouse);
     setFormVisible(true);
+
+    if (!canEditWarehouse(user, warehouse)) return;
 
     // Fetch the real contact number in the background so saving the form doesn't wipe
     // it. This isn't a deal lookup and there's no one to prompt, so the audit entry
     // records it as an edit rather than implying a deal.
     warehouseService.getContactNumber(warehouse.id, EDIT_PREFILL_REASON)
       .then(contactInfo => {
+        if (editorSession.current !== session) return;
         setEditingWarehouse(prev =>
           prev && prev.id === warehouse.id
             ? { ...prev, contactNumber: contactInfo.contactNumber }
@@ -291,48 +309,61 @@ const Dashboard = () => {
         );
       })
       .catch(() => {});
-  }, [user]);
+  }, [user, invalidateEditor]);
 
   const handleCreate = () => {
     if (!canCreate) return;
+    invalidateEditor();
+    setFormLoading(false);
     setEditingWarehouse(null);
     setFormVisible(true);
   };
 
   const handleFormCancel = () => {
+    invalidateEditor();
+    setFormLoading(false);
     setFormVisible(false);
     setEditingWarehouse(null);
     clearErrors(); // Clear any existing error messages
   };
 
   const handleFormSubmit = async (formData) => {
-    if (editingWarehouse ? !canEditWarehouse(user, editingWarehouse) : !canCreate) {
+    if (editingWarehouse ? !canEditWarehouseAvailability(user, editingWarehouse) : !canCreate) {
       message.error('Your warehouse edit access has changed.');
-      return;
+      throw new Error('Your warehouse edit access has changed.');
     }
     const operationType = editingWarehouse ? 'update' : 'create';
     const actionText = editingWarehouse ? 'update' : 'create';
+    const availabilityOnly = editingWarehouse && !canEditWarehouse(user, editingWarehouse);
 
     // Show confirmation before saving
     return new Promise((resolve, reject) => {
-      modal.confirm({
+      const session = editorSession.current;
+      const isCurrent = () => editorSession.current === session;
+      const pending = { reject, dialog: null };
+      saveConfirmation.current = pending;
+      pending.dialog = modal.confirm({
         title: `Confirm ${actionText.charAt(0).toUpperCase() + actionText.slice(1)}`,
         icon: <ExclamationCircleOutlined />,
         content: (
           <div>
-            <p>Are you sure you want to {actionText} this warehouse?</p>
+            <p>{availabilityOnly ? `Update availability and handover details for warehouse #${editingWarehouse.id}?` : `Are you sure you want to ${actionText} this warehouse?`}</p>
+            {availabilityOnly ? <p>{editingWarehouse.address}, {editingWarehouse.city}</p> : (
             <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-surface)', borderRadius: '6px' }}>
               <p><strong>Type:</strong> {formData.warehouseType}</p>
               <p><strong>Address:</strong> {formData.address}, {formData.city}</p>
               <p><strong>Zone:</strong> {formData.zone}</p>
               <p><strong>Contact:</strong> {formData.contactPerson} ({formData.contactNumber})</p>
             </div>
+            )}
           </div>
         ),
         okText: `Yes, ${actionText.charAt(0).toUpperCase() + actionText.slice(1)}`,
         cancelText: 'Cancel',
         width: 500,
         onOk: async () => {
+          if (!isCurrent()) return;
+          pending.dialog.update({ cancelButtonProps: { disabled: true }, keyboard: false });
           setFormLoading(true);
 
           try {
@@ -344,13 +375,17 @@ const Dashboard = () => {
             if (editingWarehouse) {
               // Update existing warehouse
               result = await withRetry(
-                () => warehouseService.update(editingWarehouse.id, formData),
+                () => {
+                  if (!isCurrent()) throw new Error('Warehouse editor closed');
+                  return warehouseService.update(editingWarehouse.id, formData);
+                },
                 {
                   operationType,
-                  onError: errorInfo => showErrorMessage(errorInfo, { prefix: 'Failed to update warehouse', showDetails: true }),
+                  onError: errorInfo => { if (isCurrent()) showErrorMessage(errorInfo, { prefix: 'Failed to update warehouse', showDetails: true }); },
                   maxRetries: 1
                 }
               );
+              if (!isCurrent()) return;
 
               // An edit can add or remove images, so the cached labels for this
               // warehouse are no longer trustworthy. Drop them and let the next
@@ -361,7 +396,7 @@ const Dashboard = () => {
               const updatedWarehouse = {
                 ...editingWarehouse,
                 ...result,
-                visibility: result.visibility !== undefined ? Boolean(result.visibility) : Boolean(formData.visibility)
+                visibility: Boolean(result.visibility ?? formData.visibility ?? editingWarehouse.visibility)
               };
 
               setWarehouses(prev =>
@@ -374,18 +409,24 @@ const Dashboard = () => {
               // `warehouseId` is null. Either way the response is a submission receipt
               // (see backend utils/submissionResult.js), not a full warehouse row.
               result = await withRetry(
-                () => warehouseService.create(formData),
+                () => {
+                  if (!isCurrent()) throw new Error('Warehouse editor closed');
+                  return warehouseService.create(formData);
+                },
                 {
                   operationType,
-                  onError: errorInfo => showErrorMessage(errorInfo, { prefix: 'Failed to create warehouse', showDetails: true }),
+                  onError: errorInfo => { if (isCurrent()) showErrorMessage(errorInfo, { prefix: 'Failed to create warehouse', showDetails: true }); },
                   maxRetries: 1
                 }
               );
             }
+            if (!isCurrent()) return;
 
             // Close form and reset state
             setFormVisible(false);
             setEditingWarehouse(null);
+            editorSession.current += 1;
+            setFormLoading(false);
 
             // Show success message
             if (operationType === 'update') {
@@ -444,13 +485,14 @@ const Dashboard = () => {
             resolve(result);
 
           } catch (error) {
-            setFormLoading(false);
             reject(error);
           } finally {
-            setFormLoading(false);
+            if (isCurrent()) setFormLoading(false);
+            if (saveConfirmation.current === pending) saveConfirmation.current = null;
           }
         },
         onCancel: () => {
+          if (saveConfirmation.current === pending) saveConfirmation.current = null;
           reject(new Error('User cancelled'));
         }
       });
@@ -775,13 +817,14 @@ const Dashboard = () => {
       </Card>
 
       {/* Warehouse Form Modal — lazy: only mount (and fetch its chunk) when opened */}
-      {formVisible && (editingWarehouse ? canEditWarehouse(user, editingWarehouse) : canCreate) && (
+      {formVisible && (editingWarehouse ? canEditWarehouseAvailability(user, editingWarehouse) : canCreate) && (
         <Suspense fallback={null}>
           <WarehouseForm
             visible={formVisible}
             onCancel={handleFormCancel}
             onSubmit={handleFormSubmit}
             initialData={editingWarehouse}
+            availabilityOnly={!!editingWarehouse && !canEditWarehouse(user, editingWarehouse)}
             loading={formLoading}
           />
         </Suspense>

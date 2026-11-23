@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { canViewWarehouses, canCreateWarehouse, canEditWarehouse } from './warehousePermissions'
+import { canViewWarehouses, canCreateWarehouse, canEditWarehouse, canEditWarehouseAvailability } from './warehousePermissions'
 const user = { email: 'user@wareongo.com', capabilities: { DASHBOARD: true, WAREHOUSE_VIEW_OWN: true, WAREHOUSE_EDIT_OWN: true } }
 
 it('own edit uses exact case-insensitive email identity', () => {
@@ -25,4 +25,18 @@ it('read-only and missing capabilities hide creation and editing', () => {
 it('admins inherit all warehouse grants', () => {
   expect(canCreateWarehouse({ isAdmin: true })).toBe(true)
   expect(canEditWarehouse({ isAdmin: true }, { uploadedBy: 'anyone' })).toBe(true)
+})
+
+it('edit-own opens Availability on every viewable entry without granting full edits', () => {
+  const editor = { ...user, capabilities: { ...user.capabilities, WAREHOUSE_VIEW_ALL: true } }
+  for (const uploadedBy of ['other@wareongo.com', '', null, 'Legacy name']) {
+    expect(canEditWarehouseAvailability(editor, { uploadedBy })).toBe(true)
+    expect(canEditWarehouse(editor, { uploadedBy })).toBe(false)
+  }
+  for (const key of ['DASHBOARD', 'WAREHOUSE_VIEW_OWN', 'WAREHOUSE_EDIT_OWN', 'WAREHOUSE_VIEW_ALL']) {
+    expect(canEditWarehouseAvailability({ ...editor, capabilities: { ...editor.capabilities, [key]: false } }, { uploadedBy: 'other' })).toBe(false)
+  }
+  expect(canEditWarehouseAvailability(user, { uploadedBy: user.email })).toBe(true)
+  expect(canEditWarehouseAvailability({ isAdmin: true }, { uploadedBy: 'other' })).toBe(true)
+  expect(canEditWarehouseAvailability(null, { uploadedBy: 'other' })).toBe(false)
 })
