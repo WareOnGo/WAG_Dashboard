@@ -149,6 +149,13 @@ for (const width of [320, 390, 1280]) {
       for (const [label, value] of [['Dimensions length', '100'], ['Dimensions width', '60'], ['Dimensions height', '30'],
         ['Dock Dimension width', '8'], ['Dock Dimension height', '10'], ['Floor Strength value', '5'], ['Lighting value', '0'],
         ['Male washrooms', '2'], ['Female washrooms', '0']]) await field(page, label).fill(value);
+      const floorOption = page.getByRole('checkbox', { name: 'To be confirmed', exact: true });
+      await floorOption.check();
+      await expect(data(page, 'floorStrengthPerSqm')).toBeDisabled();
+      await floorOption.uncheck();
+      await expect(data(page, 'floorStrengthPerSqm')).toHaveValue('5');
+      await floorOption.check();
+      expect((await floorOption.locator('..').boundingBox()).height).toBeGreaterThanOrEqual(44);
       await field(page, 'Canopy Type').selectOption('Shutter');
       await field(page, 'Dock Platform Type').selectOption('Angled/Cross');
       await field(page, 'Flooring Type').selectOption('VDF');
@@ -176,7 +183,7 @@ for (const width of [320, 390, 1280]) {
         distance_from_highway: '50.5 metres', approachRoadWidth: '50.5 feet', land_parcel_size: '50.5 hectares',
         builtup_area: '50.5 sq ft', carpet_area: '0 sq ft', clearHeightFt: '50.5 metres', centreHeight: '50.5 feet',
         plinthHeightFt: '0 feet', dockApronLengthFt: '50.5 metres', gateSizeFt: '50.5 feet', powerKva: 'As per requirement',
-        dimensions: '100 x 60 x 30 feet', dockDimension: '8 x 10 feet', floorStrengthPerSqm: '5 tonnes/sq m', lightingDetails: '0 lux',
+        dimensions: '100 x 60 x 30 feet', dockDimension: '8 x 10 feet', floorStrengthPerSqm: 'To be confirmed', lightingDetails: '0 lux',
         washroom_count: 'Male: 2; Female: 0', canopyType: 'Shutter', dockPlatformType: 'Angled/Cross', flooringType: 'VDF',
         ventilationType: 'Ridge, Turbo', ventilationAirChangesPerDay: '4', setbackArea: '5m on all sides', latitude: null, longitude: null,
       };
@@ -191,6 +198,11 @@ for (const width of [320, 390, 1280]) {
       await expect(field(page, 'Clear Height unit')).toHaveValue('metres');
       await expect(field(page, 'Uploaded By')).toHaveValue('dashboard@example.test');
       await expect(powerOption).toBeChecked();
+      await expect(floorOption).toBeChecked();
+      await expect(data(page, 'floorStrengthPerSqm')).toBeDisabled();
+      await floorOption.uncheck();
+      await expect(data(page, 'floorStrengthPerSqm')).toHaveValue('');
+      await data(page, 'floorStrengthPerSqm').fill('6');
       await powerOption.uncheck();
       await data(page, 'powerKva').fill('75');
       await field(page, 'Power unit').selectOption('HP');
@@ -202,7 +214,7 @@ for (const width of [320, 390, 1280]) {
       await expect.poll(async () => (await server.prisma.stagedWarehouse.findUnique({ where: { id: stagedId } })).reviewStatus).toBe('APPROVED');
       const published = await server.prisma.stagedWarehouse.findUnique({ where: { id: stagedId } });
       const stored = await server.prisma.warehouse.findUnique({ where: { id: published.warehouseId }, include: { WarehouseData: true } });
-      expect({ ...stored, ...stored.WarehouseData }).toMatchObject({ ...expected, powerKva: '75 HP', clearHeightFt: '51 metres', latitude: null });
+      expect({ ...stored, ...stored.WarehouseData }).toMatchObject({ ...expected, powerKva: '75 HP', floorStrengthPerSqm: '6 tonnes/sq m', clearHeightFt: '51 metres', latitude: null });
       await page.goto(`${server.url}/?id=${stored.id}`);
       await expect(data(page, 'clearHeightFt')).toHaveValue('51');
       await expect(data(page, 'plinthHeightFt')).toHaveValue('0');
@@ -212,6 +224,9 @@ for (const width of [320, 390, 1280]) {
       await expect(field(page, 'Power unit')).toHaveValue('HP');
       await expect(powerOption).not.toBeChecked();
       await expect(data(page, 'powerKva')).toHaveValue('75');
+      await expect(floorOption).not.toBeChecked();
+      await expect(data(page, 'floorStrengthPerSqm')).toHaveValue('6');
+      await floorOption.check();
       await powerOption.check();
       await field(page, 'Address').fill(`${address} edited`);
       await page.getByRole('button', { name: 'Update Warehouse', exact: true }).click();
@@ -221,6 +236,8 @@ for (const width of [320, 390, 1280]) {
       await page.goto(`${server.url}/?id=${stored.id}`);
       await expect(powerOption).toBeChecked();
       await expect(data(page, 'powerKva')).toBeDisabled();
+      await expect(floorOption).toBeChecked();
+      await expect(data(page, 'floorStrengthPerSqm')).toBeDisabled();
     });
   });
 }

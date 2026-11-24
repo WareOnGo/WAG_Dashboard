@@ -37,6 +37,7 @@ for (const width of [1280, 390]) test.describe(`Availability access at ${width}p
     }
     await expect(form.getByLabel(/^Address/)).toHaveValue(before.address);
     await expect(form.getByRole('button', { name: /Add visit note/i })).toHaveCount(0);
+    await expect(form.getByRole('checkbox', { name: 'To be confirmed', exact: true })).toBeDisabled();
     await form.getByLabel('Availability', { exact: true }).selectOption('No');
     await form.getByLabel('Status', { exact: true }).selectOption('Under construction');
     const save = async (expectedStatus = 200) => {

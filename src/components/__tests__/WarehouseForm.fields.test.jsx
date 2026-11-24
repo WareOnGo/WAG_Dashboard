@@ -114,6 +114,26 @@ describe('structured dashboard fields', () => {
     }));
   });
 
+  it('saves To be confirmed for floor load without validating its disabled numeric draft', async () => {
+    const { onSubmit } = open();
+    change('Floor Strength value', '50x');
+    fireEvent.click(field('To be confirmed'));
+    expect(field('Floor Strength value')).toBeDisabled();
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ floorStrengthPerSqm: 'To be confirmed' }));
+  });
+
+  it('reopens an unconfirmed floor load and requires a number after unticking', async () => {
+    const { onSubmit } = open({ initialData: { ...original, floorStrengthPerSqm: 'To be confirmed' } });
+    expect(field('To be confirmed')).toBeChecked();
+    fireEvent.click(field('To be confirmed'));
+    await submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    change('Floor Strength value', '6');
+    await submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ floorStrengthPerSqm: '6 tonnes/sq m' }));
+  });
+
   it('reopens checked Power and allows replacing it with a numeric value', async () => {
     const { onSubmit } = open({ initialData: { ...original, WarehouseData: { ...original.WarehouseData, powerKva: 'As per requirement' } } });
     expect(field('As per requirement')).toBeChecked();
