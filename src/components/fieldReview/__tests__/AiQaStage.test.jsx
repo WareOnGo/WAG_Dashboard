@@ -109,6 +109,26 @@ it('an admin starts a manual batch and the page advances it through the authenti
     expect(aiQaService.processRun).toHaveBeenCalledWith('new-run', expect.any(AbortSignal))
   );
 });
+
+it('a duplicate WHID rejection keeps the entered IDs and shows the server explanation without starting work', async () => {
+  const explanation = 'WH603 is already in the QA/review pipeline. No new batch was created.';
+  aiQaService.createRun.mockRejectedValue(
+    Object.assign(new Error(explanation), {
+      status: 409,
+      code: 'QA_WAREHOUSE_IN_PIPELINE'
+    })
+  );
+  renderStage();
+  await screen.findByRole('heading', { name: 'Warehouse 1' });
+  fireEvent.click(screen.getByRole('button', { name: 'Run QA' }));
+  const dialog = await screen.findByRole('dialog');
+  fireEvent.change(within(dialog).getByLabelText('Warehouse IDs'), { target: { value: '603, 1065' } });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Run QA' }));
+  expect(await screen.findByText(explanation)).toBeInTheDocument();
+  expect(within(dialog).getByLabelText('Warehouse IDs')).toHaveValue('603, 1065');
+  expect(aiQaService.createRun).toHaveBeenCalledTimes(1);
+  expect(aiQaService.processRun).not.toHaveBeenCalled();
+});
 it('a missing source leaves other cards usable and the missing warehouse readable without assignment', async () => {
   warehouseService.getByIds.mockResolvedValue([{ id: 2, city: 'Present' }]);
   renderStage();
