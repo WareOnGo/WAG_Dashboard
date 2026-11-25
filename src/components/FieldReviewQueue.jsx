@@ -12,6 +12,8 @@ import CardView from './CardView';
 import ListingPagination from './ListingPagination';
 import WarehouseFilterBar, { AppliedWarehouseFilters } from './WarehouseFilterBar';
 import FieldReviewDialog from './fieldReview/FieldReviewDialog';
+import AiQaStage from './fieldReview/AiQaStage';
+import { aiQaService } from '../services/aiQaService';
 import './fieldReview/fieldReview.css';
 const validId = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '') ? value : null;
 const EMPTY_OPTIONS = [];
@@ -19,14 +21,20 @@ export default function FieldReviewQueue() {
   const { user } = useAuth();
   // Identity and access changes discard records and filter suggestions, and
   // cancel requests from the previous scope.
-  return <ReviewQueueContent key={fieldReviewAccessKey(user)} user={user} />;
+  return <ReviewQueueContent key={`${fieldReviewAccessKey(user)}:${!!user?.isAdmin}`} user={user} />;
 }
 function ReviewQueueContent({ user }) {
   const canReview = canManageFieldReviews(user);
   const { isMobile } = useViewport();
   const [params, setParams] = useSearchParams();
-  const [view, setView] = useState(canReview ? 'verify' : 'current'),
-    [page, setPage] = useState(1);
+  const canUseAi = user?.isAdmin === true;
+  const labels = canReview ? [...(canUseAi ? [['ai', 'AI flags']] : []), ['employee', 'Awaiting employee'], ['verify', 'To verify'], ['previous', 'Previously flagged'], ['all', 'All']] : [['current', 'Currently flagged'], ['previous', 'Previously flagged']];
+  const requestedView = params.get('stage');
+  const view = labels.some(([key]) => key === requestedView) ? requestedView : canReview ? 'verify' : 'current';
+  const setView = stage => setParams(old => { const next = new URLSearchParams(old); next.set('stage', stage); next.delete('review'); return next; });
+  const [page, setPage] = useState(1);
+  const [aiCount, setAiCount] = useState(null);
+  const updateAiCount = useCallback(count => setAiCount(count), []);
   const [pageSize, setPageSize] = useState(20);
   const [assignee, setAssignee] = useState('');
   const [filtersVisible, setFiltersVisible] = useState(false);
@@ -46,9 +54,17 @@ function ReviewQueueContent({ user }) {
   const reviewId = validId(params.get('review'));
   const refresh = useCallback(() => setRevision(n => n + 1), []);
   useEffect(() => {
+    if (!canUseAi) return;
+    const controller = new AbortController();
+    aiQaService.summary(controller.signal).then(summary => { if (!controller.signal.aborted) setAiCount(summary.pending_warehouses); })
+      .catch(() => { if (!controller.signal.aborted) setAiCount(null); });
+    return () => controller.abort();
+  }, [canUseAi, revision]);
+  useEffect(() => {
     setPage(1);
   }, [queryParams, view, assignee]);
   useEffect(() => {
+    if (view === 'ai') { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
     setError('');
@@ -98,7 +114,6 @@ function ReviewQueueContent({ user }) {
       return p;
     });
   };
-  const labels = canReview ? [['employee', 'Awaiting employee'], ['verify', 'To verify'], ['previous', 'Previously flagged'], ['all', 'All']] : [['current', 'Currently flagged'], ['previous', 'Previously flagged']];
   const rows = result.data.map(r => ({
     ...r.warehouse,
     id: r.warehouseId,
@@ -129,8 +144,9 @@ function ReviewQueueContent({ user }) {
   <p>{canReview ? 'Verify employee responses and manage field reviews.' : 'Warehouse fields assigned to you for review.'}</p></div><Tag icon={<FlagOutlined />}>{canReview ? 'Reviewer view' : 'Assigned to me'}</Tag></div>
   <Card className="fr-queue-panel dashboard-panel"><div className="fr-segments"><Segmented block={isMobile && !canReview} value={view} options={labels.map(([value, label]) => ({
           value,
-          label: (isMobile && !canReview ? value === 'current' ? 'Current' : 'Previous' : label) + ' (' + (result.counts[value] ?? 0) + ')'
+          label: value === 'ai' ? label + (aiCount === null ? '' : ` (${aiCount})`) : (isMobile && !canReview ? value === 'current' ? 'Current' : 'Previous' : label) + ' (' + (result.counts[value] ?? 0) + ')'
         }))} onChange={setView} /></div>
+   {view === 'ai' && canUseAi ? <AiQaStage onCountChange={updateAiCount} /> : <>
    <div className="fr-queue-toolbar dashboard-toolbar">
     <div className="fr-queue-search dashboard-search-row">
      <Input aria-label="Search field reviews" prefix={<SearchOutlined />} placeholder="Search name, place, ID or phone, or paste IDs" allowClear value={searchText}
@@ -157,7 +173,8 @@ function ReviewQueueContent({ user }) {
     {!error && (!loading && !rows.length ? <Empty description={Object.keys(queryParams).length ? 'No reviews match these filters.' : view === 'previous' ? 'No completed reviews yet.' : 'No warehouses in this review queue.'} /> : <CardView warehouses={rows} loading={loading} paginated={false} getCardProps={cardProps} />)}
     {(total > pageSize || (!isMobile && pageSize !== 20 && total > 0)) && <ListingPagination current={page} pageSize={pageSize} total={total} onChange={changePage} pageSizeOptions={[10, 20, 50, 100]} disabled={loading} />}
    </div>
+   </>}
   </Card>
-  {reviewId && <FieldReviewDialog key={reviewId} reviewId={reviewId} open onClose={closeReview} onReviewIdChange={openReview} />}
+  {view !== 'ai' && reviewId && <FieldReviewDialog key={reviewId} reviewId={reviewId} open onClose={closeReview} onReviewIdChange={openReview} />}
  </div>;
 }

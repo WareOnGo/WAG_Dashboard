@@ -53,9 +53,10 @@ export const warehouseService = {
    * @param {string|number[]} ids - Comma-separated id string or array of ids
    * @returns {Promise<Array>} Matching warehouse objects
    */
-  getByIds: async (ids) => {
+  getByIds: async (ids, { signal } = {}) => {
     const csv = Array.isArray(ids) ? ids.join(',') : String(ids);
     const res = await apiClient.get('/warehouses', {
+      signal,
       params: {
         ids: csv,
         all: 'true',

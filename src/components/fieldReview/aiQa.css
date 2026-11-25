@@ -1,0 +1,163 @@
+.aiq-stage {
+  min-width: 0;
+}
+.aiq-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.aiq-metric {
+  padding: 16px;
+  border: 1px solid var(--border-color, #363d55);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+}
+.aiq-metric span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.aiq-metric strong {
+  display: block;
+  font-size: 25px;
+  margin-top: 7px;
+  color: var(--text-primary);
+}
+.aiq-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.aiq-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin: 16px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.aiq-legend > span:last-child {
+  margin-left: auto;
+}
+.aiq-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.aiq-dot--machine {
+  background: var(--aiq-purple);
+}
+.aiq-dot--admin {
+  background: var(--aiq-yellow);
+}
+.aiq-card-meta {
+  color: var(--text-secondary);
+}
+.aiq-run-select {
+  width: min(100%, 440px);
+  margin-bottom: 12px;
+}
+.aiq-stage .fr-queue-search .ant-select {
+  min-width: 240px;
+}
+.aiq-stage,
+.aiq-modal {
+  --aiq-purple: #bb9af7;
+  --aiq-purple-rgb: 187, 154, 247;
+  --aiq-yellow: #f5cd66;
+  --aiq-yellow-rgb: 245, 205, 102;
+}
+.aiq-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.aiq-source--machine {
+  color: var(--aiq-purple);
+  background: rgba(var(--aiq-purple-rgb), 0.09);
+  border-color: rgba(var(--aiq-purple-rgb), 0.4);
+}
+.aiq-source--admin {
+  color: var(--aiq-yellow);
+  background: rgba(var(--aiq-yellow-rgb), 0.09);
+  border-color: rgba(var(--aiq-yellow-rgb), 0.4);
+}
+/* Supplemental QA evidence stays below the standard checkbox/comment control. */
+.aiq-field-details,
+.aiq-diagnostics {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 12px 0 18px;
+  overflow-wrap: anywhere;
+}
+.aiq-field-details summary,
+.aiq-diagnostics summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.aiq-finding {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color, #363d55);
+}
+.aiq-finding small {
+  color: var(--text-muted);
+}
+.aiq-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color, #363d55);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.aiq-check > div {
+  flex: 1;
+  min-width: 0;
+}
+.aiq-check small {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+.aiq-stage > .ant-alert {
+  margin: 12px 0;
+}
+@media (max-width: 1000px) {
+  .aiq-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .aiq-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .aiq-metric {
+    padding: 12px;
+  }
+  .aiq-stage .fr-queue-search {
+    flex-wrap: wrap;
+  }
+  .aiq-stage .fr-queue-search .ant-select {
+    width: 100%;
+  }
+  .aiq-stage .fr-queue-actions {
+    justify-content: flex-start;
+  }
+  .aiq-legend {
+    gap: 12px;
+  }
+  .aiq-check {
+    gap: 6px;
+  }
+}

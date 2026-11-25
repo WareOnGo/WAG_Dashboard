@@ -102,6 +102,28 @@ beforeEach(() => {
   fieldReviewService.summaries.mockResolvedValue([]);
 });
 
+it('retains unknown units on QA handoff and requires an explicit unit when the employee changes a number', async () => {
+  const power = { key: 'warehouseData.powerKva', label: 'Power', type: 'text', section: 'Technical specifications' };
+  const r = review(false, { field: power, fieldKey: power.key, currentValue: '5', origin: 'AI',
+    qa: { run_id: 'qa-run' }, comment: 'Confirm whether the power is in kVA or HP.' });
+  fieldReviewService.detail.mockResolvedValue(r);
+  fieldReviewService.respond.mockResolvedValue(r);
+  mount(<FieldReviewDialog open reviewId={r.id} onClose={() => {}} />);
+  const row = await screen.findByRole('article', { name: 'Power', exact: true });
+  expect(row.querySelector('.fr-current strong')).toHaveTextContent(/^5$/);
+  const unit = within(row).getByRole('combobox', { name: 'Power unit' });
+  expect(unit).toHaveValue('');
+  fireEvent.change(within(row).getByRole('textbox', { name: 'Power value' }), { target: { value: '10' } });
+  fireEvent.change(within(row).getByLabelText('Verification note *'), { target: { value: 'Owner confirmed the sanctioned load.' } });
+  fireEvent.click(within(row).getByRole('button', { name: 'Submit for verification' }));
+  expect(await within(row).findByText('Power: Select a unit.')).toBeInTheDocument();
+  expect(fieldReviewService.respond).not.toHaveBeenCalled();
+  fireEvent.change(unit, { target: { value: 'HP' } });
+  fireEvent.click(within(row).getByRole('button', { name: 'Submit for verification' }));
+  await waitFor(() => expect(fieldReviewService.respond).toHaveBeenCalledWith(r.id, r.flags[0].id,
+    expect.objectContaining({ proposedValue: '10 HP' })));
+});
+
 it.each(['NEEDS_RESPONSE', 'AWAITING_ADMIN', 'CHANGES_REQUESTED'])('a reviewer cancels only the selected %s row with a required reason', async status => {
   const r = review(true, { status });
   const first = r.flags[0];
@@ -588,27 +610,25 @@ it.each(['admin', 'reviewer'])('%s flags fields in the existing View and keeps t
   mount(<WarehouseDetailsModal visible warehouse={warehouse} onClose={() => {}} />, role === 'admin', {
     email: role + '@wareongo.com', isReviewer: true
   });
-  expect(document.querySelector('.warehouse-details-modal')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', {
+  const view = within(document.querySelector('.warehouse-details-modal'));
+  fireEvent.click(view.getByRole('button', {
     name: 'Flag for review (beta)'
   }));
-  fireEvent.click(await screen.findByRole('checkbox', {
-    name: 'Flag Offered Area (sq ft)'
-  }));
-  const comment = screen.getByRole('textbox', {
-    name: 'Review comment for Offered Area (sq ft)'
-  });
+  fireEvent.click(await view.findByLabelText('Flag Offered Area (sq ft)'));
+  const comment = view.getByLabelText('Review comment for Offered Area (sq ft)');
   fireEvent.change(comment, {
     target: {
       value: 'Confirm the usable area.'
     }
   });
-  fireEvent.click(screen.getByRole('button', {
+  fireEvent.click(view.getByRole('button', {
     name: 'Review flags'
   }));
   const select = await screen.findByLabelText('Assign review to');
   const confirmation = screen.getByRole('dialog', { name: 'Confirm flags for warehouse #4821' });
   expect(within(confirmation).getByRole('columnheader', { name: 'Last edited by' })).toBeInTheDocument();
+  expect(within(confirmation).getByRole('columnheader', { name: 'Source' })).toBeInTheDocument();
+  expect(within(confirmation).getByRole('cell', { name: 'Human', exact: true })).toBeInTheDocument();
   expect(within(confirmation).getByRole('row', { name: /Offered Area/ })).toHaveTextContent('area-editor@wareongo.com');
   expect(select).toHaveValue('2');
   fireEvent.change(select, {
@@ -616,16 +636,17 @@ it.each(['admin', 'reviewer'])('%s flags fields in the existing View and keeps t
       value: '3'
     }
   });
-  fireEvent.click(screen.getByRole('button', {
+  fireEvent.click(within(confirmation).getByRole('button', {
     name: 'Back to fields'
   }));
-  fireEvent.click(screen.getByRole('button', {
+  fireEvent.click(view.getByRole('button', {
     name: 'Review flags'
   }));
-  expect(screen.getByLabelText('Assign review to')).toHaveValue('3');
-  expect(within(screen.getByRole('dialog', { name: 'Confirm flags for warehouse #4821' })).getByText('area-editor@wareongo.com')).toBeInTheDocument();
+  const reopened = within(screen.getByRole('dialog', { name: 'Confirm flags for warehouse #4821' }));
+  expect(reopened.getByLabelText('Assign review to')).toHaveValue('3');
+  expect(reopened.getByText('area-editor@wareongo.com')).toBeInTheDocument();
   expect(fieldReviewService.create).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', {
+  fireEvent.click(reopened.getByRole('button', {
     name: 'Confirm & flag for review'
   }));
   await waitFor(() => expect(fieldReviewService.create).toHaveBeenCalledWith({

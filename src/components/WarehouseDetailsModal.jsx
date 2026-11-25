@@ -79,14 +79,19 @@ const sectionTitle = { color: 'var(--text-primary)', fontSize: 18, fontWeight: 7
 
 const Field = ({ label, children, style, mobile, fieldKey, reviewKey = fieldKey }) => {
   const flags = useContext(FieldReviewHighlightContext);
+  const selection = useContext(FieldReviewSelectionContext);
   const flagged = flags.has(reviewKey);
   const reviewNote = flags.get(reviewKey);
+  const origin = selection?.selected.includes(reviewKey) ? selection.origins?.[reviewKey] : null;
   return <div className={'fr-flag-field' + (flagged ? ' fr-flag-field--active' : '')}
     data-review-field={reviewKey} style={{ marginBottom: 20, ...style }}>
     <div className="fr-field-heading">
       {label && <label style={labelStyle(mobile)}>{label}</label>}
       {flagged && <Tag className="fr-field-marker" color="orange" icon={<FlagOutlined aria-hidden="true" />}
         aria-label={label + ' is flagged for review'}>Flagged for review</Tag>}
+      {origin && <Tag className={`fr-field-marker fr-origin-${origin}`} icon={<FlagOutlined aria-hidden="true" />}>
+        {origin === 'ai' ? 'AI flagged' : 'Human flagged'}
+      </Tag>}
     </div>
     {children}
     {flagged && typeof reviewNote === 'string' && reviewNote.trim() && <div className="fr-field-note" role="note" aria-label={label + ' review note'}>
@@ -167,10 +172,14 @@ const WarehouseDetailsModal = ({
   footerActions = null, // optional extra footer buttons (e.g. review-queue revoke/reopen)
   enableFieldReview = true,
   statusBanner = null,  // optional banner rendered at the top (e.g. review provenance)
+  fieldReviewSelection = null, // controlled selection for reviewing a saved snapshot
+  snapshotOnly = false, // do not fetch live flags, media, contacts, proximity or visit notes
+  supplementalContent = null,
 }) => {
   const { user } = useContext(AuthContext) || {};
-  const creation = useFieldReviewCreation({warehouse, visible, onClose, enabled: enableFieldReview});
-  const reviewHighlights = useFieldReviewHighlights({ warehouse, warehouseId: warehouse?.id, visible, user });
+  const creation = useFieldReviewCreation({warehouse, visible, onClose, enabled: enableFieldReview && !snapshotOnly});
+  const selection = fieldReviewSelection || creation.selection;
+  const reviewHighlights = useFieldReviewHighlights({ warehouse, warehouseId: warehouse?.id, visible: visible && !snapshotOnly, user });
   const flaggedFields = reviewHighlights.fields;
   const { isMobile } = useViewport();
   const m = isMobile;
@@ -202,12 +211,12 @@ const WarehouseDetailsModal = ({
   //   2. labels cached from a previous open
   //   3. a lookup, for callers that did not ask the list for labels (review queue)
   const rowLabels = warehouse?.imageLabels;
-  const cachedLabels = rowLabels ?? (warehouseId ? imageLabelService.getCached(warehouseId) : undefined);
-  const imageLabels = cachedLabels ?? (fetched.id === warehouseId ? fetched.labels : undefined);
+  const cachedLabels = rowLabels ?? (!snapshotOnly && warehouseId ? imageLabelService.getCached(warehouseId) : undefined);
+  const imageLabels = cachedLabels ?? (!snapshotOnly && fetched.id === warehouseId ? fetched.labels : undefined);
 
   useEffect(() => {
     // Already have them: no request at all.
-    if (!visible || !warehouseId || cachedLabels !== undefined) return undefined;
+    if (snapshotOnly || !visible || !warehouseId || cachedLabels !== undefined) return undefined;
 
     let cancelled = false;
     imageLabelService
@@ -218,18 +227,20 @@ const WarehouseDetailsModal = ({
       .catch(() => { if (!cancelled) setFetched({ id: warehouseId, labels: undefined }); });
 
     return () => { cancelled = true; };
-  }, [visible, warehouseId, cachedLabels]);
+  }, [visible, warehouseId, cachedLabels, snapshotOnly]);
 
   if (!warehouse) return null;
 
   const wd = warehouse.WarehouseData || warehouse.warehouseData || {};
   const coordMapsLink = buildCoordMapsLink(wd.latitude, wd.longitude);
   const media = getMediaFromWarehouse(warehouse);
-  const imageRecords = warehouse.images ?? imageLabelService.getCachedImages?.(warehouseId);
+  const imageRecords = warehouse.images ?? (!snapshotOnly ? imageLabelService.getCachedImages?.(warehouseId) : undefined);
   const imageUrls = media.images || [];
   const videoUrls = media.videos || [];
   const docUrls = media.docs || [];
   const hasMedia = imageUrls.length + videoUrls.length + docUrls.length > 0;
+  const measurement = (value, unit) => snapshotOnly ? value : withDefaultUnit(value, unit);
+  const reviewFieldVisible = key => flaggedFields.has(key) || selection?.selected.includes(key) || selection?.keepVisible?.includes(key);
 
   // ── Layout helpers (mirror WarehouseForm) ──────────────────────────────
   const row = (children) => (
@@ -379,7 +390,7 @@ const WarehouseDetailsModal = ({
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <FieldReviewHighlightContext.Provider value={flaggedFields}>
-    <FieldReviewSelectionContext.Provider value={creation.selection}>
+    <FieldReviewSelectionContext.Provider value={selection}>
     <ResponsiveModal
       visible={visible}
       onClose={creation.onClose}
@@ -422,7 +433,7 @@ const WarehouseDetailsModal = ({
             {col(
               <Field fieldKey="contactNumber" label="Contact Number" mobile={m}>
                 <div style={valueBase(m)}>
-                  <RedactedPhone warehouseId={warehouse.id} contactNumber={warehouse.contactNumber} />
+                  {snapshotOnly ? renderRaw(warehouse.contactNumber) : <RedactedPhone warehouseId={warehouse.id} contactNumber={warehouse.contactNumber} />}
                 </div>
               </Field>,
             true)}
@@ -522,7 +533,7 @@ const WarehouseDetailsModal = ({
           </>)}
 
           {row(<>
-            {col(<Field fieldKey="warehouseData.approachRoadWidth" label="Approach Road Width" mobile={m}><TextValue mobile={m} value={withDefaultUnit(wd.approachRoadWidth, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.approachRoadWidth" label="Approach Road Width" mobile={m}><TextValue mobile={m} value={measurement(wd.approachRoadWidth, 'ft')} /></Field>, true)}
             {col(<Field fieldKey="warehouseData.landType" label="Land Type" mobile={m}><TextValue mobile={m} value={wd.landType} /></Field>, true)}
           </>)}
 
@@ -538,13 +549,13 @@ const WarehouseDetailsModal = ({
           )}
 
           {/* Keep flagged RCC/lift fields visible even if their parent values changed. */}
-          {(warehouse.warehouseType === 'RCC' || ['totalFloors', 'liftAccess', 'passengerLiftCount', 'serviceLiftCount', 'liftLoadCapacity'].some(key => flaggedFields.has(key))) && (<>
+          {(warehouse.warehouseType === 'RCC' || ['totalFloors', 'liftAccess', 'passengerLiftCount', 'serviceLiftCount', 'liftLoadCapacity'].some(reviewFieldVisible)) && (<>
             {row(<>
               {col(<Field fieldKey="totalFloors" label="Total Number of Floors" mobile={m}><TextValue mobile={m} value={warehouse.totalFloors} /></Field>, true)}
               {col(<Field fieldKey="liftAccess" label="Lift Access" mobile={m}><TextValue mobile={m} value={warehouse.liftAccess === true ? 'Yes' : warehouse.liftAccess === false ? 'No' : '-'} /></Field>, true)}
             </>)}
 
-            {(warehouse.liftAccess === true || ['passengerLiftCount', 'serviceLiftCount', 'liftLoadCapacity'].some(key => flaggedFields.has(key))) && (<>
+            {(warehouse.liftAccess === true || ['passengerLiftCount', 'serviceLiftCount', 'liftLoadCapacity'].some(reviewFieldVisible)) && (<>
               {row(<>
                 {col(<Field fieldKey="passengerLiftCount" label="Number of Passenger Lifts" mobile={m}><TextValue mobile={m} value={warehouse.passengerLiftCount} /></Field>, true)}
                 {col(<Field fieldKey="serviceLiftCount" label="Number of Service Lifts" mobile={m}><TextValue mobile={m} value={warehouse.serviceLiftCount} /></Field>, true)}
@@ -577,12 +588,12 @@ const WarehouseDetailsModal = ({
           </>)}
 
           {row(<>
-            {col(<Field fieldKey="clearHeightFt" label="Clear Height" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.clearHeightFt, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="clearHeightFt" label="Clear Height" mobile={m}><TextValue mobile={m} value={measurement(warehouse.clearHeightFt, 'ft')} /></Field>, true)}
             {col(<Field fieldKey="centreHeight" label="Centre Height" mobile={m}><TextValue mobile={m} value={warehouse.centreHeight} /></Field>, true)}
           </>)}
 
           {row(<>
-            {col(<Field fieldKey="plinthHeightFt" label="Plinth Height" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.plinthHeightFt, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="plinthHeightFt" label="Plinth Height" mobile={m}><TextValue mobile={m} value={measurement(warehouse.plinthHeightFt, 'ft')} /></Field>, true)}
             {col(<Field fieldKey="numberOfDocks" label="Number of Docks" mobile={m}><TextValue mobile={m} value={warehouse.numberOfDocks} /></Field>, true)}
           </>)}
 
@@ -591,12 +602,12 @@ const WarehouseDetailsModal = ({
           </>)}
 
           {row(<>
-            {col(<Field fieldKey="dockApronLengthFt" label="Dock Apron Length" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.dockApronLengthFt, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="dockApronLengthFt" label="Dock Apron Length" mobile={m}><TextValue mobile={m} value={measurement(warehouse.dockApronLengthFt, 'ft')} /></Field>, true)}
           </>)}
 
           {row(<>
             {col(<Field fieldKey="dockPlatformType" label="Dock Platform Type" mobile={m}><TextValue mobile={m} value={warehouse.dockPlatformType} /></Field>, true)}
-            {col(<Field fieldKey="gateSizeFt" label="Compound Gate Width" mobile={m}><TextValue mobile={m} value={withDefaultUnit(warehouse.gateSizeFt, 'ft')} /></Field>, true)}
+            {col(<Field fieldKey="gateSizeFt" label="Compound Gate Width" mobile={m}><TextValue mobile={m} value={measurement(warehouse.gateSizeFt, 'ft')} /></Field>, true)}
           </>)}
 
           {row(<>
@@ -638,7 +649,7 @@ const WarehouseDetailsModal = ({
           </Field>
 
           {row(<>
-            {col(<Field fieldKey="warehouseData.powerKva" label="Power" mobile={m}><TextValue mobile={m} value={withDefaultUnit(wd.powerKva, 'kVA')} /></Field>, true)}
+            {col(<Field fieldKey="warehouseData.powerKva" label="Power" mobile={m}><TextValue mobile={m} value={measurement(wd.powerKva, 'kVA')} /></Field>, true)}
             {col(<Field fieldKey="waterSupply" label="Water Supply" mobile={m}><TextValue mobile={m} value={waterSupplyToLabel(warehouse.waterSupply) || '-'} /></Field>, true)}
           </>)}
 
@@ -698,7 +709,7 @@ const WarehouseDetailsModal = ({
           )}
         </Section>
 
-        {visible && <WarehouseProximityFields warehouse={warehouse} />}
+        {visible && !snapshotOnly && <WarehouseProximityFields warehouse={warehouse} />}
 
         {/* ── Metadata (incl. media) ──────────────────────────── */}
         <Section title="Metadata">
@@ -851,20 +862,21 @@ const WarehouseDetailsModal = ({
 
         {/* ── Scout Notes ─────────────────────────────────────── */}
         <Section title="Scout Notes">
-          <VoiceNotesList key={String(warehouse.id)} recordId={warehouse.id} notes={warehouse.scoutVoiceNotes} />
+          {!snapshotOnly && <VoiceNotesList key={String(warehouse.id)} recordId={warehouse.id} notes={warehouse.scoutVoiceNotes} />}
           <Field fieldKey="scoutNotes" label="Notes" mobile={m}>
             <TextAreaValue mobile={m} value={warehouse.scoutNotes} />
           </Field>
         </Section>
 
         {/* ── Visit Notes (master warehouses only — staged rows have uuid ids) ── */}
-        {typeof warehouse.id === 'number' && (
+        {!snapshotOnly && typeof warehouse.id === 'number' && (
           <Section title="Visit Notes">
             <VisitNotes warehouseId={warehouse.id} editable={canEditWarehouse(user, warehouse)} />
           </Section>
         )}
 
         {/* ── Actions ─────────────────────────────────────────── */}
+        {supplementalContent}
         {!m && actions}
       </div>
     </ResponsiveModal>

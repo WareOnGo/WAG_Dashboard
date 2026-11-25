@@ -29,8 +29,8 @@ function EditHistory({
   }, [open, reviewId, flag.id, flag.currentVersion, retry]);
   if (!flag.hasEditHistory) return <p className="fr-help">No edit history available.</p>;
   const rows = revealed?.history || items;
-  const historyValue = (value, entry) => entry.partLabel ? formatValue(value, { key: entry.fieldKey })
-    : flag.field.type === 'media' ? <MediaReviewValue value={value} /> : formatValue(value, flag.field);
+  const historyValue = (value, entry) => entry.partLabel ? formatValue(value, { key: entry.fieldKey, preserveRecordedUnits: !!flag.qa })
+    : flag.field.type === 'media' ? <MediaReviewValue value={value} /> : formatValue(value, { ...flag.field, preserveRecordedUnits: !!flag.qa });
   return <details open={open} onToggle={e => setOpen(e.currentTarget.open)}><summary>Edit history</summary>
   {error ? <><p role="alert">{error}</p><Button size="small" onClick={() => setRetry(n => n + 1)}>Retry history</Button></> : !rows ? <p>Loading history…</p> : rows.length ? rows.map(e => <div className="fr-history-entry" key={e.id}>
     {e.partLabel && <small>{e.partLabel} · recorded field</small>}
@@ -58,7 +58,9 @@ export default function ReviewField({
     [revealOpen, setRevealOpen] = useState(false);
   const [revealed, setRevealed] = useState(null),
     [revealing, setRevealing] = useState(false);
-  const field = flag.field;
+  // QA may specifically question a missing unit. Preserve that evidence through
+  // the employee workflow and require a unit choice when editing the number.
+  const field = flag.qa ? { ...flag.field, preserveRecordedUnits: true } : flag.field;
   // A newly fetched snapshot invalidates an older protected-value reveal.
   const activeReveal = revealed?.version === flag.version && revealed?.currentVersion === flag.currentVersion ? revealed : null;
   const values = activeReveal ? {
@@ -158,7 +160,9 @@ export default function ReviewField({
   <div className="fr-field-head"><div><span className="fr-section">{field.section}</span><h3 id={'fr-heading-' + flag.id}>{field.label}</h3></div>
    <Tag color={flag.status === 'VERIFIED' ? 'green' : cancelled ? 'default' : awaiting ? 'purple' : 'orange'}>{STATUS_LABEL[flag.status]}</Tag></div>
   <div className="fr-current">Current warehouse value {showValue(values.currentValue)}</div>
-  <div className="fr-comment"><small>{flag.createdBy || 'Reviewer not recorded'} · {time(flag.createdAt)}</small>{flag.comment}</div>
+  <div className="fr-comment"><small>{flag.createdBy || 'Reviewer not recorded'} · {time(flag.createdAt)}</small>
+    {flag.origin && <Tag className={flag.origin === 'AI' ? 'fr-origin-ai' : 'fr-origin-human'}>{flag.origin === 'AI' ? 'AI' : 'Human'}</Tag>}
+    {flag.comment}</div>
   {flag.valuesMasked && <Button size="small" style={{
       marginTop: 10
     }} onClick={() => setRevealOpen(true)}>{revealed ? 'Reveal latest values' : 'Reveal protected values'}</Button>}

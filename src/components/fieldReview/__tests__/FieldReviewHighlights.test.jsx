@@ -35,6 +35,27 @@ beforeEach(() => {
   fieldReviewService.summaries.mockReset().mockResolvedValue([]);
 });
 
+it('reviews a captured snapshot with prefilled native controls and no live lookups or inferred units', () => {
+  const selection = {
+    fields: [{ key: 'warehouseData.powerKva', label: 'Power', type: 'text' }], activeFields: [],
+    selected: ['warehouseData.powerKva'], comments: { 'warehouseData.powerKva': 'Confirm whether this is kVA or HP.' },
+    origins: { 'warehouseData.powerKva': 'ai' }, toggle: vi.fn(), comment: vi.fn()
+  };
+  render(<AuthContext.Provider value={{ user }}><App>
+    <WarehouseDetailsModal visible snapshotOnly enableFieldReview={false} fieldReviewSelection={selection}
+      warehouse={{ ...warehouse, WarehouseData: { powerKva: '250' } }} onClose={() => {}} />
+  </App></AuthContext.Provider>);
+  expect(screen.getByRole('checkbox', { name: 'Flag Power' })).toBeChecked();
+  expect(screen.getByRole('textbox', { name: 'Review comment for Power' })).toHaveValue('Confirm whether this is kVA or HP.');
+  expect(screen.getByText('250', { exact: true })).toBeInTheDocument();
+  expect(screen.queryByText('250 kVA', { exact: true })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Show Number' })).not.toBeInTheDocument();
+  expect(fieldReviewService.summaries).not.toHaveBeenCalled();
+  expect(fieldReviewService.setup).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Flag Power' }));
+  expect(selection.toggle).toHaveBeenCalledWith('warehouseData.powerKva', false);
+});
+
 it('highlights the exact flagged fields for an unassigned viewer, including linked and otherwise hidden fields', async () => {
   fieldReviewService.summaries.mockResolvedValue(summary(['ratePerSqft', 'contactNumber', 'availabilityReview', 'passengerLiftCount']));
   openView();

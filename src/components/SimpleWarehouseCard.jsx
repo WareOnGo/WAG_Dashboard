@@ -32,6 +32,7 @@ const SimpleWarehouseCard = ({
   statusContent,  // overrides the visibility status chip
   actions,        // overrides the default View/Edit/Delete action row
   metaInfo,       // optional provenance strip rendered above the actions
+  contactContent, // optional override; null omits contacts in redacted/snapshot queues
   fieldReviewSummary,
 }) => {
   const { user } = useAuth();
@@ -219,12 +220,12 @@ const SimpleWarehouseCard = ({
             </ul>
           )}
 
-          <div className="simple-warehouse-card__contact">
+          {contactContent === undefined ? <div className="simple-warehouse-card__contact">
             <UserOutlined className="simple-warehouse-card__icon" />
             <span>{warehouse.contactPerson}</span>
             <PhoneOutlined className="simple-warehouse-card__icon simple-warehouse-card__icon--secondary" />
             <RedactedPhone warehouseId={warehouse.id} contactNumber={warehouse.contactNumber} />
-          </div>
+          </div> : contactContent}
         </div>
 
         <div className="simple-warehouse-card__bottom-content">

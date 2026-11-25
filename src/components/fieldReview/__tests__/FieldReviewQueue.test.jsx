@@ -4,13 +4,51 @@ import { MemoryRouter } from 'react-router-dom';
 import AuthContext from '../../../contexts/AuthContext';
 import FieldReviewQueue from '../../FieldReviewQueue';
 import { fieldReviewService } from '../../../services/fieldReviewService';
+import { aiQaService } from '../../../services/aiQaService';
 
 vi.mock('../../../services/fieldReviewService', () => ({ fieldReviewService: { list: vi.fn() } }));
+vi.mock('../../../services/aiQaService', () => ({ aiQaService: { summary: vi.fn() } }));
+vi.mock('../AiQaStage', () => ({ default: () => <section aria-label="AI flags stage">Local AI review stage</section> }));
 vi.mock('../../CardView', () => ({ default: ({ warehouses }) => <div>{warehouses.map(w => <p key={w.id}>Warehouse #{w.id}</p>)}</div> }));
 vi.mock('../FieldReviewDialog', () => ({ default: () => null }));
 const result = id => ({ data: [{ id: crypto.randomUUID(), warehouseId: id, warehouse: {}, flags: [], activeCount: 1 }], counts: {}, pagination: { total: 1, totalPages: 1 } });
-const tree = user => <MemoryRouter><AuthContext.Provider value={{ user }}><App><FieldReviewQueue /></App></AuthContext.Provider></MemoryRouter>;
-beforeEach(() => fieldReviewService.list.mockReset());
+const tree = (user, entries = ['/field-reviews']) => <MemoryRouter initialEntries={entries}><AuthContext.Provider value={{ user }}><App><FieldReviewQueue /></App></AuthContext.Provider></MemoryRouter>;
+beforeEach(() => { fieldReviewService.list.mockReset(); aiQaService.summary.mockReset().mockResolvedValue({ pending_warehouses: 10 }); });
+
+it('adds AI flags inside the existing stages for admins and keeps its requests out of the manual queue', async () => {
+  fieldReviewService.list.mockResolvedValue(result(4821));
+  render(tree({ email: 'admin@wareongo.com', isAdmin: true }));
+  await screen.findByText('Warehouse #4821');
+  fireEvent.click(await screen.findByText('AI flags (10)'));
+  expect(screen.getByRole('region', { name: 'AI flags stage' })).toBeInTheDocument();
+  expect(screen.queryByText('Warehouse #4821')).not.toBeInTheDocument();
+  expect(fieldReviewService.list.mock.calls.every(([query]) => query.view !== 'ai')).toBe(true);
+  fireEvent.click(screen.getByText(/Awaiting employee/));
+  await screen.findByText('Warehouse #4821');
+  await waitFor(() => expect(fieldReviewService.list).toHaveBeenLastCalledWith(expect.objectContaining({ view: 'employee' }), expect.any(AbortSignal)));
+});
+
+it('opens the AI stage directly and clears it when an admin becomes an ordinary reviewer', async () => {
+  fieldReviewService.list.mockResolvedValue(result(4822));
+  const user = { email: 'admin@wareongo.com', isAdmin: true, isReviewer: true };
+  const { rerender } = render(tree(user, ['/field-reviews?stage=ai']));
+  expect(await screen.findByRole('region', { name: 'AI flags stage' })).toBeInTheDocument();
+  expect(fieldReviewService.list).not.toHaveBeenCalled();
+  const before = aiQaService.summary.mock.calls.length;
+  rerender(tree({ ...user, isAdmin: false }, ['/field-reviews?stage=ai']));
+  await screen.findByText('Warehouse #4822');
+  expect(screen.queryByRole('region', { name: 'AI flags stage' })).not.toBeInTheDocument();
+  expect(screen.queryByText(/AI flags/)).not.toBeInTheDocument();
+  expect(aiQaService.summary.mock.calls.length).toBe(before);
+});
+
+it.each([{ email: 'reviewer@wareongo.com', isReviewer: true }, { email: 'employee@wareongo.com' }])('never fetches or displays the AI stage for $email', async user => {
+  fieldReviewService.list.mockResolvedValue(result(4821));
+  render(tree(user, ['/field-reviews?stage=ai']));
+  await screen.findByText('Warehouse #4821');
+  expect(aiQaService.summary).not.toHaveBeenCalled();
+  expect(screen.queryByText(/AI flags/)).not.toBeInTheDocument();
+});
 
 it('filters the server queue, resets pagination and preserves the selected review tab when filters clear', async () => {
   fieldReviewService.list.mockResolvedValue({ ...result(4821), pagination: { total: 41, totalPages: 3 },

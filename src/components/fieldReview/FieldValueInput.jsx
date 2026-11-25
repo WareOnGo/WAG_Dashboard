@@ -32,7 +32,7 @@ function ValueControl({ field, value, onChange, id, disabled = false, warehouse 
     <p className="fr-help">Add missing files or remove files from the proposed gallery. Changes appear in the warehouse only after verification.</p>
   </div>;
   const structured = MEASUREMENTS[leaf]
-    ? <MeasurementField field={leaf} value={value} onChange={onChange} />
+    ? <MeasurementField field={leaf} value={value} onChange={onChange} inferBareUnit={!field.preserveRecordedUnits} />
     : field.sensitive ? <PhoneField field={leaf} label={'Proposed ' + field.label} value={value} onChange={onChange} required={leaf === 'contactNumber'} />
       : leaf === 'washroom_count' ? <WashroomField value={value} onChange={onChange} />
         : leaf === 'ventilationType' ? <VentilationField value={value} onChange={onChange} /> : null;

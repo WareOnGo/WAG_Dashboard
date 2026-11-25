@@ -15,7 +15,7 @@ function open(overrides = {}) {
     onSubmit={onSubmit} onCancel={vi.fn()} />, { auth: { user: { email: 'editor@example.test' } } });
   return onSubmit;
 }
-const submit = () => act(async () => fireEvent.click(screen.getByRole('button', { name: 'Update Warehouse' })));
+const submit = () => act(async () => fireEvent.click(screen.getByText('Update Warehouse', { exact: true }).closest('button')));
 test.each(controls)('a saved %s cannot be cleared through the dashboard form', async key => {
   const onSubmit = open();
   if (key === 'ventilationType') {

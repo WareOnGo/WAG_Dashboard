@@ -33,7 +33,7 @@ export const formatValue = (value, field = {}) => {
   }
   if (typeof value === 'object') return JSON.stringify(value);
   const measurement = MEASUREMENTS[field.key?.split('.').at(-1)];
-  if (measurement?.bareUnit) return withDefaultUnit(value, measurement.bareUnit);
+  if (measurement?.bareUnit && !field.preserveRecordedUnits) return withDefaultUnit(value, measurement.bareUnit);
   return String(value);
 };
 export const toInput = (value, field, masked = false) => {

@@ -24,10 +24,10 @@ function ExistingValue({ value, field, onReplace }) {
   </div>;
 }
 
-export function MeasurementField({ field, value, onChange, error, required }) {
+export function MeasurementField({ field, value, onChange, error, required, inferBareUnit = true }) {
   const descriptionId = useId();
   const config = MEASUREMENTS[field];
-  const state = measurementState(value, field);
+  const state = measurementState(value, field, { inferBareUnit });
   const textOptionSelected = !!config.textOption && state[config.textOption.flag] === true;
   const labels = config.parts || ['Value'];
   // Allow unfinished decimals while typing; complete-value checks still run on save.
@@ -38,7 +38,7 @@ export function MeasurementField({ field, value, onChange, error, required }) {
   const update = patch => onChange({ ...state, ...patch, edited: true, legacy: false });
   return <FieldGroup label={config.label} required={required} error={displayedError} hint={config.hint} descriptionId={descriptionId}>
     {state.legacy && !textOptionSelected ? <ExistingValue value={state.edited ? `${state.parts.join(' x ')} ${state.unit}`.trim() : state.raw} field={field}
-      onReplace={() => update({ parts: labels.map(() => ''), unit: config.units[0] })} /> : (
+      onReplace={() => update({ parts: labels.map(() => ''), unit: inferBareUnit ? config.units[0] : '' })} /> : (
       <div className={`measurement-inputs${config.parts ? ' measurement-inputs--dimensions' : ''}`} data-parts={config.parts?.length}>
         {labels.map((label, index) => <label key={label} className="structured-part">
           {config.parts && <span>{label}</span>}
@@ -67,7 +67,7 @@ export function MeasurementField({ field, value, onChange, error, required }) {
       <span>{config.textOption.label}</span>
     </label>}
     {state.edited && state.raw && <button type="button" className="structured-restore"
-      onClick={() => onChange(measurementState(state.raw, field))}>Keep original value</button>}
+      onClick={() => onChange(measurementState(state.raw, field, { inferBareUnit }))}>Keep original value</button>}
   </FieldGroup>;
 }
 

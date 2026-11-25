@@ -252,7 +252,8 @@ describe('WarehouseForm current fields and payload', () => {
     expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
-  // Filling every mandatory field renders the real form repeatedly under jsdom and coverage.
+  // Filling every mandatory field renders the real form repeatedly under jsdom +
+  // coverage. Keep a dedicated budget for this complete creation journey.
   it('submits a new warehouse with the default area and derived zone', async () => {
     const { props } = open();
     change('Listing Type', 'Rent');
@@ -274,7 +275,7 @@ describe('WarehouseForm current fields and payload', () => {
     fireEvent.click(screen.getByLabelText('As per requirement'));
     fireEvent.change(screen.getByLabelText('Male washrooms'), { target: { value: '0' } });
     fireEvent.click(screen.getByLabelText('Ventilation Type options'));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'None' }));
+    fireEvent.click(screen.getByLabelText('None', { selector: 'input[type="checkbox"]' }));
     fireEvent.change(screen.getByLabelText('Handover mode'), { target: { value: 'Variable' } });
     fireEvent.change(screen.getByLabelText('Handover lead time'), { target: { value: '2' } });
     fireEvent.change(screen.getByLabelText('Handover unit'), { target: { value: 'Weeks' } });
@@ -286,7 +287,7 @@ describe('WarehouseForm current fields and payload', () => {
       suitableFor: [], googleLocation: 'https://www.google.com/maps?q=12.9,77.6',
       warehouseData: expect.objectContaining({ latitude: null, longitude: null }),
     }));
-  }, 45000);
+  }, 60000);
 
   it('submits edited values and preserves coordinate precision', async () => {
     const { props } = open({ initialData: {

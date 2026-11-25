@@ -38,7 +38,7 @@ const matchesTextOption = (value, key) => {
   return !!option && rawString(value).trim().replace(/\s+/g, ' ').toLowerCase() === option.label.toLowerCase();
 };
 
-export function measurementState(value, key) {
+export function measurementState(value, key, { inferBareUnit = true } = {}) {
   const config = MEASUREMENTS[key];
   const option = config.textOption;
   const count = config.parts?.length || 1;
@@ -51,7 +51,7 @@ export function measurementState(value, key) {
     return config.legacyUnits?.includes(value.unit) ? { ...value, legacy: true } : value;
   }
   const raw = rawString(value);
-  const state = { kind: 'measurement', raw, parts: Array(count).fill(''), unit: config.units[0], edited: false, legacy: false };
+  const state = { kind: 'measurement', raw, parts: Array(count).fill(''), unit: inferBareUnit ? config.units[0] : '', edited: false, legacy: false };
   if (!raw.trim()) return state;
   if (option && matchesTextOption(raw, key)) return { ...state, [option.flag]: true };
   let numberText = raw.trim();
@@ -64,7 +64,7 @@ export function measurementState(value, key) {
   // Only strip valid digit grouping; never turn a decimal comma into a different number.
   const parsed = parts.map(part => /^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(part) ? part.replace(/,/g, '') : part);
   if (parsed.length !== count || parsed.some(part => !numeric.test(part))) return { ...state, legacy: true };
-  return { ...state, parts: parsed, unit: unit || config.bareUnit || '', legacy: Boolean(config.legacyUnits?.includes(unit)) };
+  return { ...state, parts: parsed, unit: unit || (inferBareUnit ? config.bareUnit : '') || '', legacy: Boolean(config.legacyUnits?.includes(unit)) };
 }
 
 export function measurementError(value, key) {

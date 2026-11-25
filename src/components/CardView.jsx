@@ -113,6 +113,7 @@ const CardView = ({
   onToggleVisibility,
   columnsPerRow = null, // null means auto-detect based on screen size
   getCardProps, // optional (warehouse) => extra props spread onto each card (used by the review queue)
+  getRowKey, // optional identity for queues containing multiple snapshots of one warehouse
   paginated = true, // when false, render all rows as-is (caller paginates server-side) and hide the internal pager
 }) => {
   const { isMobile } = useViewport();
@@ -230,7 +231,7 @@ const CardView = ({
         action={<Button size="small" onClick={() => setReviewRevision(n => n + 1)}>Retry review status</Button>} />}
       <Row gutter={[16, 16]}>
         {paginatedData.map((warehouse) => (
-          <Col key={warehouse.id} {...colSpan}>
+          <Col key={getRowKey ? getRowKey(warehouse) : warehouse.id} {...colSpan}>
             <SimpleWarehouseCard
               warehouse={warehouse}
               onEdit={onEdit}
