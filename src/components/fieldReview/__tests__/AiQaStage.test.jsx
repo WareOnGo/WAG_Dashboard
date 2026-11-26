@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { useState } from 'react';
 import { App } from 'antd';
 import AiQaStage from '../AiQaStage';
 import { aiQaService } from '../../../services/aiQaService';
@@ -8,6 +9,7 @@ vi.mock('../../../services/aiQaService', () => ({
     config: vi.fn(),
     runs: vi.fn(),
     list: vi.fn(),
+    reviewers: vi.fn(),
     summary: vi.fn(),
     processRun: vi.fn(),
     createRun: vi.fn()
@@ -38,16 +40,19 @@ vi.mock('../AiQaReviewDialog', () => ({
     </div>
   )
 }));
-const renderStage = () =>
-  render(
-    <App>
-      <AiQaStage onCountChange={vi.fn()} />
-    </App>
-  );
+const onCountChange = vi.fn();
+function StageHarness() {
+  const [reviewerEmail, setReviewerEmail] = useState('');
+  return <App><AiQaStage onCountChange={onCountChange} reviewerEmail={reviewerEmail} onReviewerChange={setReviewerEmail} /></App>;
+}
+const renderStage = () => render(<StageHarness />);
 beforeEach(() => {
-  vi.resetAllMocks();
+  Object.values(aiQaService).forEach(mock => mock.mockReset());
+  warehouseService.getByIds.mockReset();
+  onCountChange.mockReset();
   aiQaService.config.mockResolvedValue({ registry: [], handoff_mode: 'FIELD_REVIEW' });
   aiQaService.runs.mockResolvedValue([{ id: 'inbox', warehouse_count: 2 }]);
+  aiQaService.reviewers.mockResolvedValue([{ email: 'meera@wareongo.com', name: 'Meera Shah' }]);
   aiQaService.list.mockResolvedValue({
     warehouses: [1, 2].map((id) => ({
       warehouse_id: id,
@@ -63,6 +68,33 @@ beforeEach(() => {
   });
   aiQaService.summary.mockResolvedValue({ pending_warehouses: 2 });
   warehouseService.getByIds.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+});
+
+it('filters AI pages and counts by admin, preserves the stage, and clears search and admin together', async () => {
+  const initial = await aiQaService.list();
+  aiQaService.list.mockClear().mockResolvedValue({ ...initial, total: 41 });
+  renderStage();
+  await screen.findByRole('heading', { name: 'Warehouse 1' });
+  fireEvent.click(screen.getByTitle('2'));
+  await waitFor(() => expect(aiQaService.list).toHaveBeenLastCalledWith('inbox', expect.any(AbortSignal), expect.objectContaining({ page: 2 })));
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Filter by admin or reviewer' }));
+  fireEvent.click(await screen.findByText('Meera Shah (meera@wareongo.com)'));
+  await waitFor(() => expect(aiQaService.list).toHaveBeenLastCalledWith('inbox', expect.any(AbortSignal), {
+    page: 1, limit: 20, stage: 'AI_REVIEW', search: '', reviewerEmail: 'meera@wareongo.com'
+  }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search AI flags' }), { target: { value: 'Bhiwandi' } });
+  await waitFor(() => expect(aiQaService.list).toHaveBeenLastCalledWith('inbox', expect.any(AbortSignal), expect.objectContaining({ search: 'Bhiwandi' })));
+  fireEvent.mouseDown(screen.getByRole('combobox', { name: 'AI review status' }));
+  fireEvent.click(await screen.findByText('Dismissed', { selector: '.ant-select-item-option-content' }));
+  await waitFor(() => expect(aiQaService.list).toHaveBeenLastCalledWith('inbox', expect.any(AbortSignal), expect.objectContaining({ stage: 'DISMISSED', reviewerEmail: 'meera@wareongo.com' })));
+  expect(screen.getByText('Dismissed by', { exact: true })).toBeInTheDocument();
+  expect(aiQaService.reviewers).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(aiQaService.summary).toHaveBeenLastCalledWith(expect.any(AbortSignal), { reviewerEmail: 'meera@wareongo.com' }));
+  expect(screen.getByText('2 active filters')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear All Filters' }));
+  await waitFor(() => expect(aiQaService.list).toHaveBeenLastCalledWith('inbox', expect.any(AbortSignal), { page: 1, limit: 20, stage: 'DISMISSED', search: '' }));
+  expect(screen.getByRole('textbox', { name: 'Search AI flags' })).toHaveValue('');
+  expect(screen.queryByLabelText('Applied filters')).not.toBeInTheDocument();
 });
 
 it('reopening the page resumes durable pending work without creating another batch', async () => {

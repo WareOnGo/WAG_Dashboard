@@ -357,6 +357,108 @@ for (const width of [1280, 390]) test.describe('field review at ' + width + 'px'
     await expect(cards).toHaveCount(2);
     await noOverflow(page);
   });
+  test('filters by admin alongside the existing stage chips', async ({ page }) => {
+    const admin = { email: 'admin@wareongo.com' }, reviewer = { email: 'reviewer@wareongo.com' };
+    const template = await server.db.warehouse.findUnique({ where: { id: 4821 } });
+    await server.db.warehouse.create({ data: { ...template, id: 4822 } });
+    let review = await server.service.create({ requestId: randomUUID(), warehouseId: 4821,
+      fields: [{ key: 'ratePerSqft', comment: 'Confirm the current rent.' }] }, admin);
+    await server.service.create({ requestId: randomUUID(), warehouseId: 4822,
+      fields: [{ key: 'ratePerSqft', comment: 'Confirm the second rent.' }] }, reviewer);
+    review = await server.service.respond(review.id, review.flags[0].id, {
+      requestId: randomUUID(), version: review.flags[0].version, baselineVersion: review.flags[0].currentVersion,
+      resolution: 'NO_CHANGE', explanation: 'Owner confirmed the rent.'
+    }, { email: 'employee@wareongo.com' });
+    await server.service.decide(review.id, review.flags[0].id, {
+      requestId: randomUUID(), version: review.flags[0].version, currentVersion: review.flags[0].currentVersion, choice: 'PROPOSED'
+    }, reviewer);
+
+    await page.goto(server.url + '/field-reviews?role=admin&stage=all');
+    const cards = page.locator('.simple-warehouse-card:not(.simple-warehouse-card--skeleton)');
+    await expect(cards).toHaveCount(2);
+    await expect(page.getByRole('combobox', { name: 'Filter by review action' })).toHaveCount(0);
+    await page.getByRole('combobox', { name: 'Filter by admin or reviewer' }).fill('Meera');
+    await page.getByTitle('Meera Shah (admin@wareongo.com)', { exact: true }).click();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('#4821');
+    await noOverflow(page);
+    await page.screenshot({ path: test.info().outputPath('admin-stage-filter-' + width + '.png'), animations: 'disabled' });
+
+    await page.getByText('Previously flagged (0)', { exact: true }).click();
+    await expect(page.getByText('Closed by', { exact: true })).toBeVisible();
+    await expect(page.getByText('No reviews match these filters.', { exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Filter by admin or reviewer' }).fill('reviewer@');
+    await page.getByTitle('Reviewer One (reviewer@wareongo.com)', { exact: true }).click();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('#4821');
+    await page.getByText('Awaiting employee (1)', { exact: true }).click();
+    await expect(page.getByText('Flagged by', { exact: true })).toBeVisible();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('#4822');
+    await page.getByText('Previously flagged (1)', { exact: true }).click();
+    await page.getByRole('textbox', { name: 'Search field reviews', exact: true }).fill('4821');
+    await expect(page.getByText('2 active filters', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Clear All Filters', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Search field reviews', exact: true })).toHaveValue('');
+    await expect(page.getByLabel('Applied filters')).toHaveCount(0);
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('#4821');
+    await page.getByText('All (2)', { exact: true }).click();
+    await expect(cards).toHaveCount(2);
+    await noOverflow(page);
+  });
+  test('keeps the selected admin in AI flags and clears all AI filters without changing status', async ({ page }) => {
+    const admin = { id: 1, email: 'admin@wareongo.com', name: 'Meera Shah' };
+    await server.service.create({ requestId: randomUUID(), warehouseId: 4821,
+      fields: [{ key: 'ratePerSqft', comment: 'Confirm the rent.' }] }, admin);
+    const template = await server.db.warehouse.findUnique({ where: { id: 4821 } });
+    for (const id of [4822, 4823]) await server.db.warehouse.create({ data: { ...template, id } });
+    const run = await server.qa.service.create({ request_id: randomUUID(), warehouse_ids: [4822, 4823], mode: 'BACKFILL', model: 'gpt-6.2-sol' }, admin);
+    for (let n = 0; n < 2; n++) {
+      const item = await server.qa.repository.claim();
+      await server.qa.repository.finish(item, { result: server.qa.result(item.snapshot) });
+    }
+    const pending = await server.qa.service.detail(run.id, 4822, admin);
+    await server.qa.service.mutate(run.id, 4822, 'decision', { request_id: randomUUID(), expected_version: pending.version,
+      field_key: pending.candidates[0].field_key, decision: 'APPROVED', note: 'Check this with the owner.' }, admin);
+    const completed = await server.qa.service.detail(run.id, 4823, admin);
+    await server.qa.service.mutate(run.id, 4823, 'confirm', { request_id: randomUUID(), expected_version: completed.version,
+      review: { machine: completed.candidates.map(candidate => ({ field_key: candidate.field_key,
+        decision: 'REJECTED', reason: 'NOT_ACTIONABLE', note: 'Confirmed with the owner.' })), human: [] } }, admin);
+    let suggestionRequests = 0;
+    page.on('request', request => { if (new URL(request.url()).pathname === '/api/ai-qa/runs/inbox/reviewers') suggestionRequests++; });
+    await page.goto(server.url + '/field-reviews?role=admin&stage=all');
+    await page.getByRole('combobox', { name: 'Filter by admin or reviewer' }).fill('Meera');
+    await page.getByTitle('Meera Shah (admin@wareongo.com)', { exact: true }).click();
+    await page.getByText('AI flags (1)', { exact: true }).click();
+    const cards = page.locator('.simple-warehouse-card:not(.simple-warehouse-card--skeleton)');
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('#4822');
+    await expect(page.getByText('Reviewed by', { exact: true })).toBeVisible();
+    await expect(page.locator('.fr-queue-review-filter .ant-select-selection-item')).toContainText('Meera Shah');
+    await page.getByRole('combobox', { name: 'AI review status' }).press('ArrowDown');
+    await page.getByTitle('Dismissed', { exact: true }).click();
+    await expect(page.getByText('Dismissed by', { exact: true })).toBeVisible();
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('#4823');
+    if (width < 768) {
+      const statusBox = await page.locator('.aiq-stage .fr-queue-search .ant-select-selector').boundingBox();
+      const actionsBox = await page.locator('.aiq-stage .fr-queue-actions').boundingBox();
+      expect(statusBox.y + statusBox.height + 8).toBeLessThanOrEqual(actionsBox.y);
+    }
+    await noOverflow(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: test.info().outputPath('ai-admin-filter-' + width + '.png'), animations: 'disabled' });
+    await page.getByRole('textbox', { name: 'Search AI flags' }).fill('does not exist');
+    await expect(page.getByText('No AI reviews match these filters.', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Clear All Filters', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Search AI flags' })).toHaveValue('');
+    await expect(page.getByLabel('Applied filters')).toHaveCount(0);
+    await expect(page.getByText('Dismissed by', { exact: true })).toBeVisible();
+    await expect(cards).toHaveCount(1);
+    expect(suggestionRequests).toBe(1);
+    await noOverflow(page);
+  });
   for (const managerRole of ['admin', 'reviewer']) test(managerRole + ' can create in current view, respond, verify conflict and no-change, then reopen', async ({
     page
   }) => {

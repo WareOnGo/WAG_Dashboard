@@ -63,6 +63,7 @@
 }
 .aiq-stage .fr-queue-search .ant-select {
   min-width: 240px;
+  height: var(--touch-target-min, 44px);
 }
 .aiq-stage,
 .aiq-modal {
@@ -150,6 +151,7 @@
   }
   .aiq-stage .fr-queue-search .ant-select {
     width: 100%;
+    height: var(--touch-target-recommended, 48px);
   }
   .aiq-stage .fr-queue-actions {
     justify-content: flex-start;

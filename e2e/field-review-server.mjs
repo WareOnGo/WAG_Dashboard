@@ -76,6 +76,13 @@ export async function startFieldReviewServer() {
     if (!file) throw Object.assign(new Error('Fixture file not found'), { statusCode: 404 });
     return { size: file.data.length, contentType: file.type };
   } });
+  const { QaRepository } = backend('./src/warehouseQa/repository');
+  const { QaSource } = backend('./src/warehouseQa/source');
+  const { QaService } = backend('./src/warehouseQa/service');
+  const qaRepository = new QaRepository(db);
+  const qaService = new QaService({ repository: qaRepository,
+    source: new QaSource({ repository: qaRepository, sourceDb: () => db, mode: 'warehouse' }),
+    worker: { drain: async () => {} }, fieldReviews: service, handoffMode: 'field-review' });
   const WarehouseController = backend('./src/controllers/warehouseController');
   const WarehouseService = backend('./src/services/warehouseService');
   const WarehouseModel = backend('./src/models/warehouseModel');
@@ -103,6 +110,7 @@ export async function startFieldReviewServer() {
     created = true;
     await createSchema(db);
     await migrate(db, true);
+    await backend('./scripts/migrateWarehouseQa').migrate(db, true);
     await db.verifiedNumber.createMany({
       data: [{
         id: 1,
@@ -157,7 +165,7 @@ export async function startFieldReviewServer() {
       }]
     });
     const seed = async () => {
-      await db.$executeRawUnsafe('TRUNCATE "WarehouseFieldReviewEvent","WarehouseFieldFlag","WarehouseFieldReview","WarehouseFieldVersion","WarehouseFieldEdit","WarehouseData","Warehouse","warehouse_proximity",audit_logs CASCADE');
+      await db.$executeRawUnsafe('TRUNCATE "WarehouseQaEvent","WarehouseQaItem","WarehouseQaRun","WarehouseQaCache","WarehouseQaCursor","WarehouseFieldReviewEvent","WarehouseFieldFlag","WarehouseFieldReview","WarehouseFieldVersion","WarehouseFieldEdit","WarehouseData","Warehouse","warehouse_proximity",audit_logs CASCADE');
       invalidateCapabilities();
       return db.warehouse.create({
         data: {
@@ -236,6 +244,7 @@ export async function startFieldReviewServer() {
       });
     });
     app.use('/api/field-reviews', createRouter(service));
+    app.use('/api/ai-qa', backend('./src/routes/warehouseQa').createRouter({ getService: () => qaService }));
     app.use('/api/warehouses', (req, _res, next) => { req.audit = () => {}; next(); });
     const warehouseView = [authMiddleware.authenticateJWT, authMiddleware.requireAccess('WAREHOUSE_VIEW_OWN')];
     app.get('/api/warehouses', ...warehouseView, warehouseController.getAllWarehouses);
@@ -301,6 +310,7 @@ export async function startFieldReviewServer() {
       url: 'http://127.0.0.1:' + server.address().port,
       db,
       service,
+      qa: { service: qaService, repository: qaRepository, result: backend('./tests/fixtures/warehouseQa').result },
       seed,
       close
     };

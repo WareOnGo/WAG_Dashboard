@@ -45,13 +45,13 @@ function appliedFilters(filters) {
   return active;
 }
 
-export function AppliedWarehouseFilters({ filters, resultCount, loading = false }) {
-  const active = appliedFilters(filters);
+export function AppliedWarehouseFilters({ filters, resultCount, loading = false, additionalFilters = [], onClear = filters.clearFilters }) {
+  const active = [...appliedFilters(filters), ...additionalFilters];
   if (!active.length) return null;
   return <div className="applied-filters" aria-label="Applied filters">
     <span className="applied-filters__count" role="status">{active.length} active {active.length === 1 ? 'filter' : 'filters'}{!loading && resultCount === 0 ? ' · No matching results' : ''}</span>
     {active.map(({ key, label, clear }) => <button type="button" className="filter-chip" key={key} onClick={clear} aria-label={`Remove ${label}`}><span>{label}</span><span aria-hidden="true">×</span></button>)}
-    <Button type="link" onClick={filters.clearFilters}>Clear All Filters</Button>
+    <Button type="link" onClick={onClear}>Clear All Filters</Button>
   </div>;
 }
 
@@ -74,7 +74,7 @@ function RangeField({ label, unit, value, onChange, max }) {
   </div>;
 }
 
-export default function WarehouseFilterBar({ filters, showDateFilter = false, optionRows }) {
+export default function WarehouseFilterBar({ filters, showDateFilter = false, optionRows, additionalFilterCount = 0, onClear = filters.clearFilters }) {
   const id = useId();
   const { isMobile } = useViewport();
   const suggestions = useWarehouseFilterOptions(filters.selectedState, optionRows);
@@ -93,14 +93,14 @@ export default function WarehouseFilterBar({ filters, showDateFilter = false, op
       : <Input id={`${id}-${key}`} placeholder={placeholder} value={filters[key]} onChange={e => filters[setter](e.target.value)} allowClear />}
   </div>;
   };
-  const activeCount = appliedFilters(filters).length;
+  const activeCount = appliedFilters(filters).length + additionalFilterCount;
   const rangeCount = Number(filters.areaRange[0] !== 0 || filters.areaRange[1] !== null) + Number(filters.budgetRange[0] !== 0 || filters.budgetRange[1] !== null);
   const advancedCount = fields.filter(([key, , , , group]) => group === 'advanced' && filters[key]).length;
   const dateFields = [['submittedDateRange', 'setSubmittedDateRange', 'Submission Date'], ['reviewedDateRange', 'setReviewedDateRange', 'Approval Date']];
   return <section className="warehouse-filters" aria-label="Warehouse filters">
     <div className="warehouse-filters__heading">
       <strong>Refine results</strong>
-      <Button type="text" size="small" icon={<ReloadOutlined />} aria-label="Clear All Filters" onClick={filters.clearFilters} disabled={!activeCount}>Reset</Button>
+      <Button type="text" size="small" icon={<ReloadOutlined />} aria-label="Clear All Filters" onClick={onClear} disabled={!activeCount}>Reset</Button>
     </div>
     <div className="warehouse-filters__grid warehouse-filters__primary">{fields.filter(f => f[4] === 'common').map(renderField)}</div>
     <p className={`warehouse-filters__hint${!suggestions.loading && !suggestions.error ? ' warehouse-filters__hint--quiet' : ''}`} id={`${id}-locations-hint`} role="status">

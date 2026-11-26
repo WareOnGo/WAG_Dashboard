@@ -40,6 +40,7 @@ const root = '/field-reviews';
 const flagPath = (id, flag) => root + '/' + id + '/flags/' + flag;
 export const fieldReviewService = {
   setup: id => unwrap(apiClient.get(root + '/setup/' + id)),
+  reviewers: (params, signal) => unwrap(apiClient.get(root + '/reviewers', { params, signal })),
   list: (params, signal) => unwrap(apiClient.get(root, {
     params,
     signal

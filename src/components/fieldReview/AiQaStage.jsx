@@ -10,9 +10,10 @@ import { useViewport } from '../../hooks/useViewport';
 import { snapshotWarehouse } from './aiQaReviewDraft';
 import { AI_QA_STAGES, aiQaStage } from './aiQaStages';
 import AiQaReviewDialog from './AiQaReviewDialog';
+import ReviewAdminFilter from './ReviewAdminFilter';
 import './aiQa.css';
 
-export default function AiQaStage({ onCountChange }) {
+export default function AiQaStage({ onCountChange, reviewerEmail = '', onReviewerChange, onClearFilters }) {
   const { message } = App.useApp();
   const { isMobile } = useViewport();
   const resultsRef = useRef(null);
@@ -35,6 +36,9 @@ export default function AiQaStage({ onCountChange }) {
   const [page, setPage] = useState(1),
     [searchTerm, setSearchTerm] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [reviewers, setReviewers] = useState([]);
+  const [reviewersLoading, setReviewersLoading] = useState(false);
+  const [reviewersError, setReviewersError] = useState('');
   const mounted = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -44,6 +48,7 @@ export default function AiQaStage({ onCountChange }) {
     return () => clearTimeout(timer);
   }, [search]);
   const refresh = useCallback(() => setRevision((n) => n + 1), []);
+  useEffect(() => { setPage(1); }, [reviewerEmail]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -74,10 +79,22 @@ export default function AiQaStage({ onCountChange }) {
   useEffect(() => {
     if (!runId) return;
     const controller = new AbortController();
+    setReviewers([]);
+    setReviewersLoading(true);
+    setReviewersError('');
+    aiQaService.reviewers(runId, controller.signal)
+      .then(people => { if (!controller.signal.aborted) setReviewers(people); })
+      .catch(e => { if (!controller.signal.aborted) setReviewersError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setReviewersLoading(false); });
+    return () => controller.abort();
+  }, [runId, revision]);
+  useEffect(() => {
+    if (!runId) return;
+    const controller = new AbortController();
     setLoading(true);
     setError('');
     aiQaService
-      .list(runId, controller.signal, { page, limit: pageSize, stage: status, search: searchTerm })
+      .list(runId, controller.signal, { page, limit: pageSize, stage: status, search: searchTerm, ...(reviewerEmail ? { reviewerEmail } : {}) })
       .then(async (result) => {
         if (controller.signal.aborted) return;
         // Use the same bounded warehouse read as the dashboard/PPT picker so
@@ -100,7 +117,7 @@ export default function AiQaStage({ onCountChange }) {
         if (page > Math.max(1, Math.ceil(result.total / pageSize)))
           setPage(Math.max(1, Math.ceil(result.total / pageSize)));
         aiQaService
-          .summary(controller.signal)
+          .summary(controller.signal, reviewerEmail ? { reviewerEmail } : {})
           .then((summary) => {
             if (!controller.signal.aborted) {
               onCountChange(summary.pending_warehouses);
@@ -125,7 +142,7 @@ export default function AiQaStage({ onCountChange }) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [runId, revision, onCountChange, page, pageSize, status, searchTerm]);
+  }, [runId, revision, onCountChange, page, pageSize, status, searchTerm, reviewerEmail]);
   const jobId = job?.id;
   useEffect(() => {
     if (!jobId || jobError) return;
@@ -200,6 +217,17 @@ export default function AiQaStage({ onCountChange }) {
     }
   }
   const run = runs.find((r) => r.id === runId);
+  const adminLabel = ['ASSIGNED', 'ASSIGNED_LOCAL'].includes(status) ? 'Approved by'
+    : status === 'DISMISSED' ? 'Dismissed by' : status === 'all' ? 'Admin / reviewer' : 'Reviewed by';
+  const activeFilterCount = Number(!!search) + Number(!!reviewerEmail) + Number(!!runId && runId !== 'inbox');
+  const clearAllFilters = () => {
+    setSearch('');
+    setSearchTerm('');
+    onReviewerChange('');
+    onClearFilters?.();
+    setRunId('inbox');
+    setPage(1);
+  };
   const rows = data?.warehouses || [];
   const metrics = data?.metrics || {};
   const cardRows = rows.map((row) => ({
@@ -337,6 +365,17 @@ export default function AiQaStage({ onCountChange }) {
           </Button>
         </div>
       </div>
+      <div className="fr-queue-review-filters" role="group" aria-label="Review filters">
+        <ReviewAdminFilter label={adminLabel} value={reviewerEmail} onChange={onReviewerChange} reviewers={reviewers} loading={reviewersLoading} />
+        {!!activeFilterCount && <div className="applied-filters" aria-label="Applied filters">
+          <span role="status">{activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'}</span>
+          <Button type="link" onClick={clearAllFilters}>Clear All Filters</Button>
+        </div>}
+      </div>
+      {reviewersError && <Alert role="alert" type="error" showIcon message={`Admin suggestions unavailable: ${reviewersError}`} action={<Button onClick={refresh}>Retry suggestions</Button>} />}
+      {reviewerEmail && <p className="fr-help">{['ASSIGNED', 'ASSIGNED_LOCAL', 'DISMISSED', 'STALE'].includes(status)
+        ? 'Showing outcomes confirmed by this admin.'
+        : 'Showing reviews with saved review actions by this admin. Automated flags have no admin until someone reviews them.'}</p>}
       {runId && runId !== 'inbox' && (
         <Tag
           closable
@@ -364,7 +403,7 @@ export default function AiQaStage({ onCountChange }) {
       <div className="fr-queue-results dashboard-card-results" ref={resultsRef}>
         {!error &&
           (!loading && !rows.length ? (
-            <Empty description="No PEB warehouses in this AI review stage." />
+            <Empty description={activeFilterCount ? 'No AI reviews match these filters.' : 'No PEB warehouses in this AI review stage.'} />
           ) : (
             <CardView
               warehouses={cardRows}

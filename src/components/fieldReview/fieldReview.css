@@ -41,8 +41,27 @@
 .fr-queue-actions {
   flex-wrap: wrap;
 }
-.fr-queue-assignee {
-  width: 200px;
+.fr-queue-review-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.fr-queue-review-filter {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.fr-queue-review-filter label {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.fr-queue-review-filter .ant-select {
+  width: 100%;
+  height: var(--touch-target-min, 44px);
 }
 .fr-queue-results {
   margin-top: 12px;
@@ -526,9 +545,12 @@ html[data-ui="product"] .warehouse-details-modal .fr-selection--human .ant-check
     justify-content: space-between;
     gap: 8px;
   }
-  .fr-queue-assignee {
-    width: 100%;
-    order: 1;
+  .fr-queue-review-filter {
+    flex-basis: 100%;
+  }
+  .fr-queue-review-filter .ant-select {
+    height: var(--touch-target-recommended, 48px);
+    font-size: 16px;
   }
   .fr-queue-count {
     font-size: 12px;

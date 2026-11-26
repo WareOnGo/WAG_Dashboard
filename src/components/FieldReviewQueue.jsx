@@ -13,6 +13,7 @@ import ListingPagination from './ListingPagination';
 import WarehouseFilterBar, { AppliedWarehouseFilters } from './WarehouseFilterBar';
 import FieldReviewDialog from './fieldReview/FieldReviewDialog';
 import AiQaStage from './fieldReview/AiQaStage';
+import ReviewAdminFilter from './fieldReview/ReviewAdminFilter';
 import { aiQaService } from '../services/aiQaService';
 import './fieldReview/fieldReview.css';
 const validId = value => /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value || '') ? value : null;
@@ -37,6 +38,11 @@ function ReviewQueueContent({ user }) {
   const updateAiCount = useCallback(count => setAiCount(count), []);
   const [pageSize, setPageSize] = useState(20);
   const [assignee, setAssignee] = useState('');
+  const [reviewerEmail, setReviewerEmail] = useState('');
+  const [reviewers, setReviewers] = useState([]);
+  const [reviewersLoading, setReviewersLoading] = useState(false);
+  const [reviewersError, setReviewersError] = useState('');
+  const isAiView = view === 'ai';
   const [filtersVisible, setFiltersVisible] = useState(false);
   const filters = useWarehouseFilters();
   const { queryParams, searchText, setSearchText } = filters;
@@ -56,13 +62,26 @@ function ReviewQueueContent({ user }) {
   useEffect(() => {
     if (!canUseAi) return;
     const controller = new AbortController();
-    aiQaService.summary(controller.signal).then(summary => { if (!controller.signal.aborted) setAiCount(summary.pending_warehouses); })
+    setAiCount(null);
+    aiQaService.summary(controller.signal, reviewerEmail ? { reviewerEmail } : {}).then(summary => { if (!controller.signal.aborted) setAiCount(summary.pending_warehouses); })
       .catch(() => { if (!controller.signal.aborted) setAiCount(null); });
     return () => controller.abort();
-  }, [canUseAi, revision]);
+  }, [canUseAi, revision, reviewerEmail]);
+  useEffect(() => {
+    if (!canReview || isAiView) return;
+    const controller = new AbortController();
+    setReviewers([]);
+    setReviewersLoading(true);
+    setReviewersError('');
+    fieldReviewService.reviewers(assignee ? { assigneeId: assignee } : {}, controller.signal)
+      .then(people => { if (!controller.signal.aborted) setReviewers(people); })
+      .catch(e => { if (!controller.signal.aborted) setReviewersError(e.message); })
+      .finally(() => { if (!controller.signal.aborted) setReviewersLoading(false); });
+    return () => controller.abort();
+  }, [canReview, isAiView, assignee, revision]);
   useEffect(() => {
     setPage(1);
-  }, [queryParams, view, assignee]);
+  }, [queryParams, view, assignee, reviewerEmail]);
   useEffect(() => {
     if (view === 'ai') { setLoading(false); return; }
     const controller = new AbortController();
@@ -76,7 +95,8 @@ function ReviewQueueContent({ user }) {
         ...queryParams,
         ...(assignee ? {
           assigneeId: assignee
-        } : {})
+        } : {}),
+        ...(reviewerEmail ? { reviewerEmail } : {})
       }, controller.signal).then(r => {
         if (!controller.signal.aborted) {
           setResult(r);
@@ -95,7 +115,7 @@ function ReviewQueueContent({ user }) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [view, page, pageSize, queryParams, assignee, revision]);
+  }, [view, page, pageSize, queryParams, assignee, reviewerEmail, revision]);
   useEffect(() => {
     window.addEventListener('warehouse-field-review-updated', refresh);
     return () => window.removeEventListener('warehouse-field-review-updated', refresh);
@@ -132,6 +152,17 @@ function ReviewQueueContent({ user }) {
     };
   };
   const total = result.pagination.total || 0;
+  const hasReviewFilters = !!(assignee || reviewerEmail);
+  const adminLabel = view === 'previous' ? 'Closed by' : view === 'all' ? 'Admin / reviewer' : 'Flagged by';
+  const reviewFilters = [
+    ...(assignee ? [{ key: 'assignee', label: `Assigned to: ${result.assignees?.find(person => person.id === assignee)?.name || assignee}`, clear: () => setAssignee('') }] : []),
+    ...(reviewerEmail ? [{ key: 'reviewer', label: `${adminLabel}: ${reviewerEmail}`, clear: () => setReviewerEmail('') }] : [])
+  ];
+  const clearAllFilters = () => {
+    filters.clearFilters();
+    setAssignee('');
+    setReviewerEmail('');
+  };
   const filterButton = <Button icon={<FilterOutlined />} aria-label="Filters" aria-expanded={filtersVisible}
     aria-controls="field-review-filters" onClick={() => setFiltersVisible(value => !value)}
     type={filtersVisible ? 'primary' : 'default'} size={isMobile ? 'small' : 'middle'}>Filters</Button>;
@@ -144,9 +175,9 @@ function ReviewQueueContent({ user }) {
   <p>{canReview ? 'Verify employee responses and manage field reviews.' : 'Warehouse fields assigned to you for review.'}</p></div><Tag icon={<FlagOutlined />}>{canReview ? 'Reviewer view' : 'Assigned to me'}</Tag></div>
   <Card className="fr-queue-panel dashboard-panel"><div className="fr-segments"><Segmented block={isMobile && !canReview} value={view} options={labels.map(([value, label]) => ({
           value,
-          label: value === 'ai' ? label + (aiCount === null ? '' : ` (${aiCount})`) : (isMobile && !canReview ? value === 'current' ? 'Current' : 'Previous' : label) + ' (' + (result.counts[value] ?? 0) + ')'
+          label: value === 'ai' ? label + (aiCount === null ? '' : ` (${aiCount})`) : (isMobile && !canReview ? value === 'current' ? 'Current' : 'Previous' : label) + (isAiView ? '' : ' (' + (result.counts[value] ?? 0) + ')')
         }))} onChange={setView} /></div>
-   {view === 'ai' && canUseAi ? <AiQaStage onCountChange={updateAiCount} /> : <>
+   {view === 'ai' && canUseAi ? <AiQaStage onCountChange={updateAiCount} reviewerEmail={reviewerEmail} onReviewerChange={setReviewerEmail} onClearFilters={clearAllFilters} /> : <>
    <div className="fr-queue-toolbar dashboard-toolbar">
     <div className="fr-queue-search dashboard-search-row">
      <Input aria-label="Search field reviews" prefix={<SearchOutlined />} placeholder="Search name, place, ID or phone, or paste IDs" allowClear value={searchText}
@@ -156,21 +187,29 @@ function ReviewQueueContent({ user }) {
     </div>
     <div className="fr-queue-actions dashboard-actions-row">
      {isMobile && filterButton}
-     {canReview && <Select className="fr-queue-assignee" aria-label="Filter by assignee" placeholder="All assignees" allowClear
-       value={assignee || undefined} onChange={value => setAssignee(value || '')}
-       options={result.assignees?.map(person => ({ value: person.id, label: person.name }))} />}
      <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading} size={isMobile ? 'small' : 'middle'}>Refresh</Button>
     </div>
    </div>
    {isMobile && <div className="fr-queue-count" role="status">{loading ? 'Loading results…' : `${rows.length} of ${total} results`}</div>}
-   <AppliedWarehouseFilters filters={filters} resultCount={total} loading={loading} />
+   {canReview && <div className="fr-queue-review-filters" role="group" aria-label="Review filters">
+    <div className="fr-queue-review-filter">
+     <label htmlFor="review-assignee">Assigned to</label>
+     <Select id="review-assignee" aria-label="Filter by assignee" placeholder="All assignees" allowClear showSearch optionFilterProp="label"
+       value={assignee || undefined} onChange={value => setAssignee(value || '')}
+       options={result.assignees?.map(person => ({ value: person.id, label: person.name }))} />
+    </div>
+    <ReviewAdminFilter label={adminLabel} value={reviewerEmail} onChange={setReviewerEmail} reviewers={reviewers} loading={reviewersLoading} />
+   </div>}
+   {reviewersError && <Alert role="alert" type="error" showIcon message={`Admin suggestions unavailable: ${reviewersError}`} action={<Button onClick={refresh}>Retry suggestions</Button>} />}
+   <AppliedWarehouseFilters filters={filters} resultCount={total} loading={loading} additionalFilters={reviewFilters} onClear={clearAllFilters} />
    <div id="field-review-filters" hidden={!filtersVisible}>
-    {filtersVisible && <WarehouseFilterBar filters={filters} optionRows={result.filterOptions || EMPTY_OPTIONS} />}
+    {filtersVisible && <WarehouseFilterBar filters={filters} optionRows={result.filterOptions || EMPTY_OPTIONS} additionalFilterCount={reviewFilters.length} onClear={clearAllFilters} />}
    </div>
    {error && <Alert role="alert" type="error" showIcon message={error} action={<Button onClick={refresh}>Retry</Button>} />}
-   <p className="fr-help">{view === 'previous' ? 'Completed reviews retain comments, responses and reviewer decisions.' : 'Pending responses remain here until reviewer verification. Live warehouse values are unchanged until approval.'}</p>
+   <p className="fr-help">{view === 'previous' ? 'Completed reviews retain comments, responses and reviewer decisions.' : 'Pending responses remain here until reviewer verification. Live warehouse values are unchanged until approval.'}
+    {canReview && reviewerEmail ? view === 'previous' ? ' Showing reviews with fields verified or cancelled by this admin/reviewer.' : view === 'all' ? ' Showing any recorded flag, verification, return, reopen, cancellation or reassignment by this admin/reviewer.' : ' Showing active fields raised by this admin/reviewer in this stage.' : ''}</p>
    <div className="fr-queue-results dashboard-card-results" ref={resultsRef}>
-    {!error && (!loading && !rows.length ? <Empty description={Object.keys(queryParams).length ? 'No reviews match these filters.' : view === 'previous' ? 'No completed reviews yet.' : 'No warehouses in this review queue.'} /> : <CardView warehouses={rows} loading={loading} paginated={false} getCardProps={cardProps} />)}
+    {!error && (!loading && !rows.length ? <Empty description={hasReviewFilters || Object.keys(queryParams).length ? 'No reviews match these filters.' : view === 'previous' ? 'No completed reviews yet.' : 'No warehouses in this review queue.'} /> : <CardView warehouses={rows} loading={loading} paginated={false} getCardProps={cardProps} />)}
     {(total > pageSize || (!isMobile && pageSize !== 20 && total > 0)) && <ListingPagination current={page} pageSize={pageSize} total={total} onChange={changePage} pageSizeOptions={[10, 20, 50, 100]} disabled={loading} />}
    </div>
    </>}

@@ -42,7 +42,8 @@ async function write(path, body) {
 
 const runPath = (id) => '/runs/' + encodeURIComponent(id);
 export const aiQaService = {
-  summary: (signal) => request('/summary', { signal }),
+  summary: (signal, params) => request('/summary', { signal, params }),
+  reviewers: (run, signal) => request(runPath(run) + '/reviewers', { signal }),
   config: (signal) => request('/config', { signal }),
   runs: (signal) => request('/runs', { signal }),
   list: (run, signal, params) => request(runPath(run) + '/warehouses', { signal, params }),
